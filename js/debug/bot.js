@@ -5,9 +5,11 @@
   'use strict';
 
   BD.debug = BD.debug || {};
-  const U = BD.core.util;
-  const CMD = (w, c) => BD.sim.commands.issue(w, c);
-  const { cheb, within } = U;
+  const Util = BD.core.util;
+  const Grid = BD.core.grid;
+  /** issue a player command, exactly as the input layer would */
+  const issue = (w, c) => BD.sim.commands.issue(w, c);
+  const { cheb, within } = Util;
 
   const ATTR_PLAN = {
     fighter: { str: 3, vit: 2 }, assassin: { dex: 3, vit: 2 }, magician: { mag: 3, vit: 2 }, valkyrie: { dex: 3, vit: 2 },
@@ -107,7 +109,10 @@
     const w = bot.world, p = w.player;
     for (const it of p.pack.slice()) {
       const b = improves(w, p, it);
-      if (b) { BD.sim.commands.apply(w, { type: 'Equip', uid: it.uid, slot: b.slot }); bot.stats.swaps++; }
+      if (b) {
+        BD.sim.commands.apply(w, { type: 'Equip', uid: it.uid, slot: b.slot });
+        bot.stats.swaps++;
+      }
     }
   }
 
@@ -123,11 +128,11 @@
     const p = w.player, f = w.floor, out = [];
     for (const e of f.entities.values()) {
       if (e.dead || e.faction === 'player' || e.untargetable) continue;
-      if (!f.visible[e.y * f.w + e.x]) continue;
+      if (!f.visible[Grid.idx(f, e.x, e.y)]) continue;
       if (!within(p.x, p.y, e.x, e.y, r)) continue;
       out.push(e);
     }
-    return out.sort((a, b) => U.dist2(a.x, a.y, p.x, p.y) - U.dist2(b.x, b.y, p.x, p.y));
+    return out.sort((a, b) => Util.dist2(a.x, a.y, p.x, p.y) - Util.dist2(b.x, b.y, p.x, p.y));
   }
   /** nearest explored walkable tile next to unexplored space */
   function frontier(w) {
@@ -139,11 +144,17 @@
       if (d[i] < 2 || d[i] >= bd) continue;
       const x = i % f.w, y = (i / f.w) | 0;
       let open = false;
-      for (const [dx, dy] of U.DIRS) {
+      for (const [dx, dy] of Util.DIRS) {
         const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && ny >= 0 && nx < f.w && ny < f.h && !f.explored[ny * f.w + nx]) { open = true; break; }
+        if (nx >= 0 && ny >= 0 && nx < f.w && ny < f.h && !f.explored[Grid.idx(f, nx, ny)]) {
+          open = true;
+          break;
+        }
       }
-      if (open) { bd = d[i]; best = i; }
+      if (open) {
+        bd = d[i];
+        best = i;
+      }
     }
     return best < 0 ? null : { x: best % f.w, y: (best / f.w) | 0 };
   }
@@ -162,7 +173,7 @@
     bot.tries = bot.tries || {};
     if (!p.attack && bot.tries[id] != null && w.time - bot.tries[id] < 1500) return false;
     bot.tries[id] = w.time;
-    CMD(w, { type: 'UseSkill', slot, aim: aim || (t ? { entityId: t.id, x: t.x, y: t.y } : 'auto') });
+    issue(w, { type: 'UseSkill', slot, aim: aim || (t ? { entityId: t.id, x: t.x, y: t.y } : 'auto') });
     bot.skillUse[id] = (bot.skillUse[id] || 0) + 1;
     return true;
   }
@@ -196,7 +207,10 @@
       const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7
         || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
       const canKite = !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000);
-      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && canKite && kiteFrom(bot, t)) { bot.kitedAt = bot.world.time; return true; }
+      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && canKite && kiteFrom(bot, t)) {
+        bot.kitedAt = bot.world.time;
+        return true;
+      }
       if (near.length >= 3 && m >= 30 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (m >= 14 + 10 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
@@ -222,7 +236,10 @@
     for (const [ax, ay] of [[dx, dy], [dx, 0], [0, dy], [dx || 1, -dy || 1], [-dy || 1, dx || 1]]) {
       if (!ax && !ay) continue;
       const x = p.x + ax * 3, y = p.y + ay * 3;
-      if (BD.sim.entities.isFree(f, x, y) && !dangerAt(w, x, y)) { CMD(w, { type: 'Evade', dirX: ax, dirY: ay }); return true; }
+      if (BD.sim.entities.isFree(f, x, y) && !dangerAt(w, x, y)) {
+        issue(w, { type: 'Evade', dirX: ax, dirY: ay });
+        return true;
+      }
     }
     return false;
   }
@@ -233,7 +250,11 @@
     near = near.filter((e) => !(bot.unreach.get(e.id) > w.time));
     if (!near.length) return progress(bot);
     // spawners (egg clutches, bone piles) first: they turn one fight into an endless one
-    const spawner = near.find((e) => { const d = BD.sim.monsters.defOf(e); return d && d.role === 'spawner'; });
+    const isSpawner = (e) => {
+      const d = BD.sim.monsters.defOf(e);
+      return d && d.role === 'spawner';
+    };
+    const spawner = near.find(isSpawner);
     const t = spawner || near[0];
     // give up on a target whose life hasn't dropped in 8 s (across lava, kiting out of reach…)
     const isBoss = t.rank === 'boss' || t.rank === 'malgoth';   // never write off a boss (phases, wings, burrows)
@@ -241,13 +262,21 @@
     if (arena) {
       // in an arena: drop an add we can't hurt for 8 s (blinking casters) and get back to the boss
       if (isBoss || !bot.prog1 || bot.prog1.id !== t.id || t.hp < bot.prog1.hp) bot.prog1 = { id: t.id, hp: t.hp, at: w.time };
-      else if (w.time - bot.prog1.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog1 = null; return progress(bot); }
+      else if (w.time - bot.prog1.at > 8000) {
+        bot.unreach.set(t.id, w.time + 30000);
+        bot.prog1 = null;
+        return progress(bot);
+      }
     } else {
       // per-target progress: alternating between two unreachable targets must not reset the clock
       bot.prog = bot.prog instanceof Map ? bot.prog : new Map();
       const pr = bot.prog.get(t.id);
       if (isBoss || !pr || t.hp < pr.hp) bot.prog.set(t.id, { hp: t.hp, at: pr && !isBoss && t.hp >= pr.hp ? pr.at : w.time });
-      else if (w.time - pr.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog.delete(t.id); return progress(bot); }
+      else if (w.time - pr.at > 8000) {
+        bot.unreach.set(t.id, w.time + 30000);
+        bot.prog.delete(t.id);
+        return progress(bot);
+      }
     }
     // give up on targets we can't reach after 4 s without progress
     const key = t.id + ':' + p.x + ',' + p.y;
@@ -257,51 +286,105 @@
       bot.fightKey = null;
       return progress(bot);
     }
-    if (bot.fightKey !== key) { bot.fightKey = key; bot.fightSince = w.time; }
+    if (bot.fightKey !== key) {
+      bot.fightKey = key;
+      bot.fightSince = w.time;
+    }
     if (p.attack && p.attack.phase === 'windup') return;
-    if (!ROTATION[p.cls](bot, t, near)) CMD(w, { type: 'Engage', entityId: t.id, hold: true });
+    if (!ROTATION[p.cls](bot, t, near)) issue(w, { type: 'Engage', entityId: t.id, hold: true });
   }
 
   // ---------------- one decision ----------------
+  // Each step returns true when it has issued this tick's action; decide() stops at the first that does.
   function decide(bot) {
     const w = bot.world, p = w.player, f = w.floor;
     if (p.dead) return deathChoice(bot);
     if (p.unspent.attr || p.unspent.skill) spendPoints(bot);
     const s = BD.sim.stats.statsOf(w, p);
-    if (p.hp < s.maxLife * 0.5 && p.flask.charges > 0 && !(p.cooldowns.flask > 0)) CMD(w, { type: 'DrinkFlask' });
-    // out of flasks and hurting, away from a boss: portal home, rest, come back (what a player would do)
+    if (drinkOrPortalHome(bot, s)) return;
+    if (breakOff(bot, s)) return;
+    if (dodgeTelegraph(bot)) return;
+    if (f.key === 'town') {
+      bot.goHome = false;
+      return townRoutine(bot);
+    }
+    // enemies we've given up on (unreachable) don't count: loot, chests and exploring carry on
+    const near = visibleEnemies(w, 9).filter((e) => !(bot.unreach && bot.unreach.get(e.id) > w.time));
+    if (near.length) {
+      fight(bot, near);
+      return;
+    }
+    if (pickUpLoot(bot)) return;
+    if (p.pack.length) manageGear(bot);
+    if (p.pack.length >= 26) sellJunkOrDrop(bot);
+    if (openChest(bot)) return;
+    return progress(bot);
+  }
+
+  /** drink when hurt; out of flasks away from a boss: portal home, rest, come back (what a player would do) */
+  function drinkOrPortalHome(bot, s) {
+    const w = bot.world, p = w.player, f = w.floor;
+    if (p.hp < s.maxLife * 0.5 && p.flask.charges > 0 && !(p.cooldowns.flask > 0)) issue(w, { type: 'DrinkFlask' });
     const inDungeon = !f.arena && f.n !== 13 && f.key !== 'town';
     const outOfFlasks = p.flask.charges === 0 && p.hp < s.maxLife * 0.35;
     if (inDungeon && outOfFlasks && (p.pouch.portal || 0) > 0 && !(bot.portalAt > w.time - 20000)) {
       bot.portalAt = w.time;
-      if (BD.sim.commands.apply(w, { type: 'ReadScroll', kind: 'portal' })) { bot.goHome = true; return; }
+      if (BD.sim.commands.apply(w, { type: 'ReadScroll', kind: 'portal' })) {
+        bot.goHome = true;
+        return true;
+      }
     }
     if (bot.goHome && f.key !== 'town') {
       const pt = f.objects.find((o) => o.kind === 'portal');
-      if (pt) { CMD(w, { type: 'Interact', x: pt.x, y: pt.y }); return; }
+      if (pt) {
+        issue(w, { type: 'Interact', x: pt.x, y: pt.y });
+        return true;
+      }
       bot.goHome = false;
     }
-    // low and nothing to drink: break off — evade away from the nearest enemy
+    return false;
+  }
+
+  /** low and nothing to drink: break off — evade away from the nearest enemy */
+  function breakOff(bot, s) {
+    const w = bot.world, p = w.player;
     if (p.hp < s.maxLife * 0.3 && (p.flask.charges === 0 || p.cooldowns.flask > 0) && !(p.cooldowns.evade > 0)) {
       const foe = visibleEnemies(w, 3)[0];
-      if (foe && !(foe.rank === 'boss' || foe.rank === 'malgoth') && kiteFrom(bot, foe)) return;
+      if (foe && !(foe.rank === 'boss' || foe.rank === 'malgoth') && kiteFrom(bot, foe)) return true;
     }
-    // telegraphs: step or Evade out of marked tiles
+    return false;
+  }
+
+  /** telegraphs: step or Evade out of marked tiles */
+  function dodgeTelegraph(bot) {
+    const w = bot.world, p = w.player;
     const z = dangerAt(w, p.x, p.y);
-    if (z) {
-      const away = escapeTile(w, z);
-      if (away && !(p.cooldowns.evade > 0) && z.armMs < 400) {
-        CMD(w, { type: 'Evade', dirX: Math.sign(away.x - p.x), dirY: Math.sign(away.y - p.y) });
-      } else if (away) CMD(w, { type: 'Move', x: away.x, y: away.y });
-      return;
+    if (!z) return false;
+    const away = escapeTile(w, z);
+    if (away && !(p.cooldowns.evade > 0) && z.armMs < 400) {
+      issue(w, { type: 'Evade', dirX: Math.sign(away.x - p.x), dirY: Math.sign(away.y - p.y) });
+    } else if (away) issue(w, { type: 'Move', x: away.x, y: away.y });
+    return true;
+  }
+
+  /** the first entry of list passing ok that is strictly nearest to p (ties keep the earlier one) */
+  function nearestWhere(list, ok, p) {
+    let best = null, bd = 1e9;
+    for (const it of list) {
+      if (!ok(it)) continue;
+      const d = Util.dist2(it.x, it.y, p.x, p.y);
+      if (d < bd) {
+        bd = d;
+        best = it;
+      }
     }
-    if (f.key === 'town') { bot.goHome = false; return townRoutine(bot); }
-    // enemies we've given up on (unreachable) don't count: loot, chests and exploring carry on
-    const near = visibleEnemies(w, 9).filter((e) => !(bot.unreach && bot.unreach.get(e.id) > w.time));
-    if (near.length) { fight(bot, near); return; }
-    // loot
+    return best;
+  }
+
+  /** the nearest wanted item, committed to until picked up (8 s, then ignored) so the bot never oscillates */
+  function pickUpLoot(bot) {
+    const w = bot.world, p = w.player, f = w.floor;
     bot.ignore = bot.ignore || new Set();
-    // the nearest wanted item, committed to until picked up (8 s, then ignored) so the bot never oscillates
     const quest = (it) => it.kind === 'seal' || it.kind === 'key';   // always wanted, at any distance, never written off
     const wanted = (it) => {
       if (quest(it)) return true;
@@ -314,36 +397,50 @@
     // quest items first
     let g = f.items.find(quest) || (bot.lootUid != null ? f.items.find((it) => it.uid === bot.lootUid && wanted(it)) : null);
     if (!g) {
-      let bd = 1e9;
-      for (const it of f.items) if (wanted(it)) { const d = U.dist2(it.x, it.y, p.x, p.y); if (d < bd) { bd = d; g = it; } }
-      if (g) { bot.lootUid = g.uid; bot.lootSince = w.time; }
-    } else if (!quest(g) && w.time - bot.lootSince > 8000) { bot.ignore.add(g.uid); bot.lootUid = null; g = null; }
-    if (g && (g.kind !== 'item' || p.pack.length < 29)) {
-      if (g.kind === 'item') CMD(w, { type: 'Pickup', itemUid: g.uid });
-      else CMD(w, { type: 'Move', x: g.x, y: g.y });
-      return;
+      g = nearestWhere(f.items, wanted, p);
+      if (g) {
+        bot.lootUid = g.uid;
+        bot.lootSince = w.time;
+      }
+    } else if (!quest(g) && w.time - bot.lootSince > 8000) {
+      bot.ignore.add(g.uid);
+      bot.lootUid = null;
+      g = null;
     }
-    if (p.pack.length) manageGear(bot);
-    if (p.pack.length >= 26) sellJunkOrDrop(bot);
-    // chests
-    // chests: commit to the nearest until opened (8 s, then skip it) so two chests can't tug-of-war
+    if (g && (g.kind !== 'item' || p.pack.length < 29)) {
+      if (g.kind === 'item') issue(w, { type: 'Pickup', itemUid: g.uid });
+      else issue(w, { type: 'Move', x: g.x, y: g.y });
+      return true;
+    }
+    return false;
+  }
+
+  /** chests: commit to the nearest until opened (8 s, then skip it) so two chests can't tug-of-war */
+  function openChest(bot) {
+    const w = bot.world, p = w.player, f = w.floor;
     const openable = (o) => (o.kind === 'chest' || o.kind === 'pile') && !o.used && !bot.ignore.has('o' + o.x + ',' + o.y)
-      && f.explored[o.y * f.w + o.x] && within(o.x, o.y, p.x, p.y, 10);
+      && f.explored[Grid.idx(f, o.x, o.y)] && within(o.x, o.y, p.x, p.y, 10);
     let ch = bot.chestAt ? f.objects.find((o) => o.x === bot.chestAt.x && o.y === bot.chestAt.y && openable(o)) : null;
     if (!ch) {
-      let bd = 1e9;
-      for (const o of f.objects) if (openable(o)) { const d = U.dist2(o.x, o.y, p.x, p.y); if (d < bd) { bd = d; ch = o; } }
+      ch = nearestWhere(f.objects, openable, p);
       if (ch) bot.chestAt = { x: ch.x, y: ch.y, since: w.time };
-    } else if (w.time - bot.chestAt.since > 8000) { bot.ignore.add('o' + ch.x + ',' + ch.y); bot.chestAt = null; ch = null; }
-    if (ch) { CMD(w, { type: 'Interact', x: ch.x, y: ch.y }); return; }
-    return progress(bot);
+    } else if (w.time - bot.chestAt.since > 8000) {
+      bot.ignore.add('o' + ch.x + ',' + ch.y);
+      bot.chestAt = null;
+      ch = null;
+    }
+    if (ch) {
+      issue(w, { type: 'Interact', x: ch.x, y: ch.y });
+      return true;
+    }
+    return false;
   }
 
   function escapeTile(w, z) {
-    const f = w.floor, p = w.player, bad = new Set(z.tiles.map(([x, y]) => y * f.w + x));
-    for (const r of [1, 2, 3]) for (const [dx, dy] of U.DIRS) {
+    const f = w.floor, p = w.player, bad = new Set(z.tiles.map(([x, y]) => Grid.idx(f, x, y)));
+    for (const r of [1, 2, 3]) for (const [dx, dy] of Util.DIRS) {
       const x = p.x + dx * r, y = p.y + dy * r;
-      if (BD.sim.entities.isFree(f, x, y) && !bad.has(y * f.w + x) && !dangerAt(w, x, y)) return { x, y };
+      if (BD.sim.entities.isFree(f, x, y) && !bad.has(Grid.idx(f, x, y)) && !dangerAt(w, x, y)) return { x, y };
     }
     return null;
   }
@@ -353,15 +450,18 @@
     // arena: wait for the countdown, then walk at the boss; after the kill take the portal
     if (f.arena) {
       const exit = f.objects.find((o) => o.kind === 'exit_portal');
-      if (exit) { CMD(w, { type: 'Interact', x: exit.x, y: exit.y }); return; }
+      if (exit) {
+        issue(w, { type: 'Interact', x: exit.x, y: exit.y });
+        return;
+      }
       const boss = Array.from(f.entities.values()).find((e) => e.rank === 'boss');
-      if (boss) CMD(w, { type: 'Move', x: boss.x, y: boss.y });
+      if (boss) issue(w, { type: 'Move', x: boss.x, y: boss.y });
       return;
     }
     if (f.n === 13) {
       const ents = Array.from(f.entities.values());
       const boss = ents.find((e) => e.rank === 'malgoth' && !e.dead) || ents.find((e) => e.kind === 'monster' && !e.dead);
-      if (boss) CMD(w, { type: 'Engage', entityId: boss.id, hold: true });
+      if (boss) issue(w, { type: 'Engage', entityId: boss.id, hold: true });
       return;
     }
     const explored = f.reachableCount ? f.seenCount / f.reachableCount : 1;
@@ -369,16 +469,29 @@
     const goalReady = fl.actEnd ? !!r.flags['key' + f.n] : f.sealBroken;
     const tooLong = f.timeOnFloor > (bot.opts.floorMs || 8 * 60000);
     if (goalReady && (explored > (bot.opts.explore || 0.9) || tooLong)) {
-      if (fl.actEnd) { const g = f.gatePos; CMD(w, { type: 'Interact', x: g.at.x, y: g.at.y }); return; }
-      CMD(w, { type: 'Interact', x: f.downPos.x, y: f.downPos.y });
+      if (fl.actEnd) {
+        const g = f.gatePos;
+        issue(w, { type: 'Interact', x: g.at.x, y: g.at.y });
+        return;
+      }
+      issue(w, { type: 'Interact', x: f.downPos.x, y: f.downPos.y });
       return;
     }
     // go for the Keeper once pinged / seen, otherwise explore
     const k = f.keeperId != null ? f.entities.get(f.keeperId) : null;
-    if (k && (f.keeperRevealed || f.keeperPing || explored > 0.7 || tooLong)) { CMD(w, { type: 'Move', x: k.x, y: k.y }); return; }
+    if (k && (f.keeperRevealed || f.keeperPing || explored > 0.7 || tooLong)) {
+      issue(w, { type: 'Move', x: k.x, y: k.y });
+      return;
+    }
     const fr = frontier(w);
-    if (fr) { CMD(w, { type: 'Move', x: fr.x, y: fr.y }); return; }
-    if (k) { CMD(w, { type: 'Move', x: k.x, y: k.y }); return; }
+    if (fr) {
+      issue(w, { type: 'Move', x: fr.x, y: fr.y });
+      return;
+    }
+    if (k) {
+      issue(w, { type: 'Move', x: k.x, y: k.y });
+      return;
+    }
   }
 
   function sellJunkOrDrop(bot) {
@@ -425,9 +538,18 @@
     // leave: next act's waypoint, or the church stairs, or the open portal
     const next = nextDestination(w);
     bot.townDone = false;
-    if (typeof next === 'number' && bot.opts.maxFloor && next > bot.opts.maxFloor) { bot.done = true; return; }
-    if (next === 'portal') { BD.sim.portal.useStone(w); return; }
-    if (next === 1 && !r.waypoints.includes(1)) { CMD(w, { type: 'Interact', x: w.floor.downPos.x, y: w.floor.downPos.y }); return; }
+    if (typeof next === 'number' && bot.opts.maxFloor && next > bot.opts.maxFloor) {
+      bot.done = true;
+      return;
+    }
+    if (next === 'portal') {
+      BD.sim.portal.useStone(w);
+      return;
+    }
+    if (next === 1 && !r.waypoints.includes(1)) {
+      issue(w, { type: 'Interact', x: w.floor.downPos.x, y: w.floor.downPos.y });
+      return;
+    }
     BD.sim.commands.apply(w, { type: 'TravelWaypoint', floor: next });
   }
   function nextDestination(w) {
@@ -442,16 +564,27 @@
 
   function deathChoice(bot) {
     const w = bot.world;
-    if (w.run.harvested) { bot.done = true; return; }
+    if (w.run.harvested) {
+      bot.done = true;
+      return;
+    }
     bot.stats.deaths++;
     bot.deathCauses.push({ floor: w.floor.key, cause: w.run.deathCause, level: w.player.level });
     if (bot.opts.bargain !== false && BD.sim.death.bargainChance(w) > 0) {
       const ok = BD.sim.commands.apply(w, { type: 'Bargain' });
       if (!ok) bot.done = true;
-    } else { BD.sim.commands.apply(w, { type: 'Harvest' }); bot.done = true; }
+    } else {
+      BD.sim.commands.apply(w, { type: 'Harvest' });
+      bot.done = true;
+    }
   }
 
   // ---------------- stepping & bookkeeping ----------------
+  /** damage-taken bucket: the source's monster def (":zone" for its ground effects), or 'other' */
+  function damageSourceKey(src, ev) {
+    if (!src) return 'other';
+    return src.def + (ev.tags && ev.tags.includes('zone') ? ':zone' : '');
+  }
   function observe(bot) {
     const w = bot.world, p = w.player;
     for (const ev of w.events) {
@@ -464,10 +597,13 @@
         }
       } else if (ev.type === 'damage' && ev.tgtId === p.id) {
         const src = BD.sim.entities.get(w, ev.srcId);
-        const key = src ? src.def + (ev.tags && ev.tags.includes('zone') ? ':zone' : '') : 'other';
+        const key = damageSourceKey(src, ev);
         bot.stats.dmgTakenBySrc[key] = (bot.stats.dmgTakenBySrc[key] || 0) + ev.total;
       } else if (ev.type === 'damage' && ev.srcId === p.id && !bot.fightStart.has(ev.tgtId)) bot.fightStart.set(ev.tgtId, w.time);
-      else if (ev.type === 'loot.drop' && ev.rarity) { bot.stats.items[ev.rarity]++; bot.stats.drops++; }
+      else if (ev.type === 'loot.drop' && ev.rarity) {
+        bot.stats.items[ev.rarity]++;
+        bot.stats.drops++;
+      }
       else if (ev.type === 'gold') bot.stats.goldEarned += ev.amount;
       else if (ev.type === 'boss.defeat') bot.stats.bossTimes[ev.def] = (w.time - (bot.bossStart || w.time)) / 1000;
       else if (ev.type === 'boss.wake') bot.bossStart = w.time;
@@ -477,7 +613,8 @@
       if (bot.lastFloor != null && typeof bot.lastFloor === 'number') {
         bot.floorTimes[bot.lastFloor] = (bot.floorTimes[bot.lastFloor] || 0) + (w.time - bot.floorStart) / 1000;
       }
-      bot.floorStart = w.time; bot.lastFloor = key;
+      bot.floorStart = w.time;
+      bot.lastFloor = key;
       if (typeof key === 'number' && bot.stats.levelAtFloor[key] == null) bot.stats.levelAtFloor[key] = w.player.level;
     }
   }
@@ -496,13 +633,18 @@
       if (opts && opts.until && opts.until(w)) break;
       // stuck detection
       const pos = w.floor.key + ':' + w.player.x + ',' + w.player.y;
-      if (pos === bot.lastPos) bot.stuckMs += STEP; else { bot.stuckMs = 0; bot.lastPos = pos; }
+      if (pos === bot.lastPos) {
+        bot.stuckMs += STEP;
+      } else {
+        bot.stuckMs = 0;
+        bot.lastPos = pos;
+      }
       if (bot.stuckMs > 20000) {
         bot.stuckMs = 0;
         const f = w.floor;
         const nx = w.player.x + w.rng.int(-6, 6), ny = w.player.y + w.rng.int(-6, 6);
         const t = BD.sim.entities.nearestFree(f, nx, ny, 6);
-        if (t) CMD(w, { type: 'Move', x: t.x, y: t.y });
+        if (t) issue(w, { type: 'Move', x: t.x, y: t.y });
       }
     }
     return bot;
