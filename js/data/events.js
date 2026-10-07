@@ -27,8 +27,8 @@
   };
 
   // the Hoarder: an event-only monster
-  const M = BD.data.monsters;
-  M.hoarder = Object.assign({}, M.gutterkin, {
+  const MonsterData = BD.data.monsters;
+  MonsterData.hoarder = Object.assign({}, MonsterData.gutterkin, {
     id: 'hoarder', name: 'The Hoarder', act: 0, family: 'human', role: 'swarmer', hp: 30, dmg: [0, 0], attackMs: 1000, moveMs: 260, xp: 20, xpW: 20,
     sprite: 'imp', pal: { R: '#d2a73f', r: '#8f6f26', Y: '#fff3cf' }, behaviours: [{ id: 'hoard' }], aggro: { notice: 7, leash: 99 }, res: { fire: 0, cold: 0, light: 0, pois: 0 },
   });

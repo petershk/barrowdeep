@@ -1,5 +1,6 @@
 BD.debug.autotests.create = (D) => {
-  BD.ui.panels.closeAll(); BD.ui.panels.open('create');
+  BD.ui.panels.closeAll();
+  BD.ui.panels.open('create');
   const q = /[?&]step=(\d)/.exec(location.search);
   const n = q ? Number(q[1]) : 0;
   for (let i = 0; i < n; i++) {

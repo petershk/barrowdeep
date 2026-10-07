@@ -4,9 +4,15 @@
 (function (BD) {
   'use strict';
 
-  const W = () => BD.audio.host.world();
-  const ent = (id) => { const w = W(); return w && id != null ? BD.sim.entities.get(w, id) : null; };
-  const isPlayer = (id) => { const w = W(); return !!(w && w.player && w.player.id === id); };
+  const currentWorld = () => BD.audio.host.world();
+  const ent = (id) => {
+    const w = currentWorld();
+    return w && id != null ? BD.sim.entities.get(w, id) : null;
+  };
+  const isPlayer = (id) => {
+    const w = currentWorld();
+    return !!(w && w.player && w.player.id === id);
+  };
   const at = (ev, extra) => Object.assign({ x: ev.x, y: ev.y }, extra || {});
   const has = (tags, t) => !!(tags && tags.indexOf(t) >= 0);
 
@@ -16,6 +22,7 @@
   };
   const ELEMENT_HIT = { fire: 'fire_hit', cold: 'cold_hit', light: 'zap', pois: 'poison_hit' };
   const SHOT = { arrow: 'bow', bolt: 'crossbow' };
+  const NOVA_SOUND = { fire: 'explosion', cold: 'cold_hit' };   // any other school zaps
   const DEATH = { undead: 'death_undead', beast: 'death_beast', demon: 'death_demon', human: 'death_human', construct: 'death_construct' };
   // per-ability cast voices; anything not listed falls back to its school
   const CAST = {
@@ -38,7 +45,7 @@
       if (!src) return null;
       if (src.kind === 'player' || src.kind === 'ally') {
         const out = [];
-        const w = W();
+        const w = currentWorld();
         const fx = src.kind === 'player' ? BD.sim.stats.statsOf(w, src).weapon.fx : null;
         if (ev.abilityId === 'bash') out.push(['bash', at(ev)]);
         else if (has(ev.tags, 'projectile') || (!has(ev.tags, 'melee') && ev.abilityId !== 'attack')) {
@@ -58,17 +65,18 @@
       if (!isPlayer(ev.id)) return null;
       if (ev.abilityId === 'attack') {
         if (SHOT[ev.weapon]) return [SHOT[ev.weapon], at(ev)];
-        return ev.weapon === 'staff' && W().player.def === 'magician' ? ['wand', at(ev)] : null;
+        return ev.weapon === 'staff' && currentWorld().player.def === 'magician' ? ['wand', at(ev)] : null;
       }
       if (Object.prototype.hasOwnProperty.call(CAST, ev.abilityId)) return CAST[ev.abilityId] ? [CAST[ev.abilityId], at(ev)] : null;
       const sk = BD.data.skills[ev.abilityId];
       if (!sk) return null;
       if (sk.school === 'ki') {
-        const combo = W().player.resources.combo;
+        const combo = currentWorld().player.resources.combo;
         return ['ki_charge', at(ev, { stack: combo ? combo.n + 1 : 1 })];
       }
       const id = SCHOOL_CAST[sk.school];
-      return id ? [id, at(ev)] : has(sk.tags, 'projectile') ? ['bow', at(ev)] : null;
+      if (id) return [id, at(ev)];
+      return has(sk.tags, 'projectile') ? ['bow', at(ev)] : null;
     },
     'ability.impact'(ev) {
       const sk = BD.data.skills[ev.abilityId];
@@ -82,12 +90,12 @@
     'ability.reject': (ev) => (ev.abilityId === 'interact' || ev.abilityId === 'equip' || isPlayer(ev.id) ? ['denied', {}] : null),
     explode: (ev) => ['explosion', at(ev, { reverb: 0.25 })],
     'corpse.explode': (ev) => ['explosion', at(ev, { vol: 0.8 })],
-    'power.nova': (ev) => [ev.school === 'fire' ? 'explosion' : ev.school === 'cold' ? 'cold_hit' : 'zap', at(ev)],
+    'power.nova': (ev) => [NOVA_SOUND[ev.school] || 'zap', at(ev)],
     shatter: (ev) => ['cold_hit', at(ev, { pitch: 0.8 })],
     reaction: (ev) => ['reaction', at(ev)],
     chain: (ev) => ['zap', at(ev, { vol: 0.6 })],
     beam: (ev) => ['zap', at(ev, { vol: 0.5 })],
-    blink: (ev) => (ev.id === (W() && W().player.id) ? null : ['teleport', at(ev, { vol: 0.6 })]),
+    blink: (ev) => (ev.id === (currentWorld() && currentWorld().player.id) ? null : ['teleport', at(ev, { vol: 0.6 })]),
     leap: (ev) => ['javelin', at(ev, { vol: 0.6 })],
     dash: (ev) => ['evade', at(ev)],
     heal: (ev) => (isPlayer(ev.id) && ev.amount >= 5 ? ['heal', {}] : null),
@@ -112,7 +120,7 @@
       if (ev.kind === 'ally') return ['death_construct', at(ev, { vol: 0.5 })];
       return [DEATH[ev.family] || 'death_human', at(ev, { vol: ev.rank === 'normal' ? 0.7 : 1 })];
     },
-    'telegraph.start': (ev) => (ev.friendly ? null : ev.heavy ? ['windup', { vol: 0.8 }] : null),
+    'telegraph.start': (ev) => (!ev.friendly && ev.heavy ? ['windup', { vol: 0.8 }] : null),
     'telegraph.end': () => null,
     'keeper.reveal': (ev) => ['dread', at(ev, { priority: true })],
     'keeper.dead': (ev) => ['announce', at(ev)],

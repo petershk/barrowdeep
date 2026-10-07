@@ -33,7 +33,10 @@
   def(T.BRIDGE, { walk: true });
 
   const WALK = new Uint8Array(32), SEE = new Uint8Array(32);
-  PROPS.forEach((p, i) => { WALK[i] = p.walk ? 1 : 0; SEE[i] = p.see ? 1 : 0; });
+  PROPS.forEach((p, i) => {
+    WALK[i] = p.walk ? 1 : 0;
+    SEE[i] = p.see ? 1 : 0;
+  });
 
   BD.data.tiles = { T, PROPS, WALK, SEE };
 })(globalThis.BD);

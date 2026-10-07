@@ -5,22 +5,22 @@
 (function (BD) {
   'use strict';
   BD.debug = BD.debug || {};
-  const D = BD.debug;
-  D.autotests = D.autotests || {};
+  const Debug = BD.debug;
+  Debug.autotests = Debug.autotests || {};
 
-  D.step = (ms) => BD.app.stepSim(ms);
-  D.newRun = (o) => {
+  Debug.step = (ms) => BD.app.stepSim(ms);
+  Debug.newRun = (o) => {
     if (BD.ui.panels) BD.ui.panels.closeAll();
     const w = BD.app.startRun(Object.assign({ cls: 'fighter', name: 'Tester', seed: 'autotest' }, o));
     if (o && o.floor && w.floor.n !== o.floor && BD.sim.run) BD.sim.run.travel(w, o.floor);
     return w;
   };
-  D.render = (frames) => {
+  Debug.render = (frames) => {
     for (let i = 0; i < (frames || 30); i++) BD.view.render.draw(BD.app.world, 0, 16);
     if (BD.ui.hud) BD.ui.hud.frame(BD.app.world, 16);
     if (BD.ui.panels) BD.ui.panels.frame(16);
   };
-  D.capture = () => {
+  Debug.capture = () => {
     const c = /** @type {HTMLCanvasElement} */ (document.getElementById('world'));
     const img = document.createElement('img');
     img.src = c.toDataURL();
@@ -36,7 +36,7 @@
     const s = document.createElement('script');
     s.src = 'js/debug/autotests/' + name + '.js';
     s.onload = () => setTimeout(() => {
-      try { D.autotests[name](D); }
+      try { Debug.autotests[name](Debug); }
       catch (e) {
         const d = document.createElement('pre');
         d.style.cssText = 'position:fixed;top:0;left:0;color:#f55;z-index:99;background:#000';

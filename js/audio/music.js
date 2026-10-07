@@ -6,7 +6,7 @@
 (function (BD) {
   'use strict';
 
-  const A = () => BD.audio.audio;
+  const Audio = () => BD.audio.audio;
   const TRACKS = {
     menu: { src: 'assets/audio/menu.ogg', vol: 0.7 },
     town: { src: 'assets/audio/town.mp3', vol: 0.5 },
@@ -30,33 +30,45 @@
 
   function el(name) {
     if (els[name] !== undefined) return els[name];
-    if (typeof Audio === 'undefined') return (els[name] = null);
+    // globalThis.Audio is the HTML <audio> constructor (the local `Audio` is the audio graph module)
+    if (typeof globalThis.Audio === 'undefined') return (els[name] = null);
     const t = TRACKS[name];
-    const a = new Audio();
-    a.loop = true; a.preload = 'auto'; a.volume = 0;
+    const a = new globalThis.Audio();
+    a.loop = true;
+    a.preload = 'auto';
+    a.volume = 0;
     const rec = { a, ok: null, cur: 0, target: 0, base: t.vol };
     a.addEventListener('canplaythrough', () => { rec.ok = true; });
     a.addEventListener('error', () => { rec.ok = false; });
-    setTimeout(() => { if (rec.ok === null) rec.ok = a.readyState >= 3; }, 3000);
+    setTimeout(() => {
+      if (rec.ok === null) rec.ok = a.readyState >= 3;
+    }, 3000);
     a.src = t.src;
     return (els[name] = rec);
   }
-  const musicLevel = () => A().curve(A().level('music')) * A().curve(A().level('master'));
+  const musicLevel = () => Audio().curve(Audio().level('music')) * Audio().curve(Audio().level('master'));
 
   /** choose the track; null fades everything out */
   function play(name) {
     if (name && !TRACKS[name]) name = 'dungeon';
     want = name;
-    for (const k in TRACKS) { const r = els[k] || (k === name ? el(k) : null); if (r) r.target = k === name ? 1 : 0; }
+    for (const k in TRACKS) {
+      const r = els[k] || (k === name ? el(k) : null);
+      if (r) r.target = k === name ? 1 : 0;
+    }
     if (unlocked && name) start(els[name]);
-    const amb = name === 'menu' ? 'menu' : name === 'town' ? 'town' : null;
-    if (amb) ambience(amb);
+    // only the menu and town tracks pick their own ambience; the dungeon's follows the biome
+    if (name === 'menu' || name === 'town') ambience(name);
   }
-  function start(r) { if (r && r.ok !== false && r.a.paused && !paused) { const pr = r.a.play(); if (pr && pr.catch) pr.catch(() => {}); } }
+  function start(r) {
+    if (!(r && r.ok !== false && r.a.paused && !paused)) return;
+    const pr = r.a.play();
+    if (pr && pr.catch) pr.catch(() => {});
+  }
   function unlock() {
     unlocked = true;
     if (want) start(els[want]);
-    if (bed && A().ctx) bed.g.gain.setTargetAtTime(0.9, A().ctx.currentTime, 1.2);
+    if (bed && Audio().ctx) bed.g.gain.setTargetAtTime(0.9, Audio().ctx.currentTime, 1.2);
   }
   function pause(h) {
     paused = h;
@@ -77,80 +89,149 @@
   // ---------------- ambience bed ----------------
   let bed = null, prof = null, sched = null;
   function buildBed(ctx) {
-    const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(A().amb);
-    const rs = ctx.createGain(); rs.gain.value = 0.25; g.connect(rs); rs.connect(A().reverb);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 600; lp.Q.value = 0.7; lp.connect(g);
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;
+    g.connect(Audio().amb);
+    const rs = ctx.createGain();
+    rs.gain.value = 0.25;
+    g.connect(rs);
+    rs.connect(Audio().reverb);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 600;
+    lp.Q.value = 0.7;
+    lp.connect(g);
+    // three detuned drone voices
     const oscs = [], gains = [];
     for (let i = 0; i < 3; i++) {
-      const o = ctx.createOscillator(); o.type = i === 2 ? 'triangle' : 'sine'; o.detune.value = (i - 1) * 6;
-      const og = ctx.createGain(); og.gain.value = 0.0001; o.connect(og); og.connect(lp); o.start();
-      oscs.push(o); gains.push(og);
+      const o = ctx.createOscillator();
+      o.type = i === 2 ? 'triangle' : 'sine';
+      o.detune.value = (i - 1) * 6;
+      const og = ctx.createGain();
+      og.gain.value = 0.0001;
+      o.connect(og);
+      og.connect(lp);
+      o.start();
+      oscs.push(o);
+      gains.push(og);
     }
-    const ws = ctx.createBufferSource(); ws.buffer = A().noiseBuf; ws.loop = true;
-    const wbp = ctx.createBiquadFilter(); wbp.type = 'bandpass'; wbp.frequency.value = 360; wbp.Q.value = 0.6;
-    const wg = ctx.createGain(); wg.gain.value = 0.0001; ws.connect(wbp); wbp.connect(wg); wg.connect(g); ws.start();
-    const lfo = ctx.createOscillator(); lfo.frequency.value = 0.045; const lg = ctx.createGain(); lg.gain.value = 120;
-    lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    // looping band-passed wind
+    const ws = ctx.createBufferSource();
+    ws.buffer = Audio().noiseBuf;
+    ws.loop = true;
+    const wbp = ctx.createBiquadFilter();
+    wbp.type = 'bandpass';
+    wbp.frequency.value = 360;
+    wbp.Q.value = 0.6;
+    const wg = ctx.createGain();
+    wg.gain.value = 0.0001;
+    ws.connect(wbp);
+    wbp.connect(wg);
+    wg.connect(g);
+    ws.start();
+    // a slow LFO sweeps the drone cutoff
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.045;
+    const lg = ctx.createGain();
+    lg.gain.value = 120;
+    lfo.connect(lg);
+    lg.connect(lp.frequency);
+    lfo.start();
     return { g, lp, oscs, gains, wbp, wg };
   }
   let ambWant = null;
   function ambience(name) {
     ambWant = name;
-    const a = A();
+    const a = Audio();
     if (!a || !a.ctx) return;
     const ctx = a.ctx, t = ctx.currentTime, R = 4;
-    if (!bed) { bed = buildBed(ctx); bed.g.gain.setTargetAtTime(0.9, t, 1.2); }
+    if (!bed) {
+      bed = buildBed(ctx);
+      bed.g.gain.setTargetAtTime(0.9, t, 1.2);
+    }
     prof = AMB[name] || AMB.catacombs;
     bed.lp.frequency.setTargetAtTime(prof.cutoff, t, R);
     bed.oscs.forEach((o, i) => {
       o.frequency.setTargetAtTime(prof.drones[i], t, R);
       bed.gains[i].gain.setTargetAtTime(prof.droneVol * (i === 2 ? 0.5 : 1), t, R);
     });
-    bed.wbp.frequency.setTargetAtTime(prof.wind[0], t, R); bed.wbp.Q.value = prof.wind[1];
+    bed.wbp.frequency.setTargetAtTime(prof.wind[0], t, R);
+    bed.wbp.Q.value = prof.wind[1];
     bed.wg.gain.setTargetAtTime(prof.wind[2], t, R);
     if (!sched) sched = { next: t + 0.4, nextMoan: t + 3, step: 0, chord: -1 };
   }
 
   function drip(ctx, when, pan) {
     const o = ctx.createOscillator(), g = ctx.createGain(), f = 900 + Math.random() * 1500;
-    o.frequency.setValueAtTime(f, when); o.frequency.exponentialRampToValueAtTime(f * 0.45, when + 0.05);
+    o.frequency.setValueAtTime(f, when);
+    o.frequency.exponentialRampToValueAtTime(f * 0.45, when + 0.05);
     g.gain.setValueAtTime(0.0001, when);
     g.gain.exponentialRampToValueAtTime(0.05, when + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0001, when + 0.13);
-    const pn = ctx.createStereoPanner(); pn.pan.value = pan;
-    o.connect(g); g.connect(pn); pn.connect(A().amb); pn.connect(A().reverb);
-    o.start(when); o.stop(when + 0.16);
+    const pn = ctx.createStereoPanner();
+    pn.pan.value = pan;
+    o.connect(g);
+    g.connect(pn);
+    pn.connect(Audio().amb);
+    pn.connect(Audio().reverb);
+    o.start(when);
+    o.stop(when + 0.16);
   }
   function moan(ctx, when, pan, hz) {
     const dur = 2.2 + Math.random() * 1.8, base = hz * (0.92 + Math.random() * 0.18);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480; lp.Q.value = 5;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 480;
+    lp.Q.value = 5;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, when);
     g.gain.exponentialRampToValueAtTime(0.045, when + dur * 0.4);
     g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
     for (let i = 0; i < 2; i++) {
-      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
       o.frequency.setValueAtTime(base * (i ? 1.012 : 1), when);
       o.frequency.linearRampToValueAtTime(base * (1 + (Math.random() * 0.08 - 0.03)), when + dur * 0.6);
       o.frequency.linearRampToValueAtTime(base * 0.94, when + dur);
-      o.connect(lp); o.start(when); o.stop(when + dur + 0.1);
+      o.connect(lp);
+      o.start(when);
+      o.stop(when + dur + 0.1);
     }
-    const pn = ctx.createStereoPanner(); pn.pan.value = pan;
-    lp.connect(g); g.connect(pn); pn.connect(A().amb); pn.connect(A().reverb);
+    const pn = ctx.createStereoPanner();
+    pn.pan.value = pan;
+    lp.connect(g);
+    g.connect(pn);
+    pn.connect(Audio().amb);
+    pn.connect(Audio().reverb);
   }
   function pluck(ctx, when, freq, vol, pan) {
     const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
-    o1.type = o2.type = 'triangle'; o2.detune.value = 6; o1.frequency.value = o2.frequency.value = freq;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.5;
+    o1.type = o2.type = 'triangle';
+    o2.detune.value = 6;
+    o1.frequency.value = o2.frequency.value = freq;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.5;
     lp.frequency.setValueAtTime(Math.min(3200, freq * 4), when);
     lp.frequency.exponentialRampToValueAtTime(Math.max(360, freq * 1.4), when + 0.4);
     g.gain.setValueAtTime(0.0001, when);
     g.gain.exponentialRampToValueAtTime(vol, when + 0.022);
     g.gain.exponentialRampToValueAtTime(0.0001, when + 2.4);
-    o1.connect(lp); o2.connect(lp); lp.connect(g);
-    const pn = ctx.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(A().amb);
-    const rs = ctx.createGain(); rs.gain.value = 0.35; pn.connect(rs); rs.connect(A().reverb);
-    o1.start(when); o2.start(when); o1.stop(when + 2.45); o2.stop(when + 2.45);
+    o1.connect(lp);
+    o2.connect(lp);
+    lp.connect(g);
+    const pn = ctx.createStereoPanner();
+    pn.pan.value = pan;
+    g.connect(pn);
+    pn.connect(Audio().amb);
+    const rs = ctx.createGain();
+    rs.gain.value = 0.35;
+    pn.connect(rs);
+    rs.connect(Audio().reverb);
+    o1.start(when);
+    o2.start(when);
+    o1.stop(when + 2.45);
+    o2.stop(when + 2.45);
   }
   // town guitar: a slow minor progression, Travis-ish fingerpicking with grace notes
   const GUITAR = {
@@ -164,7 +245,11 @@
     if (sched.next < t) sched.next = t + 0.1;           // never burst-catch-up after a pause
     if (sched.nextMoan < t) sched.nextMoan = t + 1;
     if (prof.kind === 'guitar') {
-      if (els.town && els.town.ok && els.town.cur > 0.5) { sched.next = ahead; return; }   // the real track plays instead
+      // the real track plays instead
+      if (els.town && els.town.ok && els.town.cur > 0.5) {
+        sched.next = ahead;
+        return;
+      }
       const beat = 60 / GUITAR.bpm / 2;
       while (sched.next < ahead) {
         const bar = sched.step % 8;
@@ -177,7 +262,8 @@
           const grace = GRACE[Math.floor(Math.random() * 5)];
           pluck(ctx, sched.next + beat * 0.5, base * Math.pow(2, (grace + 24) / 12), 0.03, 0.35);
         }
-        sched.next += beat; sched.step++;
+        sched.next += beat;
+        sched.step++;
       }
       return;
     }
@@ -206,7 +292,7 @@
       else if (r.target > 0 && unlocked) start(r);
     }
     applyVolume();
-    const a = A();
+    const a = Audio();
     if (!a || !a.live()) return;
     if (ambWant && (!prof || prof !== AMB[ambWant])) ambience(ambWant);
     if (sched && prof) schedule(a.ctx);
@@ -230,10 +316,13 @@
       const w = BD.audio.host.world();
       if (!w || !w.floor) return;
       const f = w.floor;
-      ambience(f.biome === 'town' ? 'town' : AMB[f.biome] ? f.biome : 'catacombs');
+      // town has its own bed; an unknown biome falls back to the catacombs
+      const known = f.biome === 'town' || AMB[f.biome];
+      ambience(known ? f.biome : 'catacombs');
       const isBoss = (e) => e.rank === 'boss' || e.rank === 'malgoth';
       const bossAwake = Array.from(f.entities.values()).some((e) => isBoss(e) && !e.dead && e.ai && e.ai.woke);
-      play(f.biome === 'town' ? 'town' : bossAwake ? 'boss' : 'dungeon');
+      if (f.biome === 'town') play('town');
+      else play(bossAwake ? 'boss' : 'dungeon');
     };
     bus.on('app.world', sync);
     bus.on('floor.enter', sync);

@@ -52,8 +52,15 @@
   arm('amulet', 'Amulet', 'amulet', null, 'amulet', [0, 0], 0, { extraAffix: 1 });
   arm('ring', 'Ring', 'ring', null, 'ring', [0, 0], 0);
 
+  /** the category a base gets when it names none: chests are armour, other slots use the slot name */
+  function defaultCategory(b) {
+    if (b.slot === 'weapon') return b.category;
+    if (b.slot === 'chest') return 'armour';
+    return b.slot;
+  }
+
   for (const b of Object.values(W)) {
-    if (!b.category) b.category = b.slot === 'weapon' ? b.category : b.slot === 'chest' ? 'armour' : b.slot;
+    if (!b.category) b.category = defaultCategory(b);
     // requirement attribute (03 §1.2)
     if (b.slot === 'weapon') b.reqAttr = b.wield;
     else if (b.category === 'orb') b.reqAttr = 'mag';
