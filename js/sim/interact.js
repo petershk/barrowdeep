@@ -5,6 +5,7 @@
 
   const { T } = BD.data.tiles;
   const Strings = () => BD.data.strings;
+  const Grid = BD.core.grid;
 
   /** Object (chest, shrine, lever, pile…) at a tile, if any and still interactable. */
   function objectAt(world, x, y) {
@@ -30,8 +31,11 @@
   function at(world, x, y) {
     const f = world.floor;
     const obj = objectAt(world, x, y);
-    if (obj && objectHandlers[obj.kind]) { objectHandlers[obj.kind](world, obj); return true; }
-    const t = f.tiles[y * f.w + x];
+    if (obj && objectHandlers[obj.kind]) {
+      objectHandlers[obj.kind](world, obj);
+      return true;
+    }
+    const t = f.tiles[Grid.idx(f, x, y)];
     const run = BD.sim.run;
     switch (t) {
       case T.STAIRS_DOWN:

@@ -8,6 +8,12 @@
   const Commands = BD.sim.commands;
   const Interact = () => BD.sim.interact;
 
+  const FINAL_ACT = 4;                 // act-scaled prices stop rising after the last act
+  const BLESSINGS_OFFERED = 3;
+  const SMITH_MAGIC_CHANCE = 0.5;      // stock past the first slot is magic this often, else common
+  const REFORGE_TRIES = 20;            // rolls tried for a same-band replacement affix
+  const STASH_TAB_SIZE = 20;
+
   function townState(world) {
     const r = world.run;
     if (!r.town) {
@@ -31,16 +37,19 @@
       reforge: EconomyData().reforge(al(world)),
       gamble: EconomyData().gamble(al(world)),
       blessing: EconomyData().blessing(al(world)),
-      flask: EconomyData().flaskUpgrade(Math.min(4, r.act)),
+      flask: EconomyData().flaskUpgrade(Math.min(FINAL_ACT, r.act)),
       respec: EconomyData().respec(world.player.level, t.respecs),
-      portal: EconomyData().portalScroll(Math.min(4, r.act)),
+      portal: EconomyData().portalScroll(Math.min(FINAL_ACT, r.act)),
     };
   }
   function enhanceCost(world, item) { return EconomyData().enhance(al(world), (item.enhance || 0) + 1); }
 
   function pay(world, n) {
     const p = world.player;
-    if (p.gold < n) { Interact().deny(world, 'not_enough_gold'); return false; }
+    if (p.gold < n) {
+      Interact().deny(world, 'not_enough_gold');
+      return false;
+    }
     p.gold -= n;
     return true;
   }
@@ -50,8 +59,10 @@
     const r = world.run, t = townState(world);
     r.blessing = null;
     BD.sim.stats.bump(world.player);
-    t.rerolls = 0; t.buyback = []; t.freeReroll = !!r.flags.merchantsFavor;
-    t.blessOffer = world.lootRng.shuffle(Object.keys(BD.data.blessings)).slice(0, 3);
+    t.rerolls = 0;
+    t.buyback = [];
+    t.freeReroll = !!r.flags.merchantsFavor;
+    t.blessOffer = world.lootRng.shuffle(Object.keys(BD.data.blessings)).slice(0, BLESSINGS_OFFERED);
     if (t.stockAct !== r.act || !t.stock.length) rollStock(world);
   }
 
@@ -62,8 +73,13 @@
     let rareDone = !rng.chance(EconomyData().smithRareChance);
     for (let i = 0; i < n; i++) {
       const usable = i < EconomyData().smithUsable;
-      let rarity = i === 0 ? 'magic' : rng.chance(0.5) ? 'magic' : 'common';
-      if (!rareDone && i === n - 1) { rarity = 'rare'; rareDone = true; }
+      // the first slot is always magic; the last is rare if the rare roll came up
+      let rarity = 'magic';
+      if (i > 0 && !rng.chance(SMITH_MAGIC_CHANCE)) rarity = 'common';
+      if (!rareDone && i === n - 1) {
+        rarity = 'rare';
+        rareDone = true;
+      }
       stock.push(BD.sim.loot.rollItem(world, rng, { ilvl: al(world), rarity, cls: p.cls, usable }));
     }
     t.stock = stock;
@@ -77,7 +93,7 @@
     const it = list[c.idx];
     if (!it) return false;
     const cost = c.from === 'buyback' ? sellPrice(it) : price(it);
-    if (p.pack.length >= BD.sim.inventory.PACK) { Interact().deny(world, 'pack_full'); return false; }
+    if (packFull(world)) return false;
     if (!pay(world, cost)) return false;
     list.splice(c.idx, 1);
     p.pack.push(it);
@@ -100,7 +116,8 @@
     const t = townState(world);
     const cost = costs(world).reroll;
     if (!pay(world, cost)) return false;
-    if (t.freeReroll) t.freeReroll = false; else t.rerolls++;
+    if (t.freeReroll) t.freeReroll = false;
+    else t.rerolls++;
     rollStock(world);
     world.events.push({ type: 'reroll', cost });
     return true;
@@ -125,7 +142,7 @@
     const taken = new Set(others.map((a) => BD.data.affixes[a.id].stat || a.id));
     taken.add(BD.data.affixes[old.id].stat || old.id);
     let next = null;
-    for (let k = 0; k < 20 && !next; k++) {
+    for (let k = 0; k < REFORGE_TRIES && !next; k++) {
       const rolled = BD.sim.loot.rollAffixes(world.lootRng, base, 'rare', world.player.cls);
       const roll = rolled.find((a) => BD.data.affixes[a.id].band === band && !taken.has(BD.data.affixes[a.id].stat || a.id));
       if (roll) next = roll;
@@ -139,10 +156,9 @@
   }, { ui: true });
   Commands.register('Gamble', (world, c) => {
     const p = world.player;
-    if (p.pack.length >= BD.sim.inventory.PACK) { Interact().deny(world, 'pack_full'); return false; }
+    if (packFull(world)) return false;
     if (!pay(world, costs(world).gamble)) return false;
-    const r = world.lootRng.next(), o = EconomyData().gambleOdds;
-    const rarity = r < o.legendary ? 'legendary' : r < o.legendary + o.rare ? 'rare' : 'magic';
+    const rarity = gambleRarity(world.lootRng.next(), EconomyData().gambleOdds);
     const it = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: al(world), rarity, slot: c.slot, cls: p.cls });
     p.pack.push(it);
     world.events.push({ type: 'gamble', uid: it.uid, rarity: it.rarity });
@@ -169,7 +185,9 @@
     if (t.flaskUpgradedAct >= world.run.act || p.flask.permMax >= BD.data.balance.player.flaskPermMax) return false;
     if (!pay(world, costs(world).flask)) return false;
     t.flaskUpgradedAct = world.run.act;
-    p.flask.permMax++; p.flask.max++; p.flask.charges = p.flask.max;
+    p.flask.permMax++;
+    p.flask.max++;
+    p.flask.charges = p.flask.max;
     world.events.push({ type: 'flask.upgrade', max: p.flask.max });
     return true;
   }, { ui: true });
@@ -179,11 +197,16 @@
     t.respecs++;
     const base = BD.data.balance.player.attrBase[p.cls];
     let spentAttr = 0;
-    for (const k of ['str', 'dex', 'mag', 'vit']) { spentAttr += p.attrs[k] - base[k]; p.attrs[k] = base[k]; }
+    for (const k of ['str', 'dex', 'mag', 'vit']) {
+      spentAttr += p.attrs[k] - base[k];
+      p.attrs[k] = base[k];
+    }
     p.unspent.attr += spentAttr;
     let pts = 0;
     for (const id in p.skills) pts += p.skills[id];
-    p.skills = {}; p.unspent.skill += pts; p.charges = {};
+    p.skills = {};
+    p.unspent.skill += pts;
+    p.charges = {};
     p.bar = { rmb: null, s1: null, s2: null, s3: null, s4: null };
     BD.sim.stats.bump(p);
     BD.sim.inventory.clampResources(world, p);
@@ -193,7 +216,8 @@
   Commands.register('Rest', (world) => {
     const p = world.player;
     const s = BD.sim.stats.statsOf(world, p);
-    p.hp = s.maxLife; p.flask.charges = p.flask.max;
+    p.hp = s.maxLife;
+    p.flask.charges = p.flask.max;
     if (p.resources.mana) p.resources.mana.cur = s.maxMana;
     if (p.resources.energy) p.resources.energy.cur = p.resources.energy.max;
     p.statuses = p.statuses.filter((x) => !BD.data.statuses[x.id].debuff);
@@ -206,7 +230,7 @@
     const p = world.player, tabs = world.stash;
     if (!tabs) return false;
     const tab = tabs[c.tab || 0];
-    if (!tab || tab.length >= 20) return false;
+    if (!tab || tab.length >= STASH_TAB_SIZE) return false;
     const i = p.pack.findIndex((x) => x.uid === c.uid);
     if (i < 0) return false;
     tab.push(p.pack.splice(i, 1)[0]);
@@ -223,6 +247,20 @@
     world.events.push({ type: 'stash' });
     return true;
   }, { ui: true });
+
+  /** a full pack refuses the purchase (with the usual message) */
+  function packFull(world) {
+    if (world.player.pack.length < BD.sim.inventory.PACK) return false;
+    Interact().deny(world, 'pack_full');
+    return true;
+  }
+
+  /** r in [0,1) → legendary / rare / magic by the gamble odds */
+  function gambleRarity(r, odds) {
+    if (r < odds.legendary) return 'legendary';
+    if (r < odds.legendary + odds.rare) return 'rare';
+    return 'magic';
+  }
 
   function findItem(world, uid) {
     const p = world.player;

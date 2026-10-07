@@ -20,7 +20,8 @@
     const dx = nx - e.x, dy = ny - e.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return false;
     // phasing monsters pass through any in-bounds tile except the void
-    const passable = (x, y) => Entities.walkable(f, x, y) || (e.phase && Entities.inBounds(f, x, y) && f.tiles[y * f.w + x] !== BD.data.tiles.T.VOID);
+    const VOID = BD.data.tiles.T.VOID;
+    const passable = (x, y) => Entities.walkable(f, x, y) || (e.phase && Entities.inBounds(f, x, y) && f.tiles[Grid.idx(f, x, y)] !== VOID);
     if (!Grid.canStep(e.x, e.y, dx, dy, passable)) return false;
     if (Entities.occupant(f, nx, ny)) return false;
     const dur = baseMs * (dx && dy ? Balance.player.diagMult : 1);
@@ -33,10 +34,9 @@
   /** Fast multi-tile displacement (evade, dash, knockback, leap). Lands on (tx,ty) which must be free. */
   function displace(world, e, tx, ty, dur, kind) {
     const f = world.floor;
-    e.move = {
-      fromX: e.move ? Entities.posOf(e).x : e.x, fromY: e.move ? Entities.posOf(e).y : e.y,
-      toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash',
-    };
+    // start from where the entity is drawn right now (mid-step if it was moving)
+    const from = e.move ? Entities.posOf(e) : { x: e.x, y: e.y };
+    e.move = { fromX: from.x, fromY: from.y, toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash' };
     Entities.relocate(f, e, tx, ty);
   }
 
@@ -57,7 +57,8 @@
       if (!Entities.walkable(f, x, y)) break;
       if (sx && sy && !(Entities.walkable(f, px + sx, py) && Entities.walkable(f, px, py + sy))) break;
       path.push([x, y]);
-      px = x; py = y;
+      px = x;
+      py = y;
       if (opts.stopAt && x === opts.stopAt.x && y === opts.stopAt.y) break;
     }
     for (let i = path.length - 1; i >= 0; i--) {

@@ -8,6 +8,15 @@
   const Targeting = BD.sim.targeting;
   const Hits = BD.sim.hits;
   const { within, cheb, dirOf } = BD.core.util;
+  const Grid = BD.core.grid;
+
+  const CHAIN_FIRST_RADIUS = 1.5;      // a chain aimed at a tile starts from the enemy this close to it
+  const CHAIN_JUMPS = 4;               // defaults when the delivery doesn't say
+  const CHAIN_JUMP_RANGE = 3;
+  const CHAIN_FALLOFF = 0.1;           // each jump deals this much less
+  const DASH_MS_PER_TILE = 40;
+  const DASH_LAND_RADIUS = 2;          // search radius for a free tile next to the dash target
+  const LEAP_AIR_MS = 300;
 
   /** @type {Record<string, (world:any, caster:any, ab:any, rank:number, arg:any)=>any>} */
   const scripts = {};
@@ -35,14 +44,18 @@
     if (Entities.isFree(f, x, y)) return { x, y };
     // nearest free walkable tile on the path back toward the origin
     const ray = BD.core.grid.rayTiles(x, y, p.x - x, p.y - y, Math.ceil(Math.hypot(p.x - x, p.y - y)));
-    for (const [rx, ry] of ray) { if (rx === p.x && ry === p.y) break; if (Entities.isFree(f, rx, ry)) return { x: rx, y: ry }; }
+    for (const [rx, ry] of ray) {
+      if (rx === p.x && ry === p.y) break;
+      if (Entities.isFree(f, rx, ry)) return { x: rx, y: ry };
+    }
     return null;
   }
 
   function baseCtx(world, caster, ab, rank, a) {
     return {
       caster, srcId: a && a.srcId != null ? a.srcId : caster.id, ab, rank,
-      combo: a ? a.comboHeld || 0 : 0, focus: a ? a.focusHeld || 0 : 0,
+      combo: a ? a.comboHeld || 0 : 0,
+      focus: a ? a.focusHeld || 0 : 0,
       cx: caster.x, cy: caster.y, tags: ab.tags, forceCrit: false, critAdd: 0, packetMult: 1, centerId: a ? a.targetId : null,
     };
   }
@@ -51,39 +64,64 @@
   function impact(world, caster, ab, rank, a) {
     const ctx = baseCtx(world, caster, ab, rank, a);
     for (let i = 0; i < preImpact.length; i++) preImpact[i](world, caster, ab, rank, ctx, a);
-    if (scripts[ab.id + '.before']) { if (scripts[ab.id + '.before'](world, caster, ab, rank, { a, ctx }) === false) return; }
+    const before = scripts[ab.id + '.before'];
+    if (before && before(world, caster, ab, rank, { a, ctx }) === false) return;
     const d = ab.delivery || { kind: 'instant' };
     const target = a.targetId != null ? Entities.get(world, a.targetId) : null;
     let tx = a.tx, ty = a.ty;
-    if (target && target.hp > 0 && !target.dead && ab.targeting && ab.targeting.mode === 'unit') { tx = target.x; ty = target.y; }
+    if (target && target.hp > 0 && !target.dead && ab.targeting && ab.targeting.mode === 'unit') {
+      tx = target.x;
+      ty = target.y;
+    }
     world.events.push({
       type: 'ability.impact', id: caster.id, abilityId: ab.id, x: caster.x, y: caster.y, tx, ty, rank,
       kind: d.kind, area: ab.area || null,
       weapon: caster.kind === 'player' ? BD.sim.stats.statsOf(world, caster).weapon.fx : null,
     });
-    let results = [];
-    switch (d.kind) {
-      case 'melee': results = melee(world, ctx, ab, tx, ty, target); break;
-      case 'channel': results = areaAt(world, ctx, ab, caster.x, caster.y, ab.area || { shape: 'circle', radius: 1 }); break;
-      case 'projectile': BD.sim.projectiles.fireAbility(world, caster, ab, rank, a, tx, ty, ctx); break;
-      case 'lob': BD.sim.zones.lob(world, caster, ab, rank, a, tx, ty, ctx); break;
-      case 'zone': BD.sim.zones.fromAbility(world, caster, ab, rank, a, tx, ty, ctx); break;
-      case 'chain': {
-        const first = target || Targeting.nearestEnemy(world, tx, ty, 1.5, caster.faction, null);
-        results = chain(world, ctx, ab, first, d.jumps || 4, d.jumpRange || 3);
-        break;
-      }
-      case 'dash': results = dash(world, ctx, ab, target, tx, ty); break;
-      case 'leap': leap(world, ctx, ab, tx, ty); break;
-      case 'blink': blink(world, ctx, ab, tx, ty, target); break;
-      case 'instant': results = ab.area ? areaAt(world, ctx, ab, caster.x, caster.y, ab.area) : []; break;
-      case 'summon': case 'deploy': if (BD.sim.allies) BD.sim.allies.fromAbility(world, caster, ab, rank, a, tx, ty, ctx); break;
-      default: break;
-    }
+    const results = deliver(world, ctx, caster, ab, rank, a, d, target, tx, ty);
     if (ab.selfEffects && ab.selfEffects.length) Hits.applyEffects(world, ctx, ab.selfEffects, [caster]);
     special(world, caster, ab, rank, 'impact', { a, ctx, results, tx, ty });
     if (caster.kind === 'player' && results && results.length) afterHits(world, caster, ab, rank, a, results);
     return results;
+  }
+
+  /** run the delivery; returns the immediate hit results ([] for deferred kinds like projectiles) */
+  function deliver(world, ctx, caster, ab, rank, a, d, target, tx, ty) {
+    switch (d.kind) {
+      case 'melee':
+        return melee(world, ctx, ab, tx, ty, target);
+      case 'channel':
+        return areaAt(world, ctx, ab, caster.x, caster.y, ab.area || { shape: 'circle', radius: 1 });
+      case 'projectile':
+        BD.sim.projectiles.fireAbility(world, caster, ab, rank, a, tx, ty, ctx);
+        return [];
+      case 'lob':
+        BD.sim.zones.lob(world, caster, ab, rank, a, tx, ty, ctx);
+        return [];
+      case 'zone':
+        BD.sim.zones.fromAbility(world, caster, ab, rank, a, tx, ty, ctx);
+        return [];
+      case 'chain': {
+        const first = target || Targeting.nearestEnemy(world, tx, ty, CHAIN_FIRST_RADIUS, caster.faction, null);
+        return chain(world, ctx, ab, first, d.jumps || CHAIN_JUMPS, d.jumpRange || CHAIN_JUMP_RANGE);
+      }
+      case 'dash':
+        return dash(world, ctx, ab, target, tx, ty);
+      case 'leap':
+        leap(world, ctx, ab, tx, ty);
+        return [];
+      case 'blink':
+        blink(world, ctx, ab, tx, ty, target);
+        return [];
+      case 'instant':
+        return ab.area ? areaAt(world, ctx, ab, caster.x, caster.y, ab.area) : [];
+      case 'summon':
+      case 'deploy':
+        if (BD.sim.allies) BD.sim.allies.fromAbility(world, caster, ab, rank, a, tx, ty, ctx);
+        return [];
+      default:
+        return [];
+    }
   }
 
   /** resource generation on landed hits (builders), combo build/consume */
@@ -110,7 +148,7 @@
         });
         return [];
       }
-      caster.dir = dirOf(target.x - caster.x, target.y - caster.y) ;
+      caster.dir = dirOf(target.x - caster.x, target.y - caster.y);
       ctx.centerId = target.id;
       return Hits.applyEffects(world, ctx, ab.effects, [target]);
     }
@@ -119,7 +157,7 @@
     const targets = Targeting.entitiesOnTiles(world, tiles, caster.faction);
     // centre = the tile in front for arc3
     const front = BD.core.util.DIRS[caster.dir];
-    const cid = world.floor.occ[(caster.y + front[1]) * world.floor.w + caster.x + front[0]];
+    const cid = world.floor.occ[Grid.idx(world.floor, caster.x + front[0], caster.y + front[1])];
     ctx.centerId = target && targets.includes(target) ? target.id : cid || null;
     if (!targets.length) {
       world.events.push({ type: 'miss', srcId: caster.id, tgtId: null, reason: 'whiff', tags: ab.tags, abilityId: ab.id, x: tx, y: ty });
@@ -130,7 +168,9 @@
   function areaAt(world, ctx, ab, cx, cy, area, effects) {
     const tiles = Targeting.areaTiles(area, cx, cy, ctx.caster.x, ctx.caster.y, ctx.caster.dir);
     const targets = Targeting.entitiesOnTiles(world, tiles, ctx.caster.faction);
-    ctx.cx = cx; ctx.cy = cy; ctx.aoe = area.shape !== 'single';
+    ctx.cx = cx;
+    ctx.cy = cy;
+    ctx.aoe = area.shape !== 'single';
     return Hits.applyEffects(world, ctx, effects || ab.effects, targets);
   }
 
@@ -139,11 +179,12 @@
     const hit = new Set();
     const results = [];
     let cur = first, from = ctx.caster, mult = 1;
-    const falloff = (ab.delivery && ab.delivery.falloff) || 0.1;
+    const falloff = (ab.delivery && ab.delivery.falloff) || CHAIN_FALLOFF;
     const allowRepeat = !!(ab.delivery && ab.delivery.repeat);
     for (let i = 0; i <= jumps && cur; i++) {
       world.events.push({ type: 'chain', srcId: ctx.caster.id, fromX: from.x, fromY: from.y, x: cur.x, y: cur.y, abilityId: ab.id, i });
-      ctx.packetMult = mult; ctx.centerId = cur.id;
+      ctx.packetMult = mult;
+      ctx.centerId = cur.id;
       results.push(...Hits.applyEffects(world, ctx, i === 0 ? ab.effects : ab.jumpEffects || ab.effects, [cur]));
       hit.add(cur.id);
       mult *= 1 - falloff;
@@ -164,13 +205,13 @@
     let land = path.length ? path[path.length - 1] : null;
     if (land && !Entities.isFree(f, land[0], land[1])) land = null;
     if (!land) {
-      const n = Entities.nearestFree(f, target.x, target.y, 2, (x, y) => cheb(x, y, target.x, target.y) === 1);
+      const n = Entities.nearestFree(f, target.x, target.y, DASH_LAND_RADIUS, (x, y) => cheb(x, y, target.x, target.y) === 1);
       land = n ? [n.x, n.y] : null;
     }
     if (!land) return [];
     const fromX = caster.x, fromY = caster.y;
     const tiles = Math.max(1, cheb(fromX, fromY, land[0], land[1]));
-    BD.sim.movement.displace(world, caster, land[0], land[1], 40 * tiles, 'dash');
+    BD.sim.movement.displace(world, caster, land[0], land[1], DASH_MS_PER_TILE * tiles, 'dash');
     caster.dir = dirOf(target.x - land[0], target.y - land[1]);
     if (caster.kind === 'player') BD.sim.player.onStep(world, caster);
     world.events.push({ type: 'dash', id: caster.id, fromX, fromY, x: land[0], y: land[1], abilityId: ab.id });
@@ -183,7 +224,7 @@
     const caster = ctx.caster;
     const spot = landingSpot(world, caster, tx, ty);
     if (!spot) return;
-    const air = (ab.delivery && ab.delivery.airMs) || 300;
+    const air = (ab.delivery && ab.delivery.airMs) || LEAP_AIR_MS;
     const fromX = caster.x, fromY = caster.y;
     BD.sim.movement.displace(world, caster, spot.x, spot.y, air, 'leap');
     BD.sim.status.apply(world, caster, 'airborne', { durMs: air });

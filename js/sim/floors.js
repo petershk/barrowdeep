@@ -8,12 +8,19 @@
   const Entities = BD.sim.entities;
   const Interact = () => BD.sim.interact;
 
+  const KEEPER_PING_MS = 360000;       // the Keeper is pinged after 6 min on the floor…
+  const KEEPER_PING_WAYFINDER_MS = 180000; // …or 3 min with Wayfinder
+  const KEEPER_PING_FOLLOW_MS = 2000;  // the ping marker follows the Keeper this often
+  const EXPLORED_FRAC = 0.995;         // seeing this share of reachable tiles counts as fully explored
+  const TRASH_XP_BASE = 10;            // xp of a normal monster at area level 1
+
   // ---------------- Keeper → Seal / Gate Key ----------------
   BD.sim.damage.onKillHooks.push((world, e) => {
     if (!e.keeper) return;
     const f = world.floor, r = world.run;
     r.keepersSlain++;
-    f.keeperId = null; f.keeperPing = null;
+    f.keeperId = null;
+    f.keeperPing = null;
     const fl = BD.data.floors.byN(f.n);
     BD.sim.loot.dropAt(world, e.x, e.y, { kind: fl.actEnd ? 'key' : 'seal' });
     world.events.push({ type: 'keeper.dead', x: e.x, y: e.y, carries: fl.actEnd ? 'key' : 'seal' });
@@ -42,11 +49,11 @@
   function system(world) {
     const f = world.floor;
     if (f.keeperId) {
-      const after = world.run.flags.wayfinder ? 180000 : 360000;
+      const after = world.run.flags.wayfinder ? KEEPER_PING_WAYFINDER_MS : KEEPER_PING_MS;
       if (f.timeOnFloor >= after) {
         const k = Entities.get(world, f.keeperId);
         // the marker follows the Keeper every 2 s
-        if (k && !k.dead && (!f.keeperPing || world.time >= f.keeperPing.at + 2000)) {
+        if (k && !k.dead && (!f.keeperPing || world.time >= f.keeperPing.at + KEEPER_PING_FOLLOW_MS)) {
           if (!f.keeperPing) world.events.push({ type: 'keeper.ping', x: k.x, y: k.y });
           f.keeperPing = { x: k.x, y: k.y, at: world.time };
         }
@@ -57,7 +64,7 @@
   function onPlayerStep(world) {
     const f = world.floor;
     if (f.fullyExplored || f.key !== f.n || !f.reachableCount) return;
-    if (f.seenCount >= f.reachableCount * 0.995) {
+    if (f.seenCount >= f.reachableCount * EXPLORED_FRAC) {
       f.fullyExplored = true;
       const xp = BD.sim.progression ? avgTrashXp(world) * BD.data.balance.xp.fullClearKills : 0;
       world.events.push({ type: 'floor.explored', n: f.n });
@@ -67,7 +74,7 @@
   }
   function avgTrashXp(world) {
     const al = world.floor.al;
-    return 10 * Math.pow(BD.data.balance.monsters.xpGrowth, al - 1) * BD.data.difficulties[world.run.difficulty].xp;
+    return TRASH_XP_BASE * Math.pow(BD.data.balance.monsters.xpGrowth, al - 1) * BD.data.difficulties[world.run.difficulty].xp;
   }
 
   // ---------------- deltas ----------------
@@ -78,8 +85,8 @@
     const alive = new Set();
     for (const e of f.entities.values()) {
       if (e.runtime || e.kind !== 'monster') continue;
-      if (BD.sim.entities.isBoss(e)) { alive.add(e.id); continue; }   // bosses reset unless slain
       alive.add(e.id);
+      if (BD.sim.entities.isBoss(e)) continue;   // bosses reset unless slain
       const max = BD.sim.stats.statsOf(world, e).maxLife;
       if (e.hp < max || e.x !== e.home.x || e.y !== e.home.y) {
         const statuses = e.statuses.filter((s) => !BD.data.statuses[s.id].invuln);
@@ -111,26 +118,24 @@
     f.genIds = Array.from(f.entities.keys());
     const d = world.floorDeltas[f.key];
     if (!d) return;
-    const N = f.w * f.h;
-    f.explored = Util.rleDecode(d.explored, N); f.seen = Util.rleDecode(d.seen, N);
-    f.seenCount = 0; for (let i = 0; i < N; i++) if (f.seen[i]) f.seenCount++;
-    for (const id of d.deadIds) { const e = f.entities.get(id); if (e) Entities.remove(world, e); }
-    for (const s of d.survivors) {
-      const e = f.entities.get(s.id);
-      if (!e) continue;
-      Entities.vacate(f, e);
-      e.hp = s.hp; e.statuses = s.statuses || [];
-      if (Entities.isFree(f, s.x, s.y)) { e.x = s.x; e.y = s.y; }
-      Entities.occupy(f, e);
-    }
+    const tileCount = f.w * f.h;
+    f.explored = Util.rleDecode(d.explored, tileCount);
+    f.seen = Util.rleDecode(d.seen, tileCount);
+    f.seenCount = 0;
+    for (let i = 0; i < tileCount; i++) if (f.seen[i]) f.seenCount++;
+    restoreMonsters(world, f, d);
     for (const o of d.objects) {
       const ob = f.objects[o.i];
       if (ob) Object.assign(ob, { opened: o.opened, used: o.used, disarmed: o.disarmed, visible: o.visible });
     }
     for (const o of d.extraObjects || []) f.objects.push(o);
     f.items = d.droppedItems.map((g) => Util.clone(g));
-    f.sealBroken = d.sealBroken; f.gateOpen = d.gateOpen; f.bossDead = d.bossDead;
-    f.keeperRevealed = d.keeperRevealed; f.fullyExplored = d.fullyExplored; f.timeOnFloor = d.timeOnFloor || 0;
+    f.sealBroken = d.sealBroken;
+    f.gateOpen = d.gateOpen;
+    f.bossDead = d.bossDead;
+    f.keeperRevealed = d.keeperRevealed;
+    f.fullyExplored = d.fullyExplored;
+    f.timeOnFloor = d.timeOnFloor || 0;
     if (d.hidden) {
       const keep = new Set(d.hidden);
       for (const k of f.hidden) if (!keep.has(k)) f.tiles[k] = BD.data.tiles.T.FLOOR;
@@ -142,6 +147,26 @@
       if (BD.sim.bossfight && f.arena) BD.sim.bossfight.placeExit(world);
     }
     f.exploreDirty = true;
+  }
+
+  /** remove the slain; put wounded / moved survivors back where they were */
+  function restoreMonsters(world, f, d) {
+    for (const id of d.deadIds) {
+      const e = f.entities.get(id);
+      if (e) Entities.remove(world, e);
+    }
+    for (const s of d.survivors) {
+      const e = f.entities.get(s.id);
+      if (!e) continue;
+      Entities.vacate(f, e);
+      e.hp = s.hp;
+      e.statuses = s.statuses || [];
+      if (Entities.isFree(f, s.x, s.y)) {
+        e.x = s.x;
+        e.y = s.y;
+      }
+      Entities.occupy(f, e);
+    }
   }
 
   BD.sim.floors = { onSealPickup, keeperSeen, system, onPlayerStep, snapshot, leave, restore };

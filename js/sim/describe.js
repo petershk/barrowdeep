@@ -10,6 +10,9 @@
   const EL = { phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', pois: 'poison' };
   const sec = (ms) => fmt(ms / 1000) + ' s';
 
+  const RANK_SCALE_STEP = 0.2;         // per-rank scaling of combo/focus bonuses (matches Hits)
+  const MINOR_ELEMENT_SHARE = 0.05;    // elements under this share of the hit aren't named
+
   /** damage numbers per damage effect at a rank: [{lo, hi, amountsLo, amountsHi, eff}] */
   function numbers(world, p, id, rank, ctx) {
     const base = id === 'attack' ? Abilities().basicFor(world, p) : Abilities().def(id);
@@ -95,12 +98,13 @@
       out.cast = ab.channel ? 'Channelled' : sec(tm.windup + tm.recover);
     }
     for (const n of numbers(world, p, id, rank)) {
-      const els = Object.keys(n.amountsHi).filter((k) => n.amountsHi[k] > 0.05 * n.hi);
+      const els = Object.keys(n.amountsHi).filter((k) => n.amountsHi[k] > MINOR_ELEMENT_SHARE * n.hi);
       const elTxt = els.length === 1 && els[0] !== 'phys' ? ' ' + EL[els[0]] : '';
       const src = n.eff.source === 'spell' ? '' : ' (' + fmt(Abilities().scale(n.eff, rank)) + '× weapon)';
       let extra = '';
-      if (n.eff.perCombo) extra += ', +' + fmt(n.eff.perCombo * (1 + 0.2 * (rank - 1))) + '× per combo charge';
-      if (n.eff.perFocus) extra += ', +' + fmt(n.eff.perFocus * (1 + 0.2 * (rank - 1))) + '× per focus';
+      const rk = 1 + RANK_SCALE_STEP * (rank - 1);
+      if (n.eff.perCombo) extra += ', +' + fmt(n.eff.perCombo * rk) + '× per combo charge';
+      if (n.eff.perFocus) extra += ', +' + fmt(n.eff.perFocus * rk) + '× per focus';
       if (n.eff.missingLife) extra += ', up to +' + Math.round(n.eff.missingLife * 100) + '% vs wounded';
       const text = Math.round(n.lo) + '–' + Math.round(n.hi) + elTxt + ' damage' + src + extra;
       out.lines.push({ kind: 'damage', text, lo: n.lo, hi: n.hi });

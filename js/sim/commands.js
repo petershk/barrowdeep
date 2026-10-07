@@ -9,6 +9,7 @@
   'use strict';
 
   const Entities = BD.sim.entities;
+  const Grid = BD.core.grid;
 
   /** @type {Record<string, (world:any, cmd:any)=>any>} */
   const handlers = {};
@@ -28,7 +29,10 @@
 
   function run(world, cmd) {
     const fn = handlers[cmd.type];
-    if (!fn) { BD.core.util.warnOnce('unknown command ' + cmd.type); return null; }
+    if (!fn) {
+      BD.core.util.warnOnce('unknown command ' + cmd.type);
+      return null;
+    }
     if (world.player && world.player.dead && !DEAD_CMDS.has(cmd.type)) return null;
     return fn(world, cmd);
   }
@@ -54,7 +58,10 @@
     const p = world.player;
     if (p.attack && p.attack.phase === 'windup' && p.attack.cancellable && BD.sim.abilities) BD.sim.abilities.cancel(world, p, 'move');
     const path = BD.sim.player.pathTo(world, p, c.x, c.y, true);
-    if (!path || !path.length) { p.intent = { kind: 'idle' }; return; }
+    if (!path || !path.length) {
+      p.intent = { kind: 'idle' };
+      return;
+    }
     p.intent = { kind: 'move', path };
   });
   register('Stop', (world) => { world.player.intent = { kind: 'idle' }; });
@@ -70,10 +77,16 @@
     const f = world.floor;
     let x = c.x, y = c.y;
     // any tile of the 2×2 boss gate interacts through the tile that faces the front
-    if (f.gatePos && f.gatePos.at && f.tiles[y * f.w + x] === BD.data.tiles.T.GATE) { x = f.gatePos.at.x; y = f.gatePos.at.y; }
+    if (f.gatePos && f.gatePos.at && f.tiles[Grid.idx(f, x, y)] === BD.data.tiles.T.GATE) {
+      x = f.gatePos.at.x;
+      y = f.gatePos.at.y;
+    }
     world.player.intent = { kind: 'interact', x, y };
   });
-  register('HoldEnd', (world) => { const it = world.player.intent; if (it) it.hold = false; });
+  register('HoldEnd', (world) => {
+    const it = world.player.intent;
+    if (it) it.hold = false;
+  });
 
   BD.sim.commands = { register, issue, apply, applyQueue, handlers, UI_CMDS };
 })(globalThis.BD);

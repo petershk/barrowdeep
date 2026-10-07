@@ -9,6 +9,11 @@
   const Stats = () => BD.sim.stats;
   const Status = () => BD.sim.status;
 
+  const CRIT_CAP_SLACK_PCT = 40;       // crit chance may exceed Balance.combat.critCap by this much
+  const MONSTER_PHYS_DR_CAP = 0.75;    // monsters' physical damage reduction cap
+  const MONSTER_RES_CAP = 0.9;         // monsters' elemental resistance cap…
+  const MONSTER_RES_FLOOR = -1;        // …and floor (−100% = double damage)
+
   /** hooks: (world, src, tgt, packet, result) — status chances, leech, procs, resources, retaliation */
   const onHitHooks = [];
   /** hooks: (world, victim, killer, packet) */
@@ -32,7 +37,11 @@
   }
 
   const hasTag = (p, t) => p.tags && p.tags.indexOf(t) >= 0;
-  const alOf = (world, e) => (e ? (e.kind === 'player' ? world.floor.al : e.al || world.floor.al) : world.floor.al);
+  /** attacker level used by evasion/armor: the floor's for the player or no attacker, else the monster's own */
+  function alOf(world, e) {
+    if (!e || e.kind === 'player') return world.floor.al;
+    return e.al || world.floor.al;
+  }
 
   function rollDodge(world, src, tgt, p) {
     if (!(hasTag(p, 'melee') || hasTag(p, 'projectile'))) return false;
@@ -67,7 +76,7 @@
     const s = Stats().statsOf(world, src);
     const resourceBonus = src.kind === 'player' && BD.sim.resources ? BD.sim.resources.critBonus(world, src) : 0;
     const ch = (s.critChance || 0) + (p.critChanceAdd || 0) + resourceBonus;
-    return ch > 0 && world.rng.chance(Math.min(Balance.combat.critCap + 40, ch) / 100);
+    return ch > 0 && world.rng.chance(Math.min(Balance.combat.critCap + CRIT_CAP_SLACK_PCT, ch) / 100);
   }
 
   /** situational multipliers: weakened, vulnerable/shocked/exposed, vs-family, elites, hooks */
@@ -97,15 +106,16 @@
       } else m = (ts.res ? ts.res[el] || 0 : 0) / 100;
       return 1 - (1 - m) * (1 - (ts.dr_pct || 0) / 100);
     }
-    if (el === 'phys') return Math.min(0.75, (ts.dr_pct || 0) / 100);
-    return Math.max(-1, Math.min(0.9, (ts.res ? ts.res[el] || 0 : 0) / 100));
+    if (el === 'phys') return Math.min(MONSTER_PHYS_DR_CAP, (ts.dr_pct || 0) / 100);
+    return Math.max(MONSTER_RES_FLOOR, Math.min(MONSTER_RES_CAP, (ts.res ? ts.res[el] || 0 : 0) / 100));
   }
 
   function absorbShields(world, tgt, total) {
     const sh = Status().has(tgt, 'shielded');
     if (sh && sh.pool > 0) {
       const a = Math.min(sh.pool, total);
-      sh.pool -= a; total -= a;
+      sh.pool -= a;
+      total -= a;
       if (sh.pool <= 0) Status().remove(world, tgt, 'shielded');
       world.events.push({ type: 'absorb', id: tgt.id, amount: a });
     }
@@ -130,7 +140,10 @@
       if (crit) v *= critMult;
       v *= 1 - mitigation(world, src, tgt, el);
       if (blocked) v *= 1 - Balance.combat.blockReduce;
-      if (v > 0) { parts[el] = v; total += v; }
+      if (v > 0) {
+        parts[el] = v;
+        total += v;
+      }
     }
     total = absorbShields(world, tgt, total);
     total = Math.max(1, Math.round(total));
@@ -152,7 +165,17 @@
     if (tgt.hp <= 0) kill(world, tgt, src, p);
     return res;
   }
-  function maxPart(parts) { let best = 'phys', v = -1; for (const k in parts) if (parts[k] > v) { v = parts[k]; best = k; } return best; }
+  /** the element that dealt the most (phys when nothing did) */
+  function maxPart(parts) {
+    let best = 'phys', v = -1;
+    for (const k in parts) {
+      if (parts[k] > v) {
+        v = parts[k];
+        best = k;
+      }
+    }
+    return best;
+  }
 
   /** Every damage source wakes and alerts (including DoTs). */
   function wake(world, tgt, src) {
@@ -166,8 +189,12 @@
     tgt.dying = true;
     world.pendingDeaths = world.pendingDeaths || [];
     world.pendingDeaths.push({
-      id: tgt.id, killerId: src ? src.id : null, abilityId: p ? p.abilityId : null, tags: p ? p.tags : [],
-      overkill: p ? p.amounts : null, element: p ? maxPart(p.amounts) : 'phys',
+      id: tgt.id,
+      killerId: src ? src.id : null,
+      abilityId: p ? p.abilityId : null,
+      tags: p ? p.tags : [],
+      overkill: p ? p.amounts : null,
+      element: p ? maxPart(p.amounts) : 'phys',
     });
   }
 
@@ -190,7 +217,10 @@
       const f = world.floor;
       Entities.vacate(f, e);
       f.entities.delete(e.id);
-      if (e.kind === 'ally') { world.events.push({ type: 'death', id: e.id, kind: 'ally', x: e.x, y: e.y }); continue; }
+      if (e.kind === 'ally') {
+        world.events.push({ type: 'death', id: e.id, kind: 'ally', x: e.x, y: e.y });
+        continue;
+      }
       world.events.push({
         type: 'death', id: e.id, kind: e.kind, def: e.def, rank: e.rank, family: BD.sim.monsters ? BD.sim.monsters.family(e) : '',
         killerId: d.killerId, x: e.x, y: e.y, element: d.element,

@@ -10,6 +10,20 @@
   const Balance = BD.data.balance;
   const { within, cheb, dirOf } = BD.core.util;
 
+  const COMBAT_RADIUS = 10;            // an awake monster this close (per axis) means "in combat"
+  const DECOY_RANGE = 8;               // decoy allies farther than this are never picked as targets
+  const IDLE_NOTICE_MS = 200;          // idle monsters look for the player this often…
+  const IDLE_NOTICE_JITTER_MS = 10;    // …plus (id % 7) of these, so they don't all look on one tick
+  const RETARGET_EVERY_S = 3;          // decisions in every 3rd second may re-pick a target…
+  const RETARGET_CHANCE = 0.05;        // …with this chance
+  const SIGHT_REFRESH_RANGE = 12;      // seeing the target within this range resets the leash clock
+  const IDLE_RETRY_MS = 250;           // AI waits this long when no behaviour wants to act
+  const FLEE_RETRY_MS = 300;           // a fleeing monster that can't step waits this long
+  const HOME_REST_MS = 500;            // pause after a monster gets home and resets
+  const HOME_RETRY_MS = 400;           // a homing monster that can't step waits this long
+  const EXPOSED_ASCENSION = 9;         // from this ascension on, exposed windows are shorter…
+  const EXPOSED_ASCENSION_MULT = 0.7;  // …by this factor
+
   /** @type {Record<string, any>} behaviour id → { decide?, resolve?, onHit?, onDeath?, passive? } */
   const BEH = {};
   function registerBehaviour(id, impl) { BEH[id] = impl; }
@@ -24,9 +38,13 @@
     let c = false;
     for (const e of world.floor.entities.values()) {
       if (e.dead || e.faction !== 'monster' || !isAwake(e)) continue;
-      if (Math.abs(e.x - p.x) <= 10 && Math.abs(e.y - p.y) <= 10) { c = true; break; }
+      if (Math.abs(e.x - p.x) <= COMBAT_RADIUS && Math.abs(e.y - p.y) <= COMBAT_RADIUS) {
+        c = true;
+        break;
+      }
     }
-    world.floor._combatT = world.time; world.floor._combat = c;
+    world.floor._combatT = world.time;
+    world.floor._combat = c;
     return c;
   }
 
@@ -57,9 +75,15 @@
     const ai = e.ai;
     // taunt overrides
     const t = BD.sim.status.has(e, 'taunted');
-    if (t && t.sourceId != null) { const tt = Entities.get(world, t.sourceId); if (tt && !tt.dead) return tt; }
+    if (t && t.sourceId != null) {
+      const tt = Entities.get(world, t.sourceId);
+      if (tt && !tt.dead) return tt;
+    }
     let tgt = ai.targetId != null ? Entities.get(world, ai.targetId) : null;
-    if (!tgt || tgt.dead || tgt.hp <= 0 || tgt.faction === e.faction) { tgt = world.player; ai.targetId = tgt.id; }
+    if (!tgt || tgt.dead || tgt.hp <= 0 || tgt.faction === e.faction) {
+      tgt = world.player;
+      ai.targetId = tgt.id;
+    }
     return tgt;
   }
 
@@ -70,8 +94,11 @@
     for (const id of allies) {
       const a = Entities.get(world, id);
       if (!a || a.dead || !a.decoy) continue;
-      if (cheb(a.x, a.y, e.x, e.y) > 8) continue;
-      if (world.rng.chance(a.decoy)) { pick = a; break; }
+      if (cheb(a.x, a.y, e.x, e.y) > DECOY_RANGE) continue;
+      if (world.rng.chance(a.decoy)) {
+        pick = a;
+        break;
+      }
     }
     e.ai.targetId = pick.id;
   }
@@ -113,7 +140,7 @@
       // cheap: only look for the player every ~200 ms
       ai.timer -= dt;
       if (ai.timer > 0) return;
-      ai.timer = 200 + (e.id % 7) * 10;
+      ai.timer = IDLE_NOTICE_MS + (e.id % 7) * IDLE_NOTICE_JITTER_MS;
       notice(world, e);
       if (BD.sim.ai_passive) BD.sim.ai_passive(world, e);
       return;
@@ -129,13 +156,21 @@
     ai.timer -= dt * clk;
     if (ai.timer > 0) return;
     if (e.move) return;            // finish the step first
-    if (ai.state === 'windup') { resolveAction(world, e); return; }
-    if (ai.state === 'exposed') { ai.state = 'chase'; BD.sim.status.remove(world, e, 'exposed'); }
+    if (ai.state === 'windup') {
+      resolveAction(world, e);
+      return;
+    }
+    if (ai.state === 'exposed') {
+      ai.state = 'chase';
+      BD.sim.status.remove(world, e, 'exposed');
+    }
     decide(world, e);
   }
 
   function cancelWindup(world, e) {
-    e.ai.state = 'chase'; e.ai.action = null; e.attack = null;
+    e.ai.state = 'chase';
+    e.ai.action = null;
+    e.attack = null;
     world.events.push({ type: 'monster.cancel', id: e.id });
     if (e.ai.zoneIds) {
       for (const zid of e.ai.zoneIds) {
@@ -164,7 +199,7 @@
   }
 
   function makeExposed(world, e, ms) {
-    const k = world.run.ascension >= 9 ? 0.7 : 1;
+    const k = world.run.ascension >= EXPOSED_ASCENSION ? EXPOSED_ASCENSION_MULT : 1;
     const dur = ms * k;
     e.ai.state = 'exposed';
     e.ai.timer = dur;
@@ -179,27 +214,35 @@
     const tgt = targetOf(world, e);
     const ctx = { tgt, dist: Math.hypot(tgt.x - e.x, tgt.y - e.y), adj: cheb(tgt.x, tgt.y, e.x, e.y) <= 1, los: null };
     ctx.hasLos = () => (ctx.los === null ? (ctx.los = BD.sim.targeting.hasLOS(world, e.x, e.y, tgt.x, tgt.y)) : ctx.los);
-    if (ai.state === 'alert') { ai.state = 'chase'; retarget(world, e); }
-    if ((world.time / 1000 | 0) % 3 === 0 && world.rng.chance(0.05)) retarget(world, e);
+    if (ai.state === 'alert') {
+      ai.state = 'chase';
+      retarget(world, e);
+    }
+    if ((world.time / 1000 | 0) % RETARGET_EVERY_S === 0 && world.rng.chance(RETARGET_CHANCE)) retarget(world, e);
+    ai.timer = decideCost(world, e, d, ctx);
+  }
+
+  /** the first of flee → leash → boss script → behaviours that acts; returns its cost in ms */
+  function decideCost(world, e, d, ctx) {
+    const ai = e.ai;
     // fear / flee
-    if (BD.sim.status.has(e, 'feared') || ai.fleeMs > world.time) { ai.timer = flee(world, e, ctx); return; }
+    if (BD.sim.status.has(e, 'feared') || ai.fleeMs > world.time) return flee(world, e, ctx);
     // leash: home if too far and the player hasn't been seen for 4 s
     const leash = (d.aggro && d.aggro.leash) || Balance.monsters.leash;
-    if (ctx.hasLos() && ctx.dist <= 12) ai.lastSeenMs = world.time;
+    if (ctx.hasLos() && ctx.dist <= SIGHT_REFRESH_RANGE) ai.lastSeenMs = world.time;
     const lostSight = world.time - ai.lastSeenMs > Balance.monsters.leashLostMs;
-    if (!e.keeper && e.rank !== 'boss' && cheb(e.x, e.y, e.home.x, e.home.y) > leash && lostSight) {
-      ai.timer = goHome(world, e); return;
-    }
-    if (BD.sim.entities.isBoss(e) || e.signature) {
-      if (BD.sim.bosses) { const c = BD.sim.bosses.decide(world, e, ctx); if (c != null) { ai.timer = c; return; } }
+    if (!e.keeper && e.rank !== 'boss' && cheb(e.x, e.y, e.home.x, e.home.y) > leash && lostSight) return goHome(world, e);
+    if ((BD.sim.entities.isBoss(e) || e.signature) && BD.sim.bosses) {
+      const c = BD.sim.bosses.decide(world, e, ctx);
+      if (c != null) return c;
     }
     for (const b of d.behaviours || []) {
       const impl = BEH[b.id];
       if (!impl || !impl.decide) continue;
       const cost = impl.decide(world, e, b, ctx);
-      if (cost != null) { ai.timer = cost; return; }
+      if (cost != null) return cost;
     }
-    ai.timer = 250;
+    return IDLE_RETRY_MS;
   }
 
   function moveCost(world, e) {
@@ -238,18 +281,18 @@
   }
   function flee(world, e, ctx) {
     const c = stepAlong(world, e, BD.sim.pathing.chaseField(world), true);
-    return c != null ? c : 300;
+    return c != null ? c : FLEE_RETRY_MS;
   }
   function goHome(world, e) {
     const path = BD.sim.pathing.path(world, e.x, e.y, e.home.x, e.home.y);
     if (!path || !path.length || cheb(e.x, e.y, e.home.x, e.home.y) <= 1) {
       e.ai.state = 'idle';
-      e.ai.timer = 500;
+      e.ai.timer = HOME_REST_MS;
       e.hp = BD.sim.stats.statsOf(world, e).maxLife;
-      return 500;
+      return HOME_REST_MS;
     }
     const ms = moveCost(world, e);
-    return BD.sim.movement.startStep(world, e, path[0][0], path[0][1], ms) ? ms : 400;
+    return BD.sim.movement.startStep(world, e, path[0][0], path[0][1], ms) ? ms : HOME_RETRY_MS;
   }
 
   function system(world, dt) {

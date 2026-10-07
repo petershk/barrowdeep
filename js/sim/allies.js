@@ -7,6 +7,19 @@
   const Entities = BD.sim.entities;
   const Hits = () => BD.sim.hits;
   const { cheb, within, dirOf } = BD.core.util;
+
+  const SPAWN_SEARCH_RADIUS = 3;       // allies appear on the nearest free tile within this many tiles
+  const DEFAULT_LIFE_PCT = 0.5;        // ally life as a share of the owner's, unless the skill says
+  const FALLBACK_MAX_LIFE = 50;
+  const ALLY_MOVE_MS = 280;            // ally walking speed (ms per tile) for its stats…
+  const ALLY_STEP_MS = 260;            // …and for the steps it actually takes
+  const OWNER_GUARD_RANGE = 9;         // the owner's locked target counts while within this range of the owner
+  const SEEK_RANGE = 8;                // otherwise allies look for enemies this close
+  const FOLLOW_DIST = 2;               // with nothing to fight, stay this close to the owner
+  const IDLE_RETHINK_MS = 200;
+  const JAVELIN_COOLDOWN_MS = 2500;
+  const JAVELIN_PAUSE_MS = 500;
+  const MIN_SWING_MS = 450;
   /** deployable/summon kinds register their tick here */
   const kinds = {};
   function registerKind(id, impl) { kinds[id] = impl; }
@@ -14,14 +27,14 @@
   // ---------------- entity allies (clones, spirits) ----------------
   function spawnAlly(world, owner, o) {
     const f = world.floor;
-    const spot = Entities.nearestFree(f, o.x, o.y, 3);
+    const spot = Entities.nearestFree(f, o.x, o.y, SPAWN_SEARCH_RADIUS);
     if (!spot) return null;
     const id = world.nextId++;
     const ownerStats = BD.sim.stats.statsOf(world, owner);
     const a = Entities.makeEntity(id, 'ally', o.kind, spot.x, spot.y, {
       faction: 'player', ownerId: owner.id, ownerEquip: owner.equip, art: o.art, palOverride: o.pal || null, allyKind: o.kind,
       lifeMs: o.lifeMs, mult: o.mult, decoy: o.decoy || 0, rank: 'normal', runtime: true, abilityRank: o.rank || 1,
-      maxLifeOwn: Math.round(ownerStats.maxLife * (o.lifePct || 0.5)), cd: 0, javelinCd: 0, throws: !!o.throws,
+      maxLifeOwn: Math.round(ownerStats.maxLife * (o.lifePct || DEFAULT_LIFE_PCT)), cd: 0, javelinCd: 0, throws: !!o.throws,
     });
     a.hp = a.maxLifeOwn;
     a.dir = owner.dir;
@@ -37,10 +50,18 @@
     const owner = world.player;
     const os = BD.sim.stats.statsOf(world, owner);
     const s = BD.sim.stats.newStats();
-    s.maxLife = a.maxLifeOwn || 50;
-    s.armorTotal = os.armorTotal; s.res = os.res; s.evasionTotal = os.evasionTotal; s.blockChance = 0;
-    s.critChance = os.critChance; s.critMult = os.critMult; s.dr_pct = 0;
-    s.weapon = os.weapon; s.wieldValue = os.wieldValue; s.attackCycleMs = os.attackCycleMs; s.moveMs = 280;
+    s.maxLife = a.maxLifeOwn || FALLBACK_MAX_LIFE;
+    s.armorTotal = os.armorTotal;
+    s.res = os.res;
+    s.evasionTotal = os.evasionTotal;
+    s.blockChance = 0;
+    s.critChance = os.critChance;
+    s.critMult = os.critMult;
+    s.dr_pct = 0;
+    s.weapon = os.weapon;
+    s.wieldValue = os.wieldValue;
+    s.attackCycleMs = os.attackCycleMs;
+    s.moveMs = ALLY_MOVE_MS;
     s.statusChanceMult = os.statusChanceMult;
     return s;
   }
@@ -48,26 +69,32 @@
   function allyStep(world, a, dt) {
     const f = world.floor, owner = world.player;
     a.lifeMs -= dt;
-    if (a.lifeMs <= 0 || owner.dead) { despawn(world, a); return; }
+    if (a.lifeMs <= 0 || owner.dead) {
+      despawn(world, a);
+      return;
+    }
     if (a.move) return;
-    a.cd -= dt; a.javelinCd -= dt;
+    a.cd -= dt;
+    a.javelinCd -= dt;
     if (a.cd > 0) return;
     // pick the nearest enemy near the owner (the locked target first)
     let t = owner.lockId != null ? Entities.get(world, owner.lockId) : null;
-    if (!t || t.dead || t.hp <= 0 || !within(t.x, t.y, owner.x, owner.y, 9)) {
-      t = BD.sim.targeting.nearestEnemy(world, a.x, a.y, 8, 'player', null);
+    if (!t || t.dead || t.hp <= 0 || !within(t.x, t.y, owner.x, owner.y, OWNER_GUARD_RANGE)) {
+      t = BD.sim.targeting.nearestEnemy(world, a.x, a.y, SEEK_RANGE, 'player', null);
     }
     if (!t) {
       // follow the owner
-      if (cheb(a.x, a.y, owner.x, owner.y) > 2) stepToward(world, a, owner.x, owner.y);
-      a.cd = 200;
+      if (cheb(a.x, a.y, owner.x, owner.y) > FOLLOW_DIST) stepToward(world, a, owner.x, owner.y);
+      a.cd = IDLE_RETHINK_MS;
       return;
     }
     if (a.throws && a.javelinCd <= 0 && cheb(a.x, a.y, t.x, t.y) >= 2 && BD.sim.targeting.hasLOS(world, a.x, a.y, t.x, t.y)) {
-      a.javelinCd = 2500; a.cd = 500;
+      a.javelinCd = JAVELIN_COOLDOWN_MS;
+      a.cd = JAVELIN_PAUSE_MS;
       const ab = BD.sim.abilities.resolved(BD.data.skills.javelin, a.abilityRank, owner);
       const ctx = BD.sim.effects.baseCtx(world, owner, ab, a.abilityRank, null);
-      ctx.srcId = a.id; ctx.packetMult = a.mult;
+      ctx.srcId = a.id;
+      ctx.packetMult = a.mult;
       BD.sim.projectiles.fireAbility(world, a, ab, a.abilityRank, null, t.x, t.y, ctx);
       return;
     }
@@ -79,7 +106,7 @@
         canCrit: true, canDodge: true, canBlock: true, mult: 1, abilityId: 'ally',
       });
       world.events.push({ type: 'ability.impact', id: a.id, abilityId: 'ally', x: a.x, y: a.y, tx: t.x, ty: t.y, kind: 'melee' });
-      a.cd = Math.max(450, BD.sim.stats.statsOf(world, owner).attackCycleMs);
+      a.cd = Math.max(MIN_SWING_MS, BD.sim.stats.statsOf(world, owner).attackCycleMs);
       return;
     }
     stepToward(world, a, t.x, t.y);
@@ -87,7 +114,7 @@
   }
   function stepToward(world, a, x, y) {
     const path = BD.sim.pathing.path(world, a.x, a.y, x, y);
-    if (path && path.length && BD.sim.movement.startStep(world, a, path[0][0], path[0][1], 260)) return true;
+    if (path && path.length && BD.sim.movement.startStep(world, a, path[0][0], path[0][1], ALLY_STEP_MS)) return true;
     return false;
   }
   function despawn(world, a) {
@@ -154,7 +181,11 @@
   }
 
   /** despawn runtime allies on floor change (they are not saved) */
-  function clear(world) { if (world.floor) { world.floor.allies = []; world.floor.deployables = []; } }
+  function clear(world) {
+    if (!world.floor) return;
+    world.floor.allies = [];
+    world.floor.deployables = [];
+  }
 
   BD.sim.allies = { spawnAlly, stats, despawn, alliesOf, deploy, deployed, removeDeploy, registerKind, system, fromAbility, clear, kinds };
   BD.sim.world.addSystem('allies', system, 18);
