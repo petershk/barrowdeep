@@ -60,7 +60,7 @@
   }
   function rightClickSell(el, w, verb) {
     el.addEventListener('contextmenu', (ev) => {
-      const c = /** @type {HTMLElement} */ (ev.target).closest('[data-action="packClick"]');
+      const c = BD.ui.dom.closest(ev.target, '[data-action="packClick"]');
       if (!c) return;
       ev.preventDefault();
       verb(c.dataset.uid);
@@ -129,7 +129,7 @@
       rb();
     });
     el.addEventListener('click', (ev) => {
-      const c = /** @type {HTMLElement} */ (ev.target).closest('[data-action="packClick"]');
+      const c = BD.ui.dom.closest(ev.target, '[data-action="packClick"]');
       if (c && /** @type {MouseEvent} */ (ev).shiftKey) {
         Commands().apply(w, { type: 'Sell', uid: c.dataset.uid });
         ev.stopPropagation();

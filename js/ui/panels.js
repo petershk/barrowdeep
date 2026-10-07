@@ -6,7 +6,7 @@
 
   /** @type {Record<string, any>} */
   const defs = {};
-  /** @type {{id:string, el:HTMLElement, arg:any}[]} */
+  /** @type {{id:string, el:HTMLElement, arg:any, shell?:HTMLElement}[]} */
   const stack = [];
   const dirty = new Set();
 

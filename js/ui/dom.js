@@ -60,7 +60,7 @@
   /** delegate clicks on [data-action] inside el to handlers[action](target, ev) */
   function delegate(el, handlers, evType = 'click') {
     el.addEventListener(evType, (ev) => {
-      const t = /** @type {HTMLElement} */ (ev.target).closest('[data-action]');
+      const t = closest(ev.target, '[data-action]');
       if (!t || !el.contains(t)) return;
       const fn = handlers[/** @type {HTMLElement} */ (t).dataset.action];
       if (fn) {
@@ -75,5 +75,14 @@
     if (el.textContent !== s) el.textContent = s;
   }
 
-  BD.ui.dom = { h, append, clear, root, delegate, setText };
+  /**
+   * The nearest element (from an event's target up) matching a selector.
+   * @param {EventTarget} target @param {string} selector
+   * @returns {HTMLElement|null}
+   */
+  function closest(target, selector) {
+    return /** @type {Element} */ (target).closest(selector);
+  }
+
+  BD.ui.dom = { h, append, clear, root, delegate, setText, closest };
 })(globalThis.BD);

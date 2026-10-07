@@ -80,7 +80,7 @@
 
   /**
    * @param {string} id art id  @param {string} frame  @param {number} i
-   * @param {{pal?:object, tint?:string, dark?:number, flip?:boolean}} [o]
+   * @param {{pal?:object, palKey?:string, tint?:string, dark?:number, flip?:boolean, doll?:object}} [o]
    */
   function get(id, frame, i, o) {
     o = o || {};

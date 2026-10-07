@@ -4,8 +4,9 @@ BD.debug.autotests.create = (D) => {
   const q = /[?&]step=(\d)/.exec(location.search);
   const n = q ? Number(q[1]) : 0;
   for (let i = 0; i < n; i++) {
-    if (n >= 2 && i === 1) document.querySelector('[data-action="skill"]').click();
-    const nb = document.querySelector('[data-action="next"]');
+    const pick = /** @type {HTMLElement} */ (document.querySelector('[data-action="skill"]'));
+    if (n >= 2 && i === 1) pick.click();
+    const nb = /** @type {HTMLElement|null} */ (document.querySelector('[data-action="next"]'));
     if (nb) nb.click();
   }
 };

@@ -121,7 +121,7 @@
 
   function onContextMenu(ev, w) {
     ev.preventDefault();
-    const cell = /** @type {HTMLElement} */ (ev.target).closest('.it-cell');
+    const cell = BD.ui.dom.closest(ev.target, '.it-cell');
     if (!cell || !cell.dataset.uid) return;
     if (cell.dataset.where === 'pack') Commands().apply(w, { type: 'Equip', uid: cell.dataset.uid });
     else if (cell.dataset.where === 'equip') Commands().apply(w, { type: 'Unequip', slot: cell.dataset.slot });
@@ -130,7 +130,7 @@
   }
 
   function onClick(ev, w) {
-    const cell = /** @type {HTMLElement} */ (ev.target).closest('.it-cell');
+    const cell = BD.ui.dom.closest(ev.target, '.it-cell');
     if (!cell || !cell.dataset.uid) return;
     const uid = cell.dataset.uid;
     if (ev.ctrlKey && cell.dataset.where === 'pack') {
