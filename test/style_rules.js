@@ -21,8 +21,9 @@ const FUNCTION_MAX = 60;
 
 const isTable = (rel) => rel.startsWith('js/data/') || TABLE_FILES.includes(rel);
 
-// a module-level nickname for a BD path (`const P = BD.view.palette;`), not a local value
-const SHORT_ALIAS = /^\s*const ([A-Z][A-Za-z]?) = (\(\) => )?BD(\.\w+)+;\s*$/;
+// a module-level nickname for a BD path (`const P = BD.view.palette;`, `const MV = ...`), not a local
+// value; short real words in PascalCase (`Ai`, `Fx`) are names, not nicknames
+const SHORT_ALIAS = /^\s*const ([A-Z][A-Z]?) = (\(\) => )?BD(\.\w+)+;\s*$/;
 const INDEX_MATH = /\b[\w.]+\s*\*\s*[\w.]+\.w\s*\+\s*[\w.]+/;
 // a `;` followed by more code on the same line (a trailing `}` or `)` is fine)
 const MULTI = /;\s*[^\s;})\]]/;
