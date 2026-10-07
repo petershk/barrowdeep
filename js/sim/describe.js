@@ -10,7 +10,7 @@
   const EL = { phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', pois: 'poison' };
   const sec = (ms) => fmt(ms / 1000) + ' s';
 
-  const RANK_SCALE_STEP = 0.2;         // per-rank scaling of combo/focus bonuses (matches Hits)
+  const SkillBalance = BD.data.balance.skills;
   const MINOR_ELEMENT_SHARE = 0.05;    // elements under this share of the hit aren't named
 
   /** damage numbers per damage effect at a rank: [{lo, hi, amountsLo, amountsHi, eff}] */
@@ -102,7 +102,7 @@
       const elTxt = els.length === 1 && els[0] !== 'phys' ? ' ' + EL[els[0]] : '';
       const src = n.eff.source === 'spell' ? '' : ' (' + fmt(Abilities().scale(n.eff, rank)) + '× weapon)';
       let extra = '';
-      const rk = 1 + RANK_SCALE_STEP * (rank - 1);
+      const rk = 1 + SkillBalance.rankScaleStep * (rank - 1);
       if (n.eff.perCombo) extra += ', +' + fmt(n.eff.perCombo * rk) + '× per combo charge';
       if (n.eff.perFocus) extra += ', +' + fmt(n.eff.perFocus * rk) + '× per focus';
       if (n.eff.missingLife) extra += ', up to +' + Math.round(n.eff.missingLife * 100) + '% vs wounded';

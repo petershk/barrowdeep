@@ -8,11 +8,10 @@
   const MonsterData = () => BD.data.monsters;
   const ChampionMods = () => BD.data.championMods;
   const Grid = BD.core.grid;
+  const Balance = BD.data.balance;
+  const Ascension = BD.data.ascension;
 
   const SPAWN_SEARCH_RADIUS = 4;
-  const DORMANT_DR_PCT = 40;           // statues take this much less damage until they wake
-  const HASTE_ASCENSION = 2;           // from this ascension on, monsters are faster…
-  const HASTE_ASCENSION_MULT = 1.1;    // …by this factor
   const NEVER_SEEN_MS = -1e9;
 
   function defOf(e) { return MonsterData()[e.def] || (BD.data.bosses && BD.data.bosses[e.def]) || null; }
@@ -96,7 +95,7 @@
       if (m.dr) add('dr_pct', m.dr, m.name);
       if (m.knockImmune) add('knockback_immune', true, m.name);
     }
-    if (e.ai && e.ai.state === 'dormant') add('dr_pct', DORMANT_DR_PCT, 'Dormant');
+    if (e.ai && e.ai.state === 'dormant') add('dr_pct', Balance.monsters.dormantDrPct, 'Dormant');
     // Fanatic: the whole pack attacks faster
     if (e.packId != null && packHasMod(world, e.packId, 'fanatic')) s.attackCycleMs /= ChampionMods().fanatic.packIas;
   }
@@ -122,7 +121,7 @@
       const m = ChampionMods()[id];
       if (m && m.speedMult) k *= m.speedMult;
     }
-    if (world.run.ascension >= HASTE_ASCENSION) k *= HASTE_ASCENSION_MULT;
+    if (world.run.ascension >= Ascension.haste.level) k *= Ascension.haste.speedMult;
     if (e.bossSpeed) k *= e.bossSpeed;
     return k;
   }

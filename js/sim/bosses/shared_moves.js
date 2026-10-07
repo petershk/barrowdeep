@@ -16,13 +16,13 @@
   const RECOVER_MS = 300;             // pause after a move before the next decision
   const HEAVY_RECOVER_MS = 400;
   const CRUSH_RECOVER_MS = 500;
-  const RALLY_MINIONS = 2;            // pack minions a rallying Keeper calls
   const RALLY_WINDUP_MS = 600;
-  // Keeper signature moves (04 §3.6): when they may fire and how hard they hit
-  const QUAKE = { maxRange: 2.5, radius: 2, armMs: 800, mult: 1.5, knockback: 1 };
-  const GRASP = { maxRange: 8, armMs: 900, mult: 1.2, rootMs: 1500 };
-  const BONE_HURL = { minRange: 2, maxRange: 8, flightMs: 1000, mult: 1.6, windupMs: 450 };
-  const CHARGE = { minRange: 2, maxRange: 5.5, length: 5, armMs: 700, mult: 1.8, exposedMs: 2000 };
+  // Keeper signature moves (04 §3.6): when they may fire and how hard they hit (data: balance.bosses)
+  const BossBalance = BD.data.balance.bosses;
+  const QUAKE = BossBalance.quake;
+  const GRASP = BossBalance.grasp;
+  const BONE_HURL = BossBalance.boneHurl;
+  const CHARGE = BossBalance.chargeLine;
 
   // ---------------- shared ----------------
   reg('crushing_blow', {
@@ -41,7 +41,7 @@
       world.events.push({ type: 'rally', id: e.id, x: e.x, y: e.y });
       const sp = Array.from(world.floor.entities.values()).find((o) => o.packId === e.packId && o !== e);
       const def = sp ? sp.def : e.def;
-      for (let i = 0; i < RALLY_MINIONS; i++) {
+      for (let i = 0; i < BossBalance.keeperRallyMinions; i++) {
         Monsters.spawn(world, def, e.x, e.y, { rank: 'minion', packId: e.packId, noLoot: true, noXp: true, spawnedBy: e.id });
       }
       return Ai().windup(world, e, { kind: 'rally', after: RECOVER_MS }, RALLY_WINDUP_MS);

@@ -57,6 +57,7 @@
       { rank: 5, set: { linger: { kind: 'burning_ground', durMs: 3000 } }, text: 'Leaves burning ground for 3 s.' },
     ],
     desc: 'Lob a bomb that bursts in radius 1 and sets enemies Burning. Holding a combo charge? It consumes one for +60% damage.',
+    params: { comboMult: 1.6 },
   });
   sk({
     id: 'lightning_sentry', branch: 'traps', tier: 2, name: 'Lightning Sentry', icon: 'lightning_sentry', school: 'storm',
@@ -121,7 +122,8 @@
   });
   sk({ id: 'unseen', branch: 'shadow', tier: 4, name: 'Unseen', icon: 'unseen', keystone: true, passive: () => void 0, school: 'shadow',
     desc: 'After 2 s without attacking or being hit you become Hidden: monsters don\'t notice you on sight, ' +
-      'and your next hit deals 3× and doesn\'t alert the rest of the pack.' });
+      'and your next hit deals 3× and doesn\'t alert the rest of the pack.',
+    params: { dmgMult: 3 } });
 
   for (const id in S) if (S[id].cls === 'assassin') BD.data.stats.ensureSkillKey(id, S[id].name);
 })(globalThis.BD);

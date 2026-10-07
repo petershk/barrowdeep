@@ -9,24 +9,11 @@
   const Grid = BD.core.grid;
   const { within, cheb } = BD.core.util;
 
-  const LAST_ACT = 4;                // trap damage uses act 4 trash beyond act 4
-  const REARM_MS = 3000;             // a trap that fired waits this long before it can fire again
-  const GAS_POISON_MS = 4000;
-  const DART_BACKOFF = 4;            // darts start this many tiles behind the trap...
-  const DART_LINE_TILES = 8;         // ...the telegraphed lane is this long...
-  const DART_GAP_MS = 150;           // ...successive darts leave this far apart...
-  const DART_MAX_DIST = 9;           // ...and fly this far...
-  const DART_SPEED = 12;             // ...at this speed (tiles per second)
-  const DART_TRIGGER_RANGE = 3;      // a dart trap fires when the player is in its lane this close
-  const REVEAL_RANGE = 3;            // traps show as a scuff within this range...
-  const REVEAL_RANGE_ASCENDED = 2;   // ...this range from Ascension 7...
-  const REVEAL_ASCENSION = 7;
-  const REVEAL_RANGE_PILGRIM = 99;   // ...and always on Pilgrim
-  const DISARM_MS = 800;             // hold interact this long (adjacent, still) to disarm
-  const DISARM_XP = 4;               // disarm XP at AL 1...
-  const DISARM_XP_GROWTH = 1.12;     // ...growing by this per AL
-  const VENT_WAKE_RANGE = 8;         // fire vents cycle while the player is this close...
-  const VENT_CYCLE_MS = 2500;        // ...firing this often
+  const Balance = BD.data.balance;   // .traps: rearm, reveal range, disarm; per-trap numbers live on BD.data.traps
+  const Ascension = BD.data.ascension;
+
+  const LAST_ACT = BD.data.floors.LAST_ACT;   // trap damage uses act 4 trash beyond act 4
+  const REVEAL_RANGE_PILGRIM = 99;   // traps are always visible on Pilgrim
 
   /** "×" in 05 §2.5 = the average trash DMG at that AL */
   function trashDmg(world) {
@@ -37,7 +24,7 @@
 
   function fire(world, o) {
     const d = TrapData()[o.trap], dmg = trashDmg(world);
-    o.cooldown = world.time + REARM_MS;
+    o.cooldown = world.time + Balance.traps.rearmMs;
     world.events.push({ type: 'trap.trigger', trap: o.trap, x: o.x, y: o.y });
     let school = 'steel';
     if (o.trap === 'gas') school = 'poison';
@@ -47,15 +34,15 @@
       resolve: { type: 'packet', amounts: { [d.element]: dmg * mult }, statuses: statuses || [], linger: linger || null },
     });
     if (o.trap === 'spike') strike([[o.x, o.y]], d.armMs, d.mult);
-    else if (o.trap === 'gas') strike(AiMoves().circle(o.x, o.y, 1), d.armMs, d.mult, [{ id: 'poisoned', durMs: GAS_POISON_MS }]);
+    else if (o.trap === 'gas') strike(AiMoves().circle(o.x, o.y, 1), d.armMs, d.mult, [{ id: 'poisoned', durMs: d.poisonMs }]);
     else if (o.trap === 'fire_vent') {
       strike([[o.x, o.y]], d.armMs, d.mult, [], { kind: 'burning_ground', durMs: d.activeMs, amount: dmg * d.mult });
     } else if (o.trap === 'dart') {
-      const line = Grid.rayTiles(o.x - o.dx * DART_BACKOFF, o.y - o.dy * DART_BACKOFF, o.dx, o.dy, DART_LINE_TILES)
+      const line = Grid.rayTiles(o.x - o.dx * d.backoff, o.y - o.dy * d.backoff, o.dx, o.dy, d.lineTiles)
         .filter(([x, y]) => BD.sim.entities.walkable(world.floor, x, y));
       for (let i = 0; i < d.darts; i++) {
-        const dart = { x: o.x - o.dx * DART_BACKOFF, y: o.y - o.dy * DART_BACKOFF, dx: o.dx, dy: o.dy, amt: dmg * d.mult };
-        BD.core.scheduler.after(world, d.armMs + i * DART_GAP_MS, 'trap.dart', dart);
+        const dart = { x: o.x - o.dx * d.backoff, y: o.y - o.dy * d.backoff, dx: o.dx, dy: o.dy, amt: dmg * d.mult };
+        BD.core.scheduler.after(world, d.armMs + i * d.gapMs, 'trap.dart', dart);
       }
       BD.sim.zones.create(world, {
         tiles: line, cx: o.x, cy: o.y, armMs: d.armMs, faction: null, srcId: null, school: 'steel', resolve: null, kind: 'dart_line',
@@ -63,16 +50,17 @@
     }
   }
   BD.core.scheduler.register('trap.dart', (world, pl) => {
+    const d = TrapData().dart;
     BD.sim.projectiles.spawn(world, {
       kind: 'arrow', srcId: null, faction: 'trap',
-      x: pl.x, y: pl.y, dx: pl.dx, dy: pl.dy, maxDist: DART_MAX_DIST, speed: DART_SPEED,
+      x: pl.x, y: pl.y, dx: pl.dx, dy: pl.dy, maxDist: d.maxDist, speed: d.speed,
       payload: { type: 'packet', amounts: { phys: pl.amt } },
     });
   });
 
   function revealRange(world) {
     if (world.run.difficulty === 'pilgrim') return REVEAL_RANGE_PILGRIM;
-    return world.run.ascension >= REVEAL_ASCENSION ? REVEAL_RANGE_ASCENDED : REVEAL_RANGE;
+    return world.run.ascension >= Ascension.hidden_traps.level ? Ascension.hidden_traps.revealRange : Balance.traps.revealRange;
   }
 
   function system(world, dt) {
@@ -95,7 +83,7 @@
           o.disarmUntil = 0;
           const g = BD.sim.loot.goldOf(world, f.al, 1);
           p.gold += g;
-          BD.sim.progression.gainXp(world, p, DISARM_XP * Math.pow(DISARM_XP_GROWTH, f.al - 1), 'disarm');
+          BD.sim.progression.gainXp(world, p, Balance.traps.disarmXp * Math.pow(Balance.monsters.xpGrowth, f.al - 1), 'disarm');
           world.events.push({ type: 'trap.disarm', x: o.x, y: o.y, gold: g });
         }
         continue;
@@ -103,12 +91,13 @@
       if (o.cooldown && world.time < o.cooldown) continue;
       if (o.trap === 'fire_vent') {
         // vents cycle while someone is near
-        if (within(o.x, o.y, p.x, p.y, VENT_WAKE_RANGE)) tickVent(world, o, dt);
+        if (within(o.x, o.y, p.x, p.y, TrapData().fire_vent.wakeRange)) tickVent(world, o, dt);
         continue;
       }
       if (o.trap === 'dart') {
-        const inRow = o.dx && p.y === o.y && Math.abs(p.x - o.x) <= DART_TRIGGER_RANGE;
-        const inColumn = o.dy && p.x === o.x && Math.abs(p.y - o.y) <= DART_TRIGGER_RANGE;
+        const reach = TrapData().dart.triggerRange;
+        const inRow = o.dx && p.y === o.y && Math.abs(p.x - o.x) <= reach;
+        const inColumn = o.dy && p.x === o.x && Math.abs(p.y - o.y) <= reach;
         if (inRow || inColumn) fire(world, o);
         continue;
       }
@@ -120,7 +109,7 @@
 
   function tickVent(world, o, dt) {
     o.cycle = (o.cycle || 0) + dt;
-    if (o.cycle >= VENT_CYCLE_MS) {
+    if (o.cycle >= TrapData().fire_vent.cycleMs) {
       o.cycle = 0;
       fire(world, o);
     }
@@ -128,7 +117,7 @@
 
   function startDisarm(world, o) {
     if (!o.visible || o.disarmed) return;
-    o.disarmUntil = world.time + DISARM_MS;
+    o.disarmUntil = world.time + Balance.traps.disarmMs;
     world.events.push({ type: 'trap.disarm.start', x: o.x, y: o.y });
   }
 

@@ -8,11 +8,8 @@
   const Commands = BD.sim.commands;
   const Interact = () => BD.sim.interact;
 
-  const FINAL_ACT = 4;                 // act-scaled prices stop rising after the last act
-  const BLESSINGS_OFFERED = 3;
-  const SMITH_MAGIC_CHANCE = 0.5;      // stock past the first slot is magic this often, else common
-  const REFORGE_TRIES = 20;            // rolls tried for a same-band replacement affix
-  const STASH_TAB_SIZE = 20;
+  const EconomyBalance = BD.data.balance.economy;
+  const LAST_ACT = BD.data.floors.LAST_ACT;   // act-scaled prices stop rising after the last act
 
   function townState(world) {
     const r = world.run;
@@ -37,9 +34,9 @@
       reforge: EconomyData().reforge(al(world)),
       gamble: EconomyData().gamble(al(world)),
       blessing: EconomyData().blessing(al(world)),
-      flask: EconomyData().flaskUpgrade(Math.min(FINAL_ACT, r.act)),
+      flask: EconomyData().flaskUpgrade(Math.min(LAST_ACT, r.act)),
       respec: EconomyData().respec(world.player.level, t.respecs),
-      portal: EconomyData().portalScroll(Math.min(FINAL_ACT, r.act)),
+      portal: EconomyData().portalScroll(Math.min(LAST_ACT, r.act)),
     };
   }
   function enhanceCost(world, item) { return EconomyData().enhance(al(world), (item.enhance || 0) + 1); }
@@ -62,7 +59,7 @@
     t.rerolls = 0;
     t.buyback = [];
     t.freeReroll = !!r.flags.merchantsFavor;
-    t.blessOffer = world.lootRng.shuffle(Object.keys(BD.data.blessings)).slice(0, BLESSINGS_OFFERED);
+    t.blessOffer = world.lootRng.shuffle(Object.keys(BD.data.blessings)).slice(0, EconomyBalance.blessingsOffered);
     if (t.stockAct !== r.act || !t.stock.length) rollStock(world);
   }
 
@@ -75,7 +72,7 @@
       const usable = i < EconomyData().smithUsable;
       // the first slot is always magic; the last is rare if the rare roll came up
       let rarity = 'magic';
-      if (i > 0 && !rng.chance(SMITH_MAGIC_CHANCE)) rarity = 'common';
+      if (i > 0 && !rng.chance(EconomyBalance.smithMagicChance)) rarity = 'common';
       if (!rareDone && i === n - 1) {
         rarity = 'rare';
         rareDone = true;
@@ -142,7 +139,7 @@
     const taken = new Set(others.map((a) => BD.data.affixes[a.id].stat || a.id));
     taken.add(BD.data.affixes[old.id].stat || old.id);
     let next = null;
-    for (let k = 0; k < REFORGE_TRIES && !next; k++) {
+    for (let k = 0; k < EconomyBalance.reforgeTries && !next; k++) {
       const rolled = BD.sim.loot.rollAffixes(world.lootRng, base, 'rare', world.player.cls);
       const roll = rolled.find((a) => BD.data.affixes[a.id].band === band && !taken.has(BD.data.affixes[a.id].stat || a.id));
       if (roll) next = roll;
@@ -230,7 +227,7 @@
     const p = world.player, tabs = world.stash;
     if (!tabs) return false;
     const tab = tabs[c.tab || 0];
-    if (!tab || tab.length >= STASH_TAB_SIZE) return false;
+    if (!tab || tab.length >= EconomyBalance.stashTabSize) return false;
     const i = p.pack.findIndex((x) => x.uid === c.uid);
     if (i < 0) return false;
     tab.push(p.pack.splice(i, 1)[0]);

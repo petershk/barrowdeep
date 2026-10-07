@@ -10,13 +10,8 @@
   function bumpAll() { globalVersion++; }
 
   const ATTRS = ['str', 'dex', 'mag', 'vit'];
-  const ARMOR_PER_STR = 0.5;             // armor from each point of Strength
-  const EVASION_PER_DEX = 2;             // evasion from each point of Dexterity
-  const CRIT_PER_DEX = 0.1;              // crit chance (%) from each point of Dexterity
-  const BLOCK_DEX_FLOOR = 10;            // Dexterity above this adds block chance
-  const ASCENSION_RESIST_LEVEL = 8;      // from this ascension on...
-  const ASCENSION_RESIST_PENALTY = -20;  // ...all resistances take this penalty
-  const LAST_ACT = 4;                    // per-act monster tables stop here (the Sanctum uses act 4)
+  const Ascension = BD.data.ascension;
+  const LAST_ACT = BD.data.floors.LAST_ACT;  // per-act monster tables stop here (the Sanctum uses act 4)
   const MONSTER_CRIT_MULT = 1.5;         // monsters never crit; the multiplier is only a placeholder
 
   function newStats() {
@@ -112,18 +107,18 @@
   }
 
   function deriveDefence(s) {
-    s.armorTotal = Math.round((s.armor + ARMOR_PER_STR * s.str) * (1 + s.armor_pct / 100));
-    s.evasionTotal = Math.round(s.evasion + EVASION_PER_DEX * s.dex);
-    s.critChance = Math.min(Balance.combat.critCap, s.crit + CRIT_PER_DEX * s.dex);
+    s.armorTotal = Math.round((s.armor + Balance.player.armorPerStr * s.str) * (1 + s.armor_pct / 100));
+    s.evasionTotal = Math.round(s.evasion + Balance.player.evasionPerDex * s.dex);
+    s.critChance = Math.min(Balance.combat.critCap, s.crit + Balance.player.critPerDex * s.dex);
     s.critMult = 1 + s.crit_dmg / 100;
-    const dexBlock = Math.max(0, s.dex - BLOCK_DEX_FLOOR) * Balance.combat.blockPerDexOver10;
+    const dexBlock = Math.max(0, s.dex - Balance.combat.blockDexFloor) * Balance.combat.blockPerDexOver10;
     s.blockChance = s.blockBase > 0 ? Math.min(Balance.combat.blockCap, s.block + dexBlock) : 0;
   }
 
   /** difficulty (and high ascension) lowers every resistance */
   function resistPenalty(world) {
     if (!BD.data.difficulties) return 0;
-    const ascension = world.run.ascension >= ASCENSION_RESIST_LEVEL ? ASCENSION_RESIST_PENALTY : 0;
+    const ascension = world.run.ascension >= Ascension.resist.level ? Ascension.resist.penalty : 0;
     return BD.data.difficulties[world.run.difficulty].resistPenalty + ascension;
   }
 

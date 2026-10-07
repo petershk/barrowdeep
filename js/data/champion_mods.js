@@ -13,7 +13,8 @@
       name: 'Cold Enchanted', onHit: { status: 'chilled', durMs: 2000 },
       deathZone: { radius: 1, armMs: 600, element: 'cold', mult: 1.2, status: 'frozen', statusMs: 1200, school: 'cold' },
     },
-    lightning_enchanted: { name: 'Lightning Enchanted', sparksOnHit: 3, sparkCdMs: 400 },
+    // sparks: each deals sparkMult × the monster's average hit and flies sparkRange tiles
+    lightning_enchanted: { name: 'Lightning Enchanted', sparksOnHit: 3, sparkCdMs: 400, sparkMult: 0.5, sparkRange: 5 },
     poison_enchanted: {
       name: 'Poison Enchanted',
       periodic: { everyMs: 6000, radius: 1, armMs: 700, element: 'pois', mult: 0.8, status: 'poisoned', statusMs: 4000, school: 'poison' },
@@ -23,7 +24,7 @@
     cursed: { name: 'Cursed', onHit: { status: 'weakened', durMs: 4000 } },
     vampiric: { name: 'Vampiric', leech: 0.2 },
     mortar: { name: 'Mortar', lore: true, mortar: { everyMs: 7000, armMs: 1000, radius: 1, element: 'fire', mult: 1.6, school: 'fire' } },
-    molten: { name: 'Molten', lore: true, trail: { kind: 'molten_trail', durMs: 3000 } },
-    shielding: { name: 'Shielding', lore: true, shield: { everyMs: 8000, pct: 0.25, radius: 5 } },
+    molten: { name: 'Molten', lore: true, trail: { kind: 'molten_trail', durMs: 3000, mult: 0.15 } },   // trail tick = mult × average hit
+    shielding: { name: 'Shielding', lore: true, shield: { everyMs: 8000, pct: 0.25, radius: 5, durMs: 6000 } },
   };
 })(globalThis.BD);

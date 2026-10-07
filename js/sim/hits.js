@@ -11,13 +11,13 @@
   const ELS = ['phys', 'fire', 'cold', 'light', 'pois'];
   const EL_PCT = { fire: 'fire_pct', cold: 'cold_pct', light: 'light_pct', pois: 'pois_pct' };
 
-  const CHAR_SCALE_PER_LEVEL = 0.09;   // spell base damage grows 9% per character level
-  const RANK_SCALE_STEP = 0.2;         // default per-rank scaling (matches Abilities.scale)
-  const DMG_PER_ATTR = 0.03;           // +3% damage per point of Magic (spells) or wield stat (weapons)
+  const PlayerBalance = BD.data.balance.player;
+  const SkillBalance = BD.data.balance.skills;
+
   const MID_ROLL = 0.5;                // damage roll used when no roll or rng is given
   const KNOCK_MS_PER_TILE = 60;
 
-  const charScale = (L) => 1 + CHAR_SCALE_PER_LEVEL * (L - 1);
+  const charScale = (L) => 1 + PlayerBalance.charScalePerLevel * (L - 1);
 
   /** the 0..1 damage roll: a fixed roll (tooltips), else the rng, else the midpoint */
   function rollOf(ctx) {
@@ -34,8 +34,8 @@
   function computeHit(world, caster, ab, eff, rank, ctx) {
     const s = Stats().statsOf(world, caster);
     const roll = rollOf(ctx);
-    let mult = eff.mult != null || eff.perRank ? Abilities().scale(eff, rank) : 1 + RANK_SCALE_STEP * (rank - 1);
-    const rk = 1 + RANK_SCALE_STEP * (rank - 1);
+    let mult = eff.mult != null || eff.perRank ? Abilities().scale(eff, rank) : 1 + SkillBalance.rankScaleStep * (rank - 1);
+    const rk = 1 + SkillBalance.rankScaleStep * (rank - 1);
     if (eff.perCombo) mult += eff.perCombo * (ctx.combo || 0) * (eff.perComboScales === false ? 1 : rk);
     if (eff.perFocus) mult += eff.perFocus * (ctx.focus || 0) * (eff.perFocusScales === false ? 1 : rk);
     if (eff.perFocusPct) mult *= 1 + eff.perFocusPct * (ctx.focus || 0);
@@ -44,7 +44,7 @@
     const amounts = {};
     if (eff.source === 'spell') {
       const lo = eff.base[0], hi = eff.base[1];
-      const base = (lo + roll * (hi - lo)) * charScale(caster.level || 1) * (1 + DMG_PER_ATTR * s.mag);
+      const base = (lo + roll * (hi - lo)) * charScale(caster.level || 1) * (1 + PlayerBalance.dmgPerAttr * s.mag);
       const el = eff.element || 'fire';
       const elementPct = EL_PCT[el] ? s[EL_PCT[el]] : 0;
       const areaPct = tags.includes('aoe') ? s.area_pct : 0;
@@ -59,7 +59,7 @@
       if (tags.includes('projectile')) pct += s.projectile_pct;
       if (tags.includes('aoe')) pct += s.area_pct;
       if (w.wieldStat === 'mag') pct += s.spell_pct * 0;  // Mag weapons scale through the wield stat only
-      const phys = (lo + roll * (hi - lo)) * (1 + DMG_PER_ATTR * s.wieldValue) * (1 + pct / 100);
+      const phys = (lo + roll * (hi - lo)) * (1 + PlayerBalance.dmgPerAttr * s.wieldValue) * (1 + pct / 100);
       // conversion (e.g. Sky Spear: half lightning)
       const conv = eff.convert || null;
       let physLeft = phys;

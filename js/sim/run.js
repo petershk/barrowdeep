@@ -9,9 +9,8 @@
   const Interact = () => BD.sim.interact;
 
   const TOWN_ARRIVAL_DROP = 2;            // arriving in town from below: this many tiles south of the stairs
-  const ARRIVAL_SEARCH_RADIUS = 8;        // how far to look for a free tile around the arrival point
-  const LAST_ACT = 4;                     // town stock never goes past act 4
-  const FLOORS_PER_ACT = 3;
+  const ARRIVAL_SEARCH_RADIUS = BD.sim.world.ARRIVAL_SEARCH_RADIUS;
+  const LAST_ACT = FloorData.LAST_ACT;    // town stock never goes past act 4
   const LAST_STAIRS_FLOOR = FloorData.LAST - 1;  // no stairs down from here: the Sanctum is reached by waypoint
 
   function begin(world, opts) {
@@ -89,7 +88,8 @@
     const act = Math.min(LAST_ACT, r.act);
     if (r.flags['act' + act + 'Done'] && act < LAST_ACT) return FloorData.al(FloorData.firstOfAct(act + 1));
     let deepest = FloorData.firstOfAct(act);
-    for (let n = FloorData.firstOfAct(act); n < FloorData.firstOfAct(act) + FLOORS_PER_ACT; n++) if (n <= r.deepestFloor) deepest = n;
+    const nextAct = FloorData.firstOfAct(act) + FloorData.FLOORS_PER_ACT;
+    for (let n = FloorData.firstOfAct(act); n < nextAct; n++) if (n <= r.deepestFloor) deepest = n;
     return FloorData.al(deepest);
   }
 

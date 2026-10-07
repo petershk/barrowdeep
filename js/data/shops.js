@@ -49,16 +49,20 @@
     { id: 'martyrs_path', name: "Martyr's Path", cost: 500, desc: 'Unlocks the Martyr difficulty.' },
   ];
 
+  // Ascension levels, in order: level N adds entries 1..N. Each entry carries the numbers its effect uses.
   BD.data.ascensionMods = [
-    'Elites roll one extra champion power.',
-    'Monsters move 10% faster.',
-    'Keepers have a second signature move.',
-    'Healing from the flask −20%.',
-    'Bosses enter their second phase at 70% instead of 50%.',
-    '+25% monster density.',
-    'Traps are invisible until within 2 tiles.',
-    'Resistances −20.',
-    'Exposed windows are 30% shorter.',
-    'Malgoth gains a fourth phase at 15% life.',
+    { level: 1, id: 'elite_mods', minMods: 2, championExtraMods: 1, desc: 'Elites roll one extra champion power.' },
+    { level: 2, id: 'haste', speedMult: 1.1, desc: 'Monsters move 10% faster.' },
+    { level: 3, id: 'keeper_moves', minMoves: 2, desc: 'Keepers have a second signature move.' },
+    { level: 4, id: 'flask', healMult: 0.8, desc: 'Healing from the flask −20%.' },
+    { level: 5, id: 'early_enrage', atPct: 70, desc: 'Bosses enter their second phase at 70% instead of 50%.' },
+    { level: 6, id: 'density', budgetMult: 1.25, desc: '+25% monster density.' },
+    { level: 7, id: 'hidden_traps', revealRange: 2, desc: 'Traps are invisible until within 2 tiles.' },
+    { level: 8, id: 'resist', penalty: -20, desc: 'Resistances −20.' },
+    { level: 9, id: 'exposed', exposedMult: 0.7, desc: 'Exposed windows are 30% shorter.' },
+    { level: 10, id: 'eternal', atLife: 0.15, speedMult: 1.25, desc: 'Malgoth gains a fourth phase at 15% life.' },
   ];
+  /** the same entries by id: `world.run.ascension >= Ascension.haste.level` */
+  BD.data.ascension = {};
+  for (const m of BD.data.ascensionMods) BD.data.ascension[m.id] = m;
 })(globalThis.BD);

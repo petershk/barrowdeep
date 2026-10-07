@@ -8,13 +8,10 @@
   const Carve = BD.sim.gen.carve;
   const { cheb } = BD.core.util;
   const idx = Carve.idx;
+  const GenBalance = BD.data.balance.gen;
 
   const STAIRS_CLEAR = 6;         // no traps or event within this many tiles of either stairs
-  const TRAP_FLOOR = 2;           // room traps appear from this floor
-  const ROOM_TRAPS_MIN = 2;
-  const ROOM_TRAPS_MAX = 5;
   const HOARDER_PACK_ID = 900;    // spawn id of the Hoarder event pack (clear of normal pack ids)
-  const VAULT_TRAPS = 5;          // traps ringing the trapped vault, at most
   const GRAVES_R = 2;             // restless dead: graves within this many tiles of the centre
 
   function corridorish(p, x, y) {
@@ -35,7 +32,7 @@
     // set-piece T markers became trap objects in populate; give them a kind
     for (const o of p.objects) if (o.kind === 'trap' && !o.trap) o.trap = rng.pick(kinds);
     // 2–5 more traps in rooms (from floor 2)
-    if (fl.n >= TRAP_FLOOR) {
+    if (fl.n >= GenBalance.trapFloor) {
       const cands = [];
       for (const r of p.rooms) {
         if (r === p.upRoom || r.setpiece) continue;
@@ -45,7 +42,7 @@
         }
       }
       rng.shuffle(cands);
-      const n = rng.int(ROOM_TRAPS_MIN, ROOM_TRAPS_MAX);
+      const n = rng.int(GenBalance.roomTraps[0], GenBalance.roomTraps[1]);
       for (let k = 0; k < n && k < cands.length; k++) {
         const [x, y] = cands[k];
         taken.add(idx(p, x, y));
@@ -86,7 +83,7 @@
     else if (id === 'trapped_vault') {
       p.objects.push({ kind: 'chest', vault: true, x: centre[0], y: centre[1] });
       const ring = spots.filter(([x, y]) => cheb(x, y, centre[0], centre[1]) === 2 || cheb(x, y, centre[0], centre[1]) === 1)
-        .slice(0, VAULT_TRAPS);
+        .slice(0, GenBalance.vaultTraps);
       for (const [x, y] of ring) {
         taken.add(idx(p, x, y));
         p.objects.push({ kind: 'trap', trap: rng.pick(['spike', 'fire_vent', 'gas']), x, y, visible: true });

@@ -9,13 +9,6 @@
   const bump = (e) => BD.sim.stats.bump(e);
   const isBoss = (e) => BD.sim.entities.isBoss(e);
 
-  const DEFAULT_MAX_STACKS = 5;   // stacking statuses without their own cap
-  const DEFAULT_SLOW = 0.3;       // a slow with no magnitude takes this much speed...
-  const MAX_SLOW = 0.9;           // ...and no slow takes more than this
-  const MIN_DEALT_MULT = 0.1;     // weakening statuses never cut damage dealt below this
-  const OATH_DMG_PCT = 25;        // Oath: +% damage...
-  const OATH_DR_PCT = 20;         // ...and +% damage reduction
-
   function has(e, id) {
     for (const s of e.statuses) if (s.id === id) return s;
     return null;
@@ -60,7 +53,7 @@
   /** stacking status: add a stack, or at the cap refresh the stack closest to expiring */
   function applyStack(e, id, def, durMs, mag, o, dot) {
     const list = e.statuses.filter((x) => x.id === id);
-    if (list.length >= (def.max || DEFAULT_MAX_STACKS)) {
+    if (list.length >= (def.max || Balance.combat.defaultMaxStacks)) {
       const s = list.sort((a, b) => a.remainingMs - b.remainingMs)[0];
       s.remainingMs = durMs;
       s.dot = Math.max(s.dot || 0, dot);
@@ -197,7 +190,7 @@
     for (const s of e.statuses) {
       const d = StatusData[s.id];
       if (d.noMove) return Infinity;
-      if (d.moveSlow) k = Math.max(k, 1 / (1 - Math.min(MAX_SLOW, s.magnitude || d.mag || DEFAULT_SLOW)));
+      if (d.moveSlow) k = Math.max(k, 1 / (1 - Math.min(Balance.combat.maxSlow, s.magnitude || d.mag || Balance.combat.defaultSlow)));
     }
     return k;
   }
@@ -216,7 +209,7 @@
       const t = StatusData[s.id].dealtMult;
       if (t) k += t;
     }
-    return Math.max(MIN_DEALT_MULT, k);
+    return Math.max(Balance.combat.minDealtMult, k);
   }
   function invulnerable(e) {
     for (const s of e.statuses) if (StatusData[s.id].invuln) return true;
@@ -239,8 +232,8 @@
       if (d.flag) add(d.flag, true, d.name);
       if (s.id === 'braced') add('dr_pct', s.magnitude, d.name);
       if (s.id === 'oath') {
-        add('dmg_pct', OATH_DMG_PCT, d.name);
-        add('dr_pct', OATH_DR_PCT, d.name);
+        add('dmg_pct', d.grants.dmg_pct, d.name);
+        add('dr_pct', d.grants.dr_pct, d.name);
       }
     }
   }

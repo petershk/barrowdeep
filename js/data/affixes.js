@@ -56,13 +56,15 @@
   hook('projectile_extra', 'extra_projectiles', 'valkyrie', [1, 1], [1, 1], '+1 projectile to Multishot, Ice Shard and Spark', { fixed: 1 });
 
   // ---- proc band (rares and legendaries; at most one per item) ----
-  const proc = (id, text) => af(id, null, ANY, [0, 0], [0, 0], null, { band: 'proc', proc: id, text, fixed: 0 });
-  proc('proc_nova_on_kill', 'On kill: 10% chance to release a fire nova');
-  proc('proc_chain_on_hit', 'On hit: 5% chance to cast a 3-jump chain lightning');
-  proc('proc_frost_on_evade', 'On Evade: leave a frost patch');
-  proc('proc_heal_on_crit', 'On crit: heal 1% of maximum life');
-  proc('proc_shield_low', 'Below 30% life: gain a shield of 15% maximum life (once per 30 s)');
-  proc('proc_haste_on_kill', 'On kill: +15% movement and attack speed for 3 s');
+  // params: the numbers the proc uses (sim/powers.js); "low life" is balance.combat.lowLifeFrac
+  const proc = (id, text, params) => af(id, null, ANY, [0, 0], [0, 0], null, { band: 'proc', proc: id, text, fixed: 0, params });
+  proc('proc_nova_on_kill', 'On kill: 10% chance to release a fire nova', { chance: 0.1, weaponMult: 0.5 });
+  // jumps = targets hit by one chain, jumpRange tiles between links, weaponMult of weapon damage per link
+  proc('proc_chain_on_hit', 'On hit: 5% chance to cast a 3-jump chain lightning', { chance: 0.05, jumps: 4, jumpRange: 3, weaponMult: 0.3 });
+  proc('proc_frost_on_evade', 'On Evade: leave a frost patch', { durMs: 3000 });
+  proc('proc_heal_on_crit', 'On crit: heal 1% of maximum life', { healPct: 0.01, icdMs: 250 });
+  proc('proc_shield_low', 'Below 30% life: gain a shield of 15% maximum life (once per 30 s)', { shieldPct: 0.15, durMs: 6000, cdMs: 30000 });
+  proc('proc_haste_on_kill', 'On kill: +15% movement and attack speed for 3 s', { durMs: 3000 });
 
   BD.data.affixes = A;
 

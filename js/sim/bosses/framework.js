@@ -9,19 +9,10 @@
   const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const { cheb } = BD.core.util;
+  const BossBalance = BD.data.balance.bosses;   // special / signature timings, Crushing Blow range, summon cap
+  const Ascension = BD.data.ascension;
 
-  const FIRST_SPECIAL_MS = 4000;        // first special of a boss whose def has no specialEvery
-  const FIRST_SPECIAL_SCALE = 0.5;      // the first special comes after half the usual interval
   const NEVER_MS = 1e12;                // a timer that never fires
-  const KEEPER_FIRST_SIG_MIN_MS = 3000; // a Keeper's first signature move comes 3–5 s after waking
-  const KEEPER_FIRST_SIG_MAX_MS = 5000;
-  const KEEPER_SIG_MIN_MS = 7000;       // then one every 7–10 s
-  const KEEPER_SIG_MAX_MS = 10000;
-  const KEEPER_RALLY_AT = 0.5;          // a rallying Keeper calls its pack once below this life fraction
-  const CRUSH_RANGE = 2.5;              // Crushing Blow only when the player is within this many tiles
-  const PHASE_SPECIAL_DELAY_MS = 1200;  // breather before the first special of a new phase
-  const ASC5_ONE_PHASE_AT_PCT = 70;     // Ascension 5+: a single-phase boss enrages at 70% instead
-  const DEFAULT_SUMMON_CAP = 6;         // live adds a boss may have when its def sets no summonCap
   const RECOVER_MS = 300;               // recovery after a move that names no `after`
   const SUMMON_SCATTER = 3;             // adds without spawn points appear within this many tiles
   /** move implementations: { start(world, e, move, ctx) → cost ms | null, resolve?(world, e, act) → ms } */
@@ -35,9 +26,9 @@
       e.ai.boss = {
         phase: 0, opened: false, last: null, cds: {}, orbs: 0, rallied: false,
         nextSpecial: world.time
-          + (d.specialEvery ? rng.range(d.specialEvery[0], d.specialEvery[1]) * FIRST_SPECIAL_SCALE : FIRST_SPECIAL_MS),
+          + (d.specialEvery ? rng.range(d.specialEvery[0], d.specialEvery[1]) * BossBalance.firstSpecialScale : BossBalance.firstSpecialMs),
         nextCrush: world.time + (d.crushing ? d.crushing.everyMs + rng.range(-d.crushing.jitter, d.crushing.jitter) : NEVER_MS),
-        nextSig: world.time + rng.range(KEEPER_FIRST_SIG_MIN_MS, KEEPER_FIRST_SIG_MAX_MS),
+        nextSig: world.time + rng.range(BossBalance.keeperFirstSigMs[0], BossBalance.keeperFirstSigMs[1]),
       };
     }
     return e.ai.boss;
@@ -69,7 +60,7 @@
       if (c != null) return c;
     }
     // Crushing Blow: every 8 s ±2 when the player is within 1–2 tiles
-    if (d.crushing && world.time >= st.nextCrush && ctx.dist <= CRUSH_RANGE) {
+    if (d.crushing && world.time >= st.nextCrush && ctx.dist <= BossBalance.crushRange) {
       st.nextCrush = world.time + d.crushing.everyMs + rng.range(-d.crushing.jitter, d.crushing.jitter);
       return moves.crushing_blow.start(world, e, d.crushing, ctx);
     }
@@ -101,7 +92,7 @@
     const st = bossState(world, e);
     const max = BD.sim.stats.statsOf(world, e).maxLife;
     // Rally: once at 50% HP, summon 2 pack minions
-    if (e.signature.indexOf('rally') >= 0 && !st.rallied && e.hp <= max * KEEPER_RALLY_AT) {
+    if (e.signature.indexOf('rally') >= 0 && !st.rallied && e.hp <= max * BossBalance.keeperRallyAt) {
       st.rallied = true;
       return moves.rally.start(world, e, {}, ctx);
     }
@@ -110,7 +101,7 @@
     for (const s of world.rng.shuffle(sigs.slice())) {
       const c = moves['sig_' + s].start(world, e, {}, ctx);
       if (c != null) {
-        st.nextSig = world.time + world.rng.range(KEEPER_SIG_MIN_MS, KEEPER_SIG_MAX_MS);
+        st.nextSig = world.time + world.rng.range(BossBalance.keeperSigMs[0], BossBalance.keeperSigMs[1]);
         return c;
       }
     }
@@ -130,7 +121,8 @@
     }
     if (d.phases && st.phase < d.phases.length) {
       const ph = d.phases[st.phase];
-      const at = world.run.ascension >= 5 && st.phase === 0 && d.phases.length === 1 ? ASC5_ONE_PHASE_AT_PCT : ph.atPct;
+      const early = Ascension.early_enrage;   // a single-phase boss enrages earlier
+      const at = world.run.ascension >= early.level && st.phase === 0 && d.phases.length === 1 ? early.atPct : ph.atPct;
       if (pct <= at) enterPhase(world, tgt, d, st);
     }
   });
@@ -143,7 +135,7 @@
     world.events.push({ type: 'boss.phase', id: e.id, phase: st.phase, name: ph.name, line: d.lines.enrage, x: e.x, y: e.y });
     world.events.push({ type: 'announce', text: d.lines.enrage, style: 'boss' });
     if (ph.onEnter && phaseHooks[ph.onEnter]) phaseHooks[ph.onEnter](world, e, d, st);
-    st.nextSpecial = world.time + PHASE_SPECIAL_DELAY_MS;
+    st.nextSpecial = world.time + BossBalance.phaseSpecialDelayMs;
   }
   const phaseHooks = {};
   function registerPhase(id, fn) { phaseHooks[id] = fn; }
@@ -192,7 +184,7 @@
 
   /** spawn up to count adds (respecting cap and the boss's summonCap) at from[] or around the boss */
   function summon(world, e, def, count, cap, from) {
-    const room = Math.min(cap, BD.sim.monsters.defOf(e).summonCap || DEFAULT_SUMMON_CAP) - addsOf(world, e);
+    const room = Math.min(cap, BD.sim.monsters.defOf(e).summonCap || BossBalance.defaultSummonCap) - addsOf(world, e);
     let n = 0;
     for (let i = 0; i < Math.min(count, room); i++) {
       const scatter = () => [

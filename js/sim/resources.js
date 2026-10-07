@@ -6,12 +6,7 @@
 
   const PlayerBalance = BD.data.balance.player;
   const Stats = () => BD.sim.stats;
-
-  const BRACED_RAGE_PER_HIT = 4;       // rage gained per hit taken while Braced
-  const BLOODLUST_RAGE_THRESHOLD = 80; // Bloodlust: above this much rage...
-  const BLOODLUST_DRAIN_PCT = 0.01;    // ...drain this fraction of max life per second (never kills)
-  const ENERGY_SHIELD_ABSORB = 0.4;    // Energy Shield: share of damage taken paid from mana
-  const ENERGY_SHIELD_SURGE_MULT = 4;  // ...and the surge regen multiplier it replaces
+  const Skills = BD.data.skills;       // keystone numbers live in their skill's `params`
 
   function init(world, p) {
     const cls = BD.data.classes[p.cls];
@@ -168,7 +163,7 @@
       if (r.rage) {
         tgt.lastHitMs = world.time;
         const br = BD.sim.status.has(tgt, 'braced');
-        if (br) gain(world, tgt, 'rage', BRACED_RAGE_PER_HIT);
+        if (br) gain(world, tgt, 'rage', BD.data.statuses.braced.ragePerHit);
         if (keystone(tgt, 'juggernaut')) gain(world, tgt, 'rage', (res.total / Stats().statsOf(world, tgt).maxLife) * 100);
       }
       if (r.focus && r.focus.n > 0 && !pk.isDot) {
@@ -185,7 +180,7 @@
   function absorb(world, p, total) {
     if (!keystone(p, 'energy_shield') || !p.resources.mana) return total;
     const m = p.resources.mana;
-    const take = Math.min(m.cur, total * ENERGY_SHIELD_ABSORB);
+    const take = Math.min(m.cur, total * Skills.energy_shield.params.absorb);
     m.cur -= take;
     if (take > 0) emit(world, p);
     return total - take;
@@ -194,7 +189,8 @@
   // ---- per-step ----
   function tickRage(world, p, r, s, sec) {
     if (keystone(p, 'bloodlust')) {
-      if (r.rage.cur > BLOODLUST_RAGE_THRESHOLD) p.hp = Math.max(1, p.hp - s.maxLife * BLOODLUST_DRAIN_PCT * sec);
+      const bl = Skills.bloodlust.params;   // above the threshold, drain max life per second (never kills)
+      if (r.rage.cur > bl.rageThreshold) p.hp = Math.max(1, p.hp - s.maxLife * bl.drainPct * sec);
     } else if (world.time - Math.max(p.lastHitMs, p.lastDamagedMs) > PlayerBalance.rageDecayDelayMs && r.rage.cur > 0) {
       r.rage.cur = Math.max(0, r.rage.cur - PlayerBalance.rageDecay * sec);
       checkMomentum(world, p);
@@ -217,7 +213,7 @@
       emit(world, p);
     }
     let mult = 1;
-    if (surge) mult = keystone(p, 'energy_shield') ? ENERGY_SHIELD_SURGE_MULT : PlayerBalance.surgeMult;
+    if (surge) mult = keystone(p, 'energy_shield') ? Skills.energy_shield.params.surgeMult : PlayerBalance.surgeMult;
     r.mana.cur = Math.min(r.mana.max, r.mana.cur + s.manaRegenPerS * mult * sec);
   }
   /** focus builds while standing still in combat and drains after a lull */

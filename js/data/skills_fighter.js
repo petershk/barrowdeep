@@ -51,6 +51,7 @@
   sk({
     id: 'bloodlust', branch: 'brawn', tier: 4, name: 'Bloodlust', icon: 'bloodlust', passive: (r, add) => void 0, keystone: true, school: 'blood',
     desc: 'Rage no longer decays. While above 80 rage you lose 1% of your maximum life per second. Berserk Strike heals 5% of your maximum life.',
+    params: { rageThreshold: 80, drainPct: 0.01, healPct: 0.05 },   // drain never kills
   });
 
   // ---------------- Onslaught ----------------
@@ -88,13 +89,14 @@
     effects: [{ type: 'damage', source: 'weapon', mult: 3.2, canCrit: true, canDodge: false, canBlock: false }, { type: 'status', id: 'stunned', durMs: 1000 }],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
-      { rank: 5, set: { aftershock: 1.2 }, text: 'An aftershock 1 s later deals 1.2×.' },
+      { rank: 5, set: { aftershock: 1.2, aftershockMs: 1000 }, text: 'An aftershock 1 s later deals 1.2×.' },
     ],
     desc: 'After a 0.3 s wind-up, a shockwave in radius 2 strikes and stuns for 1 s. You cannot be knocked back while winding up.',
   });
   sk({
     id: 'warlord', branch: 'onslaught', tier: 4, name: 'Warlord', icon: 'warlord', passive: () => void 0, keystone: true, school: 'blood',
     desc: 'War Cry heals 8% of your maximum life per enemy affected (up to 40%), and its cooldown becomes 8 s.',
+    params: { healPerTarget: 0.08, healMax: 0.4, cryCdMs: 8000 },
   });
 
   // ---------------- Iron ----------------

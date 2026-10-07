@@ -48,10 +48,8 @@
   const BEAM_TICK_MS = 100;           // one position every 100 ms (4 s in all)
   const BEAM_TICKS_PER_QUARTER = 10;  // ticks per 90 degrees of rotation
   const BEAM_HIT_EVERY_MS = 500;      // one hit per victim per 500 ms
-  // Ascension 10
-  const ETERNAL_ASCENSION = 10;
-  const ETERNAL_AT = 0.15;            // the fourth phase starts below 15% life
-  const ETERNAL_SPEED = 1.25;
+  const Eternal = BD.data.ascension.eternal;   // Ascension 10: the fourth phase (life fraction, speed)
+
   /** teleport to a free spot, announcing the blink */
   function blinkTo(world, e, spot) {
     world.events.push({ type: 'blink', id: e.id, fromX: e.x, fromY: e.y, x: spot.x, y: spot.y });
@@ -255,12 +253,12 @@
 
   // ---------------- Ascension 10: a fourth phase at 15% ----------------
   BD.sim.damage.onHitHooks.push((world, src, tgt) => {
-    if (tgt.rank !== 'malgoth' || world.run.ascension < ETERNAL_ASCENSION || tgt.hp <= 0) return;
+    if (tgt.rank !== 'malgoth' || world.run.ascension < Eternal.level || tgt.hp <= 0) return;
     const st = Bosses.bossState(world, tgt);
-    if (st.phase === 2 && tgt.hp <= BD.sim.stats.statsOf(world, tgt).maxLife * ETERNAL_AT && !st.fourth) {
+    if (st.phase === 2 && tgt.hp <= BD.sim.stats.statsOf(world, tgt).maxLife * Eternal.atLife && !st.fourth) {
       st.fourth = true;
       st.phase = 3;
-      tgt.bossSpeed = ETERNAL_SPEED * (tgt.bossSpeed || 1);
+      tgt.bossSpeed = Eternal.speedMult * (tgt.bossSpeed || 1);
       // cycles the moves of every phase, no adds
       st.allMoves = true;
       world.events.push({ type: 'boss.phase', id: tgt.id, phase: 4, name: 'Eternal', line: 'I AM ETERNAL!' });

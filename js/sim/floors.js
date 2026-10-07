@@ -8,11 +8,10 @@
   const Entities = BD.sim.entities;
   const Interact = () => BD.sim.interact;
 
-  const KEEPER_PING_MS = 360000;       // the Keeper is pinged after 6 min on the floor…
-  const KEEPER_PING_WAYFINDER_MS = 180000; // …or 3 min with Wayfinder
+  const Balance = BD.data.balance;
+
   const KEEPER_PING_FOLLOW_MS = 2000;  // the ping marker follows the Keeper this often
   const EXPLORED_FRAC = 0.995;         // seeing this share of reachable tiles counts as fully explored
-  const TRASH_XP_BASE = 10;            // xp of a normal monster at area level 1
 
   // ---------------- Keeper → Seal / Gate Key ----------------
   BD.sim.damage.onKillHooks.push((world, e) => {
@@ -49,7 +48,7 @@
   function system(world) {
     const f = world.floor;
     if (f.keeperId) {
-      const after = world.run.flags.wayfinder ? KEEPER_PING_WAYFINDER_MS : KEEPER_PING_MS;
+      const after = world.run.flags.wayfinder ? Balance.bosses.keeperPingWayfinderMs : Balance.bosses.keeperPingMs;
       if (f.timeOnFloor >= after) {
         const k = Entities.get(world, f.keeperId);
         // the marker follows the Keeper every 2 s
@@ -66,7 +65,7 @@
     if (f.fullyExplored || f.key !== f.n || !f.reachableCount) return;
     if (f.seenCount >= f.reachableCount * EXPLORED_FRAC) {
       f.fullyExplored = true;
-      const xp = BD.sim.progression ? avgTrashXp(world) * BD.data.balance.xp.fullClearKills : 0;
+      const xp = BD.sim.progression ? avgTrashXp(world) * Balance.xp.fullClearKills : 0;
       world.events.push({ type: 'floor.explored', n: f.n });
       world.events.push({ type: 'announce', text: BD.data.strings.t('floor_cleared'), style: 'level' });
       if (xp) BD.sim.progression.gainXp(world, world.player, xp, 'explore');
@@ -74,7 +73,7 @@
   }
   function avgTrashXp(world) {
     const al = world.floor.al;
-    return TRASH_XP_BASE * Math.pow(BD.data.balance.monsters.xpGrowth, al - 1) * BD.data.difficulties[world.run.difficulty].xp;
+    return Balance.monsters.trashXpBase * Math.pow(Balance.monsters.xpGrowth, al - 1) * BD.data.difficulties[world.run.difficulty].xp;
   }
 
   // ---------------- deltas ----------------

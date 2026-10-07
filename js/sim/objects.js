@@ -7,11 +7,8 @@
   const Interact = BD.sim.interact;
   const reg = Interact.registerObject;
 
-  const PILE_GOLD_CHANCE = 0.5;      // loot pile roll below this drops gold
-  const PILE_ORB_CHANCE = 0.8;       // ...below this an orb, otherwise a scroll
-  const PILE_GOLD_MULT = 1.5;        // pile gold amount vs. a normal gold drop
-  const PILE_PORTAL_CHANCE = 0.7;    // a pile scroll is a portal scroll this often (else reveal)
-  const SHRINE_DAMAGE_PCT = 25;      // fallback shrine: +% damage while it lasts
+  const PileDrops = BD.data.balance.loot.pile;
+  const SHRINE_DAMAGE_PCT = 25;      // fallback shrine (no events module): +% damage while it lasts
 
   reg('chest', (world, o) => {
     if (o.opened) return;
@@ -33,12 +30,12 @@
     const rng = world.lootRng, n = rng.int(2, 3);
     for (let i = 0; i < n; i++) {
       const r = rng.next();
-      if (r < PILE_GOLD_CHANCE) {
-        BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, PILE_GOLD_MULT) });
-      } else if (r < PILE_ORB_CHANCE) {
+      if (r < PileDrops.gold) {
+        BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, PileDrops.goldK) });
+      } else if (r < PileDrops.orb) {
         BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'orb' });
       } else {
-        BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'scroll', scroll: rng.chance(PILE_PORTAL_CHANCE) ? 'portal' : 'reveal' });
+        BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'scroll', scroll: rng.chance(PileDrops.portalScroll) ? 'portal' : 'reveal' });
       }
     }
     world.events.push({ type: 'chest.open', x: o.x, y: o.y, pile: true });

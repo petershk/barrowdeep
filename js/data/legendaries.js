@@ -6,7 +6,8 @@
 
   const L = {};
   const MAIN = { fighter: 'str', assassin: 'dex', magician: 'mag', valkyrie: 'dex' };
-  function leg(id, name, base, pool, cls, affixes, powerText) {
+  // params: the numbers the power uses (sim/powers.js); "low life" is balance.combat.lowLifeFrac
+  function leg(id, name, base, pool, cls, affixes, powerText, params) {
     const b = BD.data.bases[base];
     if (!affixes) {
       // class legendaries' fixed affixes (03 §5 rules)
@@ -14,28 +15,33 @@
       else if (b.slot === 'amulet' || b.slot === 'ring') affixes = [MAIN[cls], 'crit'];
       else affixes = ['life', 'res_all'];
     }
-    L[id] = { id, name, base, pool, cls, affixes, power: id, powerText };
+    L[id] = { id, name, base, pool, cls, affixes, power: id, powerText, params: params || {} };
   }
 
   // ---- generic ----
-  leg('holy_mace', 'The Holy Mace', 'mace', 'base', null, ['dmg_pct', 'life_on_hit'], '+50% damage to undead and demons; kills heal 2% of maximum life.');
-  leg('tempters_cloak', "The Tempter's Cloak", 'cloak', 'base', null, ['dex', 'move'], 'Monsters notice you at half range; your first hit on an unaware enemy deals 3×.');
-  leg('crown_of_embers', 'Crown of Embers', 'great_helm', 'base', null, ['life', 'res_fire'], 'Burning enemies within 3 tiles take +30% damage from you.');
+  leg('holy_mace', 'The Holy Mace', 'mace', 'base', null, ['dmg_pct', 'life_on_hit'], '+50% damage to undead and demons; kills heal 2% of maximum life.', { healPct: 0.02 });
+  leg('tempters_cloak', "The Tempter's Cloak", 'cloak', 'base', null, ['dex', 'move'], 'Monsters notice you at half range; your first hit on an unaware enemy deals 3×.',
+    { unawareMult: 3 });
+  leg('crown_of_embers', 'Crown of Embers', 'great_helm', 'base', null, ['life', 'res_fire'], 'Burning enemies within 3 tiles take +30% damage from you.', { range: 3, mult: 1.3 });
   leg('band_of_ages', 'Band of Ages', 'ring', 'base', null, ['all_attr'], '+1 to all skills.');
   leg('mantle_of_souls', 'Mantle of Souls', 'heavy_cloak', 'base', null, ['life', 'magic_find'], '+25% souls from this character.');
   leg('bishops_bulwark', "The Bishop's Bulwark", 'kite', 'base', null, ['res_all', 'armor_pct'],
-    'Blocking releases a holy nova (radius 1, 60% weapon hit, at most once per second).');
+    'Blocking releases a holy nova (radius 1, 60% weapon hit, at most once per second).', { icdMs: 1000, novaMult: 0.6 });
   leg('ferrymans_coin', "Ferryman's Coin", 'amulet', 'ledger1', null, ['gold_find', 'life'], "The Ferryman's Bargain has +20% success chance.");
   leg('gravewalkers_shroud', "Gravewalker's Shroud", 'cloak', 'ledger1', null, ['move', 'res_cold'], 'Evade has 2 charges.');
-  leg('lantern_of_the_lost', 'Lantern of the Lost', 'amulet', 'ledger2', null, ['life_pct', 'crit'], 'Light radius +3; enemies in your light take +10% damage.');
-  leg('ossuary_seal', 'Ossuary Seal', 'ring', 'ledger2', null, ['vit', 'res_pois'], 'Corpses near you heal you (1% of maximum life per second within 3 tiles, up to 3 corpses).');
-  leg('choirbreaker', 'Choirbreaker', 'amulet', 'ledger3', null, ['dmg_pct', 'cdr'], 'Every 10th hit releases a sonic burst that stuns non-boss enemies within 2 tiles for 1 s.');
-  leg('heart_of_the_barrow', 'Heart of the Barrow', 'amulet', 'ledger3', null, ['life', 'res_all'], 'While the flask is empty, kills restore 1 charge 15% of the time.');
+  leg('lantern_of_the_lost', 'Lantern of the Lost', 'amulet', 'ledger2', null, ['life_pct', 'crit'], 'Light radius +3; enemies in your light take +10% damage.', { mult: 1.1 });
+  leg('ossuary_seal', 'Ossuary Seal', 'ring', 'ledger2', null, ['vit', 'res_pois'], 'Corpses near you heal you (1% of maximum life per second within 3 tiles, up to 3 corpses).',
+    { range: 3, maxCorpses: 3, healPct: 0.01 });
+  leg('choirbreaker', 'Choirbreaker', 'amulet', 'ledger3', null, ['dmg_pct', 'cdr'], 'Every 10th hit releases a sonic burst that stuns non-boss enemies within 2 tiles for 1 s.',
+    { every: 10, range: 2, stunMs: 1000 });
+  leg('heart_of_the_barrow', 'Heart of the Barrow', 'amulet', 'ledger3', null, ['life', 'res_all'], 'While the flask is empty, kills restore 1 charge 15% of the time.',
+    { chance: 0.15 });
   // ---- Fighter ----
   leg('worldcleaver', 'Worldcleaver', 'bastard_sword', 'base', 'fighter', null, 'Bash hits all 8 surrounding tiles.');
-  leg('aegis_of_the_fallen', 'Aegis of the Fallen', 'plate', 'base', 'fighter', null, 'Below 30% life: +50% damage reduction for 4 s (30 s cooldown).');
-  leg('gorefeast', 'Gorefeast', 'battle_axe', 'base', 'fighter', null, 'Whirlwind heals 1.5% of maximum life per enemy hit.');
-  leg('thundermaul', 'Thundermaul', 'great_maul', 'ledger1', 'fighter', null, 'Earthshaker leaves 3 lightning pillars for 3 s.');
+  leg('aegis_of_the_fallen', 'Aegis of the Fallen', 'plate', 'base', 'fighter', null, 'Below 30% life: +50% damage reduction for 4 s (30 s cooldown).',
+    { durMs: 4000, drPct: 50, cdMs: 30000 });
+  leg('gorefeast', 'Gorefeast', 'battle_axe', 'base', 'fighter', null, 'Whirlwind heals 1.5% of maximum life per enemy hit.', { healPct: 0.015 });
+  leg('thundermaul', 'Thundermaul', 'great_maul', 'ledger1', 'fighter', null, 'Earthshaker leaves 3 lightning pillars for 3 s.', { pillars: 3, mult: 0.5, durMs: 3000 });
   leg('bloodhowl_helm', 'Bloodhowl Helm', 'great_helm', 'ledger2', 'fighter', null, "War Cry's duration doubles and it taunts enemies to you.");
   leg('ironbrand', 'Ironbrand', 'long_sword', 'ledger3', 'fighter', null, 'Charge range +3; Charge ends with a free Bash.');
   // ---- Assassin ----
@@ -50,7 +56,7 @@
   leg('voice_of_the_storm', 'Voice of the Storm', 'wand', 'base', 'magician', null, 'Teleport leaves a nova (radius 2) that Shocks.');
   leg('frostbinder', 'Frostbinder', 'orb', 'base', 'magician', null, 'Frost Nova casts twice (the second 0.5 s later at 50% damage).');
   leg('phoenix_quill', 'Phoenix Quill', 'wand', 'ledger1', 'magician', null, 'Fireball splits into 3 smaller fireballs on impact.');
-  leg('rimeheart', 'Rimeheart', 'orb', 'ledger2', 'magician', null, 'Frozen enemies take +25% damage from all sources.');
+  leg('rimeheart', 'Rimeheart', 'orb', 'ledger2', 'magician', null, 'Frozen enemies take +25% damage from all sources.', { mult: 1.25 });
   leg('cinderveil', 'Cinderveil', 'robe', 'ledger3', 'magician', null, "Meteor's burning ground spreads to adjacent tiles every second.");
   // ---- Valkyrie ----
   leg('featherfall', 'Featherfall', 'war_bow', 'base', 'valkyrie', null, 'Multishot fires 3 more arrows; arrows ricochet once.');

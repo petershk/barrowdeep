@@ -9,45 +9,10 @@
   const Hits = () => BD.sim.hits;
   const { cheb, within } = BD.core.util;
 
-  // item procs
-  const GEAR_STUN_MS = 400;              // stun from gear stun_chance
-  const CHAIN_PROC_CHANCE = 0.05;        // proc_chain_on_hit: chance per hit
-  const CHAIN_JUMPS = 4;                 // ...targets hit by one chain
-  const CHAIN_JUMP_RANGE = 3;            // ...tiles between links
-  const CHAIN_WEAPON_MULT = 0.3;         // ...weapon damage per link
-  const CRIT_HEAL_ICD_MS = 250;          // proc_heal_on_crit: internal cooldown
-  const CRIT_HEAL_PCT = 0.01;            // ...max life healed
-  const LOW_LIFE_FRACTION = 0.3;         // "low life" for Aegis and proc_shield_low
-  const PROC_SHIELD_MS = 6000;           // proc_shield_low: shield duration
-  const PROC_SHIELD_PCT = 0.15;          // ...shield size as max life
-  const PROC_SHIELD_CD_MS = 30000;       // ...cooldown
-  const KILL_NOVA_CHANCE = 0.1;          // proc_nova_on_kill: chance per kill
-  const KILL_NOVA_MULT = 0.5;            // ...weapon damage
-  const KILL_HASTE_MS = 3000;            // proc_haste_on_kill: haste duration
-  const EVADE_FROST_MS = 3000;           // proc_frost_on_evade: frost patch duration
-  // legendary powers
-  const TEMPTERS_UNAWARE_MULT = 3;       // Tempter's Cloak: damage vs idle/dormant monsters
-  const EMBERS_RANGE = 3;                // Crown of Embers: burning targets within this range...
-  const EMBERS_MULT = 1.3;               // ...take this much more damage
-  const LANTERN_MULT = 1.1;              // Lantern of the Lost: damage inside the light radius
-  const RIMEHEART_MULT = 1.25;           // Rimeheart: damage vs frozen
-  const CHOIRBREAKER_EVERY = 10;         // Choirbreaker: every Nth hit stuns around you
-  const CHOIRBREAKER_RANGE = 2;
-  const CHOIRBREAKER_STUN_MS = 1000;
-  const BULWARK_ICD_MS = 1000;           // Bishop's Bulwark: nova on block, at most this often
-  const BULWARK_NOVA_MULT = 0.6;
-  const AEGIS_MS = 4000;                 // Aegis of the Fallen: duration, % reduction, cooldown
-  const AEGIS_PCT = 50;
-  const AEGIS_CD_MS = 30000;
-  const HOLY_MACE_HEAL_PCT = 0.02;       // The Holy Mace: max life healed per kill
-  const HEART_FLASK_CHANCE = 0.15;       // Heart of the Barrow: flask charge on kill when empty
-  const OSSUARY_RANGE = 3;               // Ossuary Seal: corpses within range...
-  const OSSUARY_MAX_CORPSES = 3;         // ...counted up to this many...
-  const OSSUARY_HEAL_PCT = 0.01;         // ...each heals this much max life per second
-  const THUNDERMAUL_PILLARS = 3;         // Thundermaul: lightning pillars per Earthshaker
-  const THUNDERMAUL_MULT = 0.5;
-  const THUNDERMAUL_MS = 3000;
-  const GOREFEAST_HEAL_PCT = 0.015;      // Gorefeast: max life healed per whirlwind target
+  const Combat = BD.data.balance.combat;
+  // the numbers each power / proc uses live on its data entry (data/legendaries.js, data/affixes.js)
+  const legParams = (id) => BD.data.legendaries[id].params;
+  const procParams = (id) => BD.data.affixes[id].params;
 
   /** set of equipped legendary ids (allies use their owner's) */
   function active(p) {
@@ -135,10 +100,13 @@
     const a = active(src);
     if (!a.size) return 1;
     let k = 1;
-    if (a.has('tempters_cloak') && tgt.ai && (tgt.ai.state === 'idle' || tgt.ai.state === 'dormant')) k *= TEMPTERS_UNAWARE_MULT;
-    if (a.has('crown_of_embers') && BD.sim.status.has(tgt, 'burning') && within(src.x, src.y, tgt.x, tgt.y, EMBERS_RANGE)) k *= EMBERS_MULT;
-    if (a.has('lantern_of_the_lost') && within(src.x, src.y, tgt.x, tgt.y, Stats().statsOf(world, src).light_radius)) k *= LANTERN_MULT;
-    if (a.has('rimeheart') && BD.sim.status.has(tgt, 'frozen')) k *= RIMEHEART_MULT;
+    const unaware = tgt.ai && (tgt.ai.state === 'idle' || tgt.ai.state === 'dormant');
+    if (a.has('tempters_cloak') && unaware) k *= legParams('tempters_cloak').unawareMult;
+    const embers = legParams('crown_of_embers');
+    if (a.has('crown_of_embers') && BD.sim.status.has(tgt, 'burning') && within(src.x, src.y, tgt.x, tgt.y, embers.range)) k *= embers.mult;
+    const inLight = () => within(src.x, src.y, tgt.x, tgt.y, Stats().statsOf(world, src).light_radius);
+    if (a.has('lantern_of_the_lost') && inLight()) k *= legParams('lantern_of_the_lost').mult;
+    if (a.has('rimeheart') && BD.sim.status.has(tgt, 'frozen')) k *= legParams('rimeheart').mult;
     return k;
   });
 
@@ -157,23 +125,25 @@
         BD.sim.status.apply(world, tgt, 'poisoned', { sourceId: src.id, hit: res.total });
       }
       if (s.stun_chance && world.rng.chance((s.stun_chance / 100) * mult)) {
-        BD.sim.status.apply(world, tgt, 'stunned', { durMs: GEAR_STUN_MS, sourceId: src.id });
+        BD.sim.status.apply(world, tgt, 'stunned', { durMs: Combat.gearStunMs, sourceId: src.id });
       }
       const pr = procs(src);
-      if (pr.indexOf('proc_chain_on_hit') >= 0 && world.rng.chance(CHAIN_PROC_CHANCE) && pk.abilityId !== 'proc') {
+      if (pr.indexOf('proc_chain_on_hit') >= 0 && world.rng.chance(procParams('proc_chain_on_hit').chance) && pk.abilityId !== 'proc') {
         procChain(world, src, tgt);
       }
-      if (pr.indexOf('proc_heal_on_crit') >= 0 && res.crit && (!src._healCritT || world.time - src._healCritT >= CRIT_HEAL_ICD_MS)) {
+      const critHeal = procParams('proc_heal_on_crit');
+      if (pr.indexOf('proc_heal_on_crit') >= 0 && res.crit && (!src._healCritT || world.time - src._healCritT >= critHeal.icdMs)) {
         Object.defineProperty(src, '_healCritT', { value: world.time, writable: true, configurable: true, enumerable: false });
-        BD.sim.status.heal(world, src, s.maxLife * CRIT_HEAL_PCT);
+        BD.sim.status.heal(world, src, s.maxLife * critHeal.healPct);
       }
       if (has(src, 'choirbreaker') && !pk.isDot) {
+        const choir = legParams('choirbreaker');
         src.hitCount = (src.hitCount || 0) + 1;
-        if (src.hitCount % CHOIRBREAKER_EVERY === 0) {
+        if (src.hitCount % choir.every === 0) {
           world.events.push({ type: 'power', id: 'choirbreaker', x: src.x, y: src.y });
           for (const e of Entities.enemiesOf(world, src.faction)) {
-            if (!within(e.x, e.y, src.x, src.y, CHOIRBREAKER_RANGE) || e.rank === 'boss' || e.rank === 'malgoth') continue;
-            BD.sim.status.apply(world, e, 'stunned', { durMs: CHOIRBREAKER_STUN_MS, sourceId: src.id });
+            if (!within(e.x, e.y, src.x, src.y, choir.range) || e.rank === 'boss' || e.rank === 'malgoth') continue;
+            BD.sim.status.apply(world, e, 'stunned', { durMs: choir.stunMs, sourceId: src.id });
           }
         }
       }
@@ -181,19 +151,22 @@
     // taken by the player
     if (tgt.kind === 'player') {
       const s = Stats().statsOf(world, tgt);
-      if (res.blocked && has(tgt, 'bishops_bulwark') && (!tgt._novaT || world.time - tgt._novaT >= BULWARK_ICD_MS)) {
+      const bulwark = legParams('bishops_bulwark');
+      if (res.blocked && has(tgt, 'bishops_bulwark') && (!tgt._novaT || world.time - tgt._novaT >= bulwark.icdMs)) {
         Object.defineProperty(tgt, '_novaT', { value: world.time, writable: true, configurable: true, enumerable: false });
-        weaponNova(world, tgt, 1, BULWARK_NOVA_MULT, 'holy');
+        weaponNova(world, tgt, 1, bulwark.novaMult, 'holy');
       }
-      if (tgt.hp > 0 && tgt.hp < s.maxLife * LOW_LIFE_FRACTION) {
+      if (tgt.hp > 0 && tgt.hp < s.maxLife * Combat.lowLifeFrac) {
         if (has(tgt, 'aegis_of_the_fallen') && !(tgt.cooldowns.aegis > 0)) {
-          BD.sim.status.apply(world, tgt, 'aegis', { durMs: AEGIS_MS, magnitude: AEGIS_PCT });
-          tgt.cooldowns.aegis = AEGIS_CD_MS;
+          const aegis = legParams('aegis_of_the_fallen');
+          BD.sim.status.apply(world, tgt, 'aegis', { durMs: aegis.durMs, magnitude: aegis.drPct });
+          tgt.cooldowns.aegis = aegis.cdMs;
           world.events.push({ type: 'power', id: 'aegis', x: tgt.x, y: tgt.y });
         }
         if (procs(tgt).indexOf('proc_shield_low') >= 0 && !(tgt.cooldowns.procShield > 0)) {
-          BD.sim.status.apply(world, tgt, 'shielded', { durMs: PROC_SHIELD_MS, magnitude: s.maxLife * PROC_SHIELD_PCT });
-          tgt.cooldowns.procShield = PROC_SHIELD_CD_MS;
+          const shield = procParams('proc_shield_low');
+          BD.sim.status.apply(world, tgt, 'shielded', { durMs: shield.durMs, magnitude: s.maxLife * shield.shieldPct });
+          tgt.cooldowns.procShield = shield.cdMs;
         }
       }
     }
@@ -204,21 +177,23 @@
     if (!killer || (killer.kind !== 'player' && killer.ownerId !== p.id) || victim.faction !== 'monster') return;
     const s = Stats().statsOf(world, p);
     if (s.life_on_kill) BD.sim.status.heal(world, p, s.life_on_kill);
-    if (has(p, 'holy_mace')) BD.sim.status.heal(world, p, s.maxLife * HOLY_MACE_HEAL_PCT);
-    if (has(p, 'heart_of_the_barrow') && p.flask.charges === 0 && world.rng.chance(HEART_FLASK_CHANCE)) {
+    if (has(p, 'holy_mace')) BD.sim.status.heal(world, p, s.maxLife * legParams('holy_mace').healPct);
+    if (has(p, 'heart_of_the_barrow') && p.flask.charges === 0 && world.rng.chance(legParams('heart_of_the_barrow').chance)) {
       p.flask.charges = 1;
       world.events.push({ type: 'flask.charge', charges: 1, x: p.x, y: p.y });
     }
     const pr = procs(p);
-    if (pr.indexOf('proc_nova_on_kill') >= 0 && world.rng.chance(KILL_NOVA_CHANCE)) {
-      weaponNova(world, p, 1, KILL_NOVA_MULT, 'fire', victim.x, victim.y);
+    const nova = procParams('proc_nova_on_kill');
+    if (pr.indexOf('proc_nova_on_kill') >= 0 && world.rng.chance(nova.chance)) {
+      weaponNova(world, p, 1, nova.weaponMult, 'fire', victim.x, victim.y);
     }
-    if (pr.indexOf('proc_haste_on_kill') >= 0) BD.sim.status.apply(world, p, 'hasted', { durMs: KILL_HASTE_MS });
+    if (pr.indexOf('proc_haste_on_kill') >= 0) BD.sim.status.apply(world, p, 'hasted', { durMs: procParams('proc_haste_on_kill').durMs });
   });
 
   BD.sim.items.evadeHooks.push((world, p, fx, fy) => {
     if (procs(p).indexOf('proc_frost_on_evade') < 0) return;
-    BD.sim.zones.ground(world, 'frost_patch', [[fx, fy]], { durMs: EVADE_FROST_MS, faction: 'player', srcId: p.id });
+    const durMs = procParams('proc_frost_on_evade').durMs;
+    BD.sim.zones.ground(world, 'frost_patch', [[fx, fy]], { durMs, faction: 'player', srcId: p.id });
   });
 
   /** a weapon-scaled nova around (x,y) (procs, Bishop's Bulwark) */
@@ -240,9 +215,10 @@
   function procChain(world, p, first) {
     let cur = first, from = p;
     const hit = new Set();
-    for (let i = 0; i < CHAIN_JUMPS && cur; i++) {
+    const chain = procParams('proc_chain_on_hit');
+    for (let i = 0; i < chain.jumps && cur; i++) {
       world.events.push({ type: 'chain', srcId: p.id, fromX: from.x, fromY: from.y, x: cur.x, y: cur.y, abilityId: 'proc' });
-      const eff = { source: 'weapon', mult: CHAIN_WEAPON_MULT, element: 'light' };
+      const eff = { source: 'weapon', mult: chain.weaponMult, element: 'light' };
       const h = Hits().computeHit(world, p, { tags: [] }, eff, 1, { rng: world.rng });
       BD.sim.damage.dealDamage(world, {
         srcId: p.id, tgtId: cur.id, amounts: h.amounts, tags: ['proc'],
@@ -250,7 +226,7 @@
       });
       hit.add(cur.id);
       from = cur;
-      cur = BD.sim.targeting.nearestEnemy(world, from.x, from.y, CHAIN_JUMP_RANGE, p.faction, { exclude: hit });
+      cur = BD.sim.targeting.nearestEnemy(world, from.x, from.y, chain.jumpRange, p.faction, { exclude: hit });
     }
   }
 
@@ -258,28 +234,30 @@
   function system(world, dt) {
     const p = world.player;
     if (!p || p.dead || !has(p, 'ossuary_seal')) return;
+    const seal = legParams('ossuary_seal');
     let n = 0;
-    for (const c of world.floor.corpses) if (within(c.x, c.y, p.x, p.y, OSSUARY_RANGE)) n++;
-    n = Math.min(OSSUARY_MAX_CORPSES, n);
-    if (n) BD.sim.status.heal(world, p, (Stats().statsOf(world, p).maxLife * OSSUARY_HEAL_PCT * n * dt) / 1000);
+    for (const c of world.floor.corpses) if (within(c.x, c.y, p.x, p.y, seal.range)) n++;
+    n = Math.min(seal.maxCorpses, n);
+    if (n) BD.sim.status.heal(world, p, (Stats().statsOf(world, p).maxLife * seal.healPct * n * dt) / 1000);
   }
 
   // ---------------- fighter hooks from skills_fighter ----------------
   function onWarCry() {}
   function onEarthshaker(world, p, ab) {
     if (!has(p, 'thundermaul')) return;
-    for (let i = 0; i < THUNDERMAUL_PILLARS; i++) {
+    const maul = legParams('thundermaul');
+    for (let i = 0; i < maul.pillars; i++) {
       const a = world.rng.range(0, Math.PI * 2), r = world.rng.int(1, 2);
       const x = Math.round(p.x + Math.cos(a) * r), y = Math.round(p.y + Math.sin(a) * r);
       if (!Entities.walkable(world.floor, x, y)) continue;
-      const h = Hits().computeHit(world, p, ab, { source: 'weapon', mult: THUNDERMAUL_MULT, element: 'light' }, 1, { roll: 0.5 });
-      BD.sim.zones.ground(world, 'lightning_pillar', [[x, y]], { durMs: THUNDERMAUL_MS, faction: 'player', srcId: p.id, amount: h.total });
+      const h = Hits().computeHit(world, p, ab, { source: 'weapon', mult: maul.mult, element: 'light' }, 1, { roll: 0.5 });
+      BD.sim.zones.ground(world, 'lightning_pillar', [[x, y]], { durMs: maul.durMs, faction: 'player', srcId: p.id, amount: h.total });
     }
   }
   /** after a player's ability lands (Gorefeast, Ironbrand) */
   function afterHits(world, p, ab, rank, landed) {
     if (ab.id === 'whirlwind' && has(p, 'gorefeast') && landed.length) {
-      BD.sim.status.heal(world, p, Stats().statsOf(world, p).maxLife * GOREFEAST_HEAL_PCT * landed.length);
+      BD.sim.status.heal(world, p, Stats().statsOf(world, p).maxLife * legParams('gorefeast').healPct * landed.length);
     }
     if (ab.id === 'charge' && has(p, 'ironbrand') && landed.length && p.skills.bash) {
       const bash = BD.sim.abilities.resolved(BD.data.skills.bash, BD.sim.abilities.rankOf(world, p, 'bash'), p);
