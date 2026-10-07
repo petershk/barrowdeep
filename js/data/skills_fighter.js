@@ -38,7 +38,7 @@
     resource: { type: 'rage', cost: 40 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' },
     delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 3.2, canCrit: true, canDodge: true, missingLife: 0.5 }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 2.8, canCrit: true, canDodge: true, missingLife: 0.5 }],
     breakpoints: [
       { rank: 3, set: { killRefund: 20 }, text: 'A kill refunds 20 rage.' },
       { rank: 5, set: { sideHits: 0.5 }, text: 'Also hits the tiles beside the target for 50%.' },

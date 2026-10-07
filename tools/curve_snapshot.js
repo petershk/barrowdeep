@@ -8,7 +8,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const CLASSES = ['fighter', 'assassin', 'magician', 'valkyrie'];
-const RUNS = 3;
+const RUNS = 5;
 
 function snapshot(cls, seed) {
   const { loadBD } = require('../test/harness');
@@ -23,7 +23,7 @@ function snapshot(cls, seed) {
     until: (world) => world.run.deepestFloor > 12 || world.run.victory,
     onEvents: (evs) => {
       // the curve is about gear and levels, so the hero can't die here (deaths are measured elsewhere)
-      if (w.player.hp < w.player.level * 2 && !w.player.dead) w.player.hp = BD.sim.stats.statsOf(w, w.player).maxLife;
+      if (w.player.hp < BD.sim.stats.statsOf(w, w.player).maxLife * 0.5 && !w.player.dead) w.player.hp = BD.sim.stats.statsOf(w, w.player).maxLife;
       for (const e of evs) {
         if (e.type !== 'floor.enter' || typeof e.n !== 'number' || snaps[e.n]) continue;
         const p = w.player;

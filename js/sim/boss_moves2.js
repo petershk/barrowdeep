@@ -145,7 +145,7 @@
   reg('brood', {
     start(world, e) {
       let n = 0;
-      for (const o of world.floor.entities.values()) if (!o.dead && o.def === 'egg_clutch') { n += summon(world, e, 'cave_spider', 1, 4, [[o.x, o.y]]); world.events.push({ type: 'egg.hatch', x: o.x, y: o.y }); }
+      for (const o of world.floor.entities.values()) if (!o.dead && o.def === 'egg_clutch') { n += summon(world, e, 'cave_spider', 1, 2, [[o.x, o.y]]); world.events.push({ type: 'egg.hatch', x: o.x, y: o.y }); }
       if (!n) return null;
       return AI().windup(world, e, { kind: 'brood', after: 300 }, 500, false);
     },

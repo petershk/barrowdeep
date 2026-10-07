@@ -10,7 +10,7 @@
       verb: 'Build rage with every blow; spend it on crushing moves.',
       trait: { name: 'Momentum', desc: 'While above 50 rage: +10% damage and +10% attack speed.' },
       branches: [{ id: 'brawn', name: 'Brawn' }, { id: 'onslaught', name: 'Onslaught' }, { id: 'iron', name: 'Iron' }],
-      startKit: [{ base: 'short_sword' }, { base: 'buckler' }, { base: 'leather' }],
+      startKit: [{ base: 'mace' }, { base: 'buckler' }, { base: 'leather' }],
       uses: ['blade', 'blade2', 'axe', 'mace', 'crossbow', 'buckler', 'shield', 'light', 'medium', 'heavy', 'cloak', 'amulet', 'ring'],
     },
     assassin: {

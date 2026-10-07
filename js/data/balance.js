@@ -42,11 +42,11 @@
       defaultWindupMs: 500, reactionMs: 300, leashLostMs: 4000, notice: 6, leash: 14,
       ranks: {
         normal: { hp: 1, dmg: 1, xp: 1 }, minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
-        champion: { hp: 3.6, dmg: 1.2, xp: 3 }, unique: { hp: 8, dmg: 1.4, xp: 7 }, keeper: { hp: 8, dmg: 1.4, xp: 7 },
-        boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 70, dmg: 1.8, xp: 0 },
+        champion: { hp: 3.6, dmg: 1.2, xp: 3 }, unique: { hp: 11, dmg: 1.4, xp: 7 }, keeper: { hp: 11, dmg: 1.4, xp: 7 },
+        boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 160, dmg: 1.25, xp: 0 },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 1.0, 2: 1.08, 3: 0.73, 4: 0.56 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
+      actDmg: { 1: 1.0, 2: 1.08, 3: 0.82, 4: 0.67 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
     },

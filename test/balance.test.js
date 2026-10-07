@@ -65,13 +65,21 @@ module.exports = (T) => {
 
   T.test('act boss fights: length, heavy hits and jabs in band (class medians)', () => {
     for (const n of [3, 6, 9, 12]) {
-      const runs = CLASSES.map((cls) => L.bossFight(BD, cls, n, 'boss' + n + ':0'));
+      // two fights per class with the hero as the bot finds it on arrival: most must be won
+      const runs = CLASSES.flatMap((cls) => [0, 1].map((s) => L.bossFight(BD, cls, n, 'boss' + n + ':' + s)));
       const lens = runs.filter((r) => r.len != null).map((r) => r.len);
-      T.ok(lens.length >= 3, 'floor ' + n + ': at least three classes beat the boss (' + lens.length + ')');
+      T.ok(lens.length >= 5, 'floor ' + n + ': at least 5 of 8 boss fights won (' + lens.length + ')');
       T.between(L.med(lens), B.bossFight[0], B.bossFight[1], 'floor ' + n + ' boss fight length');
       const heavy = L.med(runs.flatMap((r) => r.heavy)), jab = L.med(runs.flatMap((r) => r.jab));
       if (heavy != null) T.between(heavy, B.bossHeavy[0], B.bossHeavy[1], 'floor ' + n + ' heavy hit share of life');
       T.between(jab, B.bossJab[0], B.bossJab[1], 'floor ' + n + ' jab share of life');
     }
+  });
+
+  T.test('Malgoth: the full fight lasts ' + B.malgothFight.join('–') + ' s (class median) and is winnable', () => {
+    const runs = CLASSES.map((cls) => L.bossFight(BD, cls, 13, 'mal:0'));
+    const lens = runs.filter((r) => r.len != null).map((r) => r.len);
+    T.ok(lens.length >= 2, 'at least two classes beat Malgoth (' + lens.length + ')');
+    T.between(L.med(lens), B.malgothFight[0], B.malgothFight[1], 'Malgoth fight length');
   });
 };
