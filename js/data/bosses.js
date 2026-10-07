@@ -20,7 +20,7 @@
   BD.data.bosses = {};
 
   boss('grulk', 1, {
-    hpMult: 1.15, dmgMult: 1.1,
+    hpMult: 1.0, dmgMult: 0.95,
     name: 'Grulk the Gravewaker', title: 'Lord of the Church Crypt', sprite: 'zombie', family: 'undead', arena: 'crypt',
     pal: { G: '#8a9a6a', g: '#5a6a44', B: '#5a3a2a', b: '#3a2418' },
     kit: [
@@ -49,13 +49,13 @@
   });
 
   boss('mygra', 3, {
-    hpMult: 1.2, dmgMult: 1.05,
+    hpMult: 1.05, dmgMult: 0.9,
     name: 'Mygra the Brood Mother', title: 'Queen of the Deep Caves', sprite: 'spider', family: 'beast', arena: 'cavern',
     pal: { p: '#3a2a4a', P: '#5a3a6a', R: '#ff4070' },
     kit: [
       { move: 'venom_spit', weight: 3, minRange: 2, maxRange: 9, cdMs: 6000, mult: 3, armMs: 1000, count: 3 },
       { move: 'web_spray', weight: 3, minRange: 1, maxRange: 4, cdMs: 6000, armMs: 700, length: 4 },
-      { move: 'burrow_strike', weight: 3, minRange: 3, maxRange: 99, cdMs: 11000, mult: 7, armMs: 800, exposedMs: 1400 },
+      { move: 'burrow_strike', weight: 3, minRange: 3, maxRange: 99, cdMs: 11000, mult: 6, armMs: 800, exposedMs: 1400 },
       { move: 'brood', weight: 2, minRange: 0, maxRange: 99, cdMs: 16000 },
     ],
     opener: 'brood',

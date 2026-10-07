@@ -84,7 +84,7 @@
   // ---------------- Shadow ----------------
   sk({
     id: 'shadowstep', branch: 'shadow', tier: 1, name: 'Shadowstep', icon: 'shadowstep', school: 'shadow',
-    tags: ['mobility'], resource: { type: 'energy', cost: 15 }, cooldownMs: 6000, castMs: 100, noIas: true,
+    tags: ['mobility'], resource: { type: 'energy', cost: 15 }, cooldownMs: 8000, castMs: 100, noIas: true,
     targeting: { mode: 'unit', range: 7, requiresLOS: true, requiresVisible: true, outOfRange: 'reject' }, delivery: { kind: 'blink', behind: true },
     selfEffects: [{ type: 'buff', id: 'ambush_ready', durMs: 2000 }],
     breakpoints: [

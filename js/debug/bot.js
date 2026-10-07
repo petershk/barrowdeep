@@ -188,8 +188,18 @@
     const t = spawner || near[0];
     // give up on a target whose life hasn't dropped in 8 s (across lava, kiting out of reach…)
     const isBoss = t.rank === 'boss' || t.rank === 'malgoth';   // never write off a boss (phases, wings, burrows)
-    if (isBoss || !bot.prog || bot.prog.id !== t.id || t.hp < bot.prog.hp) bot.prog = { id: t.id, hp: t.hp, at: w.time };
-    else if (w.time - bot.prog.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog = null; return progress(bot); }
+    const arena = !!w.floor.arena || w.floor.n === 13;
+    if (arena) {
+      // in an arena: drop an add we can't hurt for 8 s (blinking casters) and get back to the boss
+      if (isBoss || !bot.prog1 || bot.prog1.id !== t.id || t.hp < bot.prog1.hp) bot.prog1 = { id: t.id, hp: t.hp, at: w.time };
+      else if (w.time - bot.prog1.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog1 = null; return progress(bot); }
+    } else {
+      // per-target progress: alternating between two unreachable targets must not reset the clock
+      bot.prog = bot.prog instanceof Map ? bot.prog : new Map();
+      const pr = bot.prog.get(t.id);
+      if (isBoss || !pr || t.hp < pr.hp) bot.prog.set(t.id, { hp: t.hp, at: pr && !isBoss && t.hp >= pr.hp ? pr.at : w.time });
+      else if (w.time - pr.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog.delete(t.id); return progress(bot); }
+    }
     // give up on targets we can't reach after 4 s without progress
     const key = t.id + ':' + p.x + ',' + p.y;
     if (p.attack) bot.fightSince = w.time;   // swinging counts as progress

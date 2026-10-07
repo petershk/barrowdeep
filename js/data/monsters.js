@@ -44,7 +44,7 @@
   // ---------------- Act II — Catacombs ----------------
   mon('ghoul', { name: 'Ghoul', act: 2, family: 'undead', role: 'skirmisher', hp: 26, dmg: [3, 6], attackMs: 1000, moveMs: 260, xp: 10,
     sprite: 'ghoul', behaviours: [{ id: 'eat_corpse', heal: 0.3 }, { id: 'melee' }] });
-  mon('bone_mage', { name: 'Bone Mage', act: 2, family: 'undead', role: 'caster', hp: 20, dmg: [3, 6], attackMs: 2200, moveMs: 400, xp: 14,
+  mon('bone_mage', { name: 'Bone Mage', act: 2, family: 'undead', role: 'caster', hp: 14, dmg: [3, 6], attackMs: 2200, moveMs: 400, xp: 14,
     sprite: 'bonemage', aggro: { notice: 8, leash: 14 },
     behaviours: [{ id: 'bone_wall', cdMs: 8000 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 7, projectile: 'bone_spear' }] });
   mon('wraith', { name: 'Wraith', act: 2, family: 'undead', role: 'skirmisher', hp: 22, dmg: [3, 5], attackMs: 1200, moveMs: 320, xp: 12,
