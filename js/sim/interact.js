@@ -4,7 +4,8 @@
   'use strict';
 
   const { T } = BD.data.tiles;
-  const S = () => BD.data.strings;
+  const Strings = () => BD.data.strings;
+  const Grid = BD.core.grid;
 
   /** Object (chest, shrine, lever, pile…) at a tile, if any and still interactable. */
   function objectAt(world, x, y) {
@@ -20,18 +21,21 @@
   function registerObject(kind, fn) { objectHandlers[kind] = fn; }
 
   function announce(world, key, extra) {
-    world.events.push(Object.assign({ type: 'announce', key, text: S() ? S().t(key) : key }, extra || {}));
+    world.events.push(Object.assign({ type: 'announce', key, text: Strings() ? Strings().t(key) : key }, extra || {}));
   }
   function deny(world, key) {
-    world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: S() ? S().t(key) : key });
+    world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: Strings() ? Strings().t(key) : key });
   }
 
   /** Interact with whatever is at (x,y). The player is adjacent (or on it). */
   function at(world, x, y) {
     const f = world.floor;
     const obj = objectAt(world, x, y);
-    if (obj && objectHandlers[obj.kind]) { objectHandlers[obj.kind](world, obj); return true; }
-    const t = f.tiles[y * f.w + x];
+    if (obj && objectHandlers[obj.kind]) {
+      objectHandlers[obj.kind](world, obj);
+      return true;
+    }
+    const t = f.tiles[Grid.idx(f, x, y)];
     const run = BD.sim.run;
     switch (t) {
       case T.STAIRS_DOWN:

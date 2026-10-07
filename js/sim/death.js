@@ -4,7 +4,18 @@
 (function (BD) {
   'use strict';
 
-  const CMD = BD.sim.commands;
+  const Commands = BD.sim.commands;
+
+  // souls formula
+  const SOULS_PER_KEEPER = 10;
+  const SOULS_PER_LESSER_BOSS = 40;
+  const SOULS_FOR_MALGOTH = 150;
+  const SOULS_PER_ASCENSION = 0.15;    // +15% souls per ascension level
+  const SACRIFICE_SOULS_MULT = 0.5;
+  // the Ferryman's Bargain
+  const BARGAIN_CHANCES = [80, 55, 30]; // % success for the 1st / 2nd / 3rd bargain
+  const MAX_BARGAINS = 3;
+  const BARGAIN_CAP_PCT = 95;
 
   /** souls = round((base + bonus) × difficultyMult × (1 + 0.15 × ascension)) × gear bonus */
   function souls(world, sacrifice) {
@@ -12,28 +23,32 @@
     const L = p.level;
     const base = (L - 1) * (L + 3);
     const lesserBosses = r.bossesKilled.filter((b) => b !== 'malgoth').length;
-    const bonus = 10 * r.keepersSlain + 40 * lesserBosses + (r.bossesKilled.includes('malgoth') ? 150 : 0);
+    const malgothBonus = r.bossesKilled.includes('malgoth') ? SOULS_FOR_MALGOTH : 0;
+    const bonus = SOULS_PER_KEEPER * r.keepersSlain + SOULS_PER_LESSER_BOSS * lesserBosses + malgothBonus;
     const diff = BD.data.difficulties[r.difficulty];
     const gear = 1 + (BD.sim.stats.statsOf(world, p).souls_pct || 0) / 100;
-    const v = Math.round((base + bonus) * diff.souls * (1 + 0.15 * (r.ascension || 0)) * gear);
-    return sacrifice ? Math.round(v * 0.5) : v;
+    const v = Math.round((base + bonus) * diff.souls * (1 + SOULS_PER_ASCENSION * (r.ascension || 0)) * gear);
+    return sacrifice ? Math.round(v * SACRIFICE_SOULS_MULT) : v;
   }
 
   /** Bargain success chance: 80 / 55 / 30% for the 1st / 2nd / 3rd (cap 95% with bonuses) */
   function bargainChance(world) {
     const used = world.run.bargainsUsed;
-    if (used >= 3) return 0;
-    const base = [80, 55, 30][used];
+    if (used >= MAX_BARGAINS) return 0;
+    const base = BARGAIN_CHANCES[used];
     const bonus = BD.sim.stats.statsOf(world, world.player).bargain_chance || 0;
-    return Math.min(95, base + bonus);
+    return Math.min(BARGAIN_CAP_PCT, base + bonus);
   }
 
   function onPlayerDeath(world, d) {
     const r = world.run, p = world.player;
     r.dead = true;
-    r.deathCause = d.killerId != null ? describeKiller(world, d) : (d.tags && d.tags.indexOf('dot') >= 0 ? 'Bled out' : 'Slain');
+    if (d.killerId != null) r.deathCause = describeKiller(world, d);
+    else r.deathCause = d.tags && d.tags.indexOf('dot') >= 0 ? 'Bled out' : 'Slain';
     r.deathFloor = world.floor.key;
-    p.intent = { kind: 'idle' }; p.attack = null; p.move = null;
+    p.intent = { kind: 'idle' };
+    p.attack = null;
+    p.move = null;
     world.events.push({ type: 'run.death', cause: r.deathCause, souls: souls(world), bargain: bargainChance(world), x: p.x, y: p.y });
   }
   function describeKiller(world, d) {
@@ -44,14 +59,17 @@
   }
 
   /** Bargain: roll; success → revive in town at full life, lose 50% gold, portal back */
-  CMD.register('Bargain', (world) => {
+  Commands.register('Bargain', (world) => {
     const r = world.run, p = world.player;
-    if (!r.dead || r.bargainsUsed >= 3 || r.harvested) return null;
+    if (!r.dead || r.bargainsUsed >= MAX_BARGAINS || r.harvested) return null;
     const chance = bargainChance(world);
     r.bargainsUsed++;
     const ok = world.lootRng.next() * 100 < chance;
     world.events.push({ type: 'bargain', ok, chance });
-    if (!ok) { harvest(world); return false; }
+    if (!ok) {
+      harvest(world);
+      return false;
+    }
     const back = r.deathFloor;
     r.dead = false;
     p.dead = false;
@@ -66,13 +84,13 @@
     const s = BD.sim.stats.statsOf(world, p);
     p.hp = s.maxLife;
     if (p.resources.mana) p.resources.mana.cur = s.maxMana;
-    if (isArena) { delete world.floorDeltas[back]; }
+    if (isArena) delete world.floorDeltas[back];
     const plan = key === 'town' ? null : { key };
     if (plan) world.run.portal = { key, x: -1, y: -1, to: isArena ? 'gate' : 'up' };
     world.events.push({ type: 'revive', id: p.id, x: p.x, y: p.y });
     return true;
   }, { ui: true, whileDead: true });
-  CMD.register('Harvest', (world) => harvest(world), { ui: true, whileDead: true });
+  Commands.register('Harvest', (world) => harvest(world), { ui: true, whileDead: true });
 
   function harvest(world) {
     const r = world.run;

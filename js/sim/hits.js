@@ -4,14 +4,26 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const ST = () => BD.sim.stats;
-  const SS = () => BD.sim.status;
-  const AB = () => BD.sim.abilities;
+  const Entities = BD.sim.entities;
+  const Stats = () => BD.sim.stats;
+  const Status = () => BD.sim.status;
+  const Abilities = () => BD.sim.abilities;
   const ELS = ['phys', 'fire', 'cold', 'light', 'pois'];
   const EL_PCT = { fire: 'fire_pct', cold: 'cold_pct', light: 'light_pct', pois: 'pois_pct' };
 
-  const charScale = (L) => 1 + 0.09 * (L - 1);
+  const CHAR_SCALE_PER_LEVEL = 0.09;   // spell base damage grows 9% per character level
+  const RANK_SCALE_STEP = 0.2;         // default per-rank scaling (matches Abilities.scale)
+  const DMG_PER_ATTR = 0.03;           // +3% damage per point of Magic (spells) or wield stat (weapons)
+  const MID_ROLL = 0.5;                // damage roll used when no roll or rng is given
+  const KNOCK_MS_PER_TILE = 60;
+
+  const charScale = (L) => 1 + CHAR_SCALE_PER_LEVEL * (L - 1);
+
+  /** the 0..1 damage roll: a fixed roll (tooltips), else the rng, else the midpoint */
+  function rollOf(ctx) {
+    if (ctx.roll != null) return ctx.roll;
+    return ctx.rng ? ctx.rng.next() : MID_ROLL;
+  }
 
   /**
    * @param {any} caster the player (owner for allies)
@@ -20,10 +32,10 @@
    * @returns {{amounts:Record<string,number>, total:number}}
    */
   function computeHit(world, caster, ab, eff, rank, ctx) {
-    const s = ST().statsOf(world, caster);
-    const roll = ctx.roll != null ? ctx.roll : ctx.rng ? ctx.rng.next() : 0.5;
-    let mult = eff.mult != null || eff.perRank ? AB().scale(eff, rank) : 1 + 0.2 * (rank - 1);
-    const rk = 1 + 0.2 * (rank - 1);
+    const s = Stats().statsOf(world, caster);
+    const roll = rollOf(ctx);
+    let mult = eff.mult != null || eff.perRank ? Abilities().scale(eff, rank) : 1 + RANK_SCALE_STEP * (rank - 1);
+    const rk = 1 + RANK_SCALE_STEP * (rank - 1);
     if (eff.perCombo) mult += eff.perCombo * (ctx.combo || 0) * (eff.perComboScales === false ? 1 : rk);
     if (eff.perFocus) mult += eff.perFocus * (ctx.focus || 0) * (eff.perFocusScales === false ? 1 : rk);
     if (eff.perFocusPct) mult *= 1 + eff.perFocusPct * (ctx.focus || 0);
@@ -32,9 +44,11 @@
     const amounts = {};
     if (eff.source === 'spell') {
       const lo = eff.base[0], hi = eff.base[1];
-      const base = (lo + roll * (hi - lo)) * charScale(caster.level || 1) * (1 + 0.03 * s.mag);
+      const base = (lo + roll * (hi - lo)) * charScale(caster.level || 1) * (1 + DMG_PER_ATTR * s.mag);
       const el = eff.element || 'fire';
-      const pct = s.spell_pct + (EL_PCT[el] ? s[EL_PCT[el]] : 0) + (tags.includes('aoe') ? s.area_pct : 0) + (s.dmg_pct_spell || 0);
+      const elementPct = EL_PCT[el] ? s[EL_PCT[el]] : 0;
+      const areaPct = tags.includes('aoe') ? s.area_pct : 0;
+      const pct = s.spell_pct + elementPct + areaPct + (s.dmg_pct_spell || 0);
       amounts[el] = base * (1 + pct / 100) * mult;
     } else if (eff.source === 'fixed') {
       amounts[eff.element || 'phys'] = (ctx.fixed || 0) * mult;
@@ -45,7 +59,7 @@
       if (tags.includes('projectile')) pct += s.projectile_pct;
       if (tags.includes('aoe')) pct += s.area_pct;
       if (w.wieldStat === 'mag') pct += s.spell_pct * 0;  // Mag weapons scale through the wield stat only
-      const phys = (lo + roll * (hi - lo)) * (1 + 0.03 * s.wieldValue) * (1 + pct / 100);
+      const phys = (lo + roll * (hi - lo)) * (1 + DMG_PER_ATTR * s.wieldValue) * (1 + pct / 100);
       // conversion (e.g. Sky Spear: half lightning)
       const conv = eff.convert || null;
       let physLeft = phys;
@@ -79,21 +93,34 @@
     if (immuneToKnock(world, tgt)) return { moved: 0, immune: true };
     const f = world.floor;
     let dx = Math.sign(tgt.x - fromX), dy = Math.sign(tgt.y - fromY);
-    if (!dx && !dy) { const d = BD.core.util.DIRS[(tgt.dir + 4) % 8]; dx = d[0]; dy = d[1]; }
+    if (!dx && !dy) {
+      // pushed from its own tile: fly backwards (opposite of facing)
+      const d = BD.core.util.DIRS[(tgt.dir + 4) % 8];
+      dx = d[0];
+      dy = d[1];
+    }
     let x = tgt.x, y = tgt.y, moved = 0, collided = null;
     for (let i = 0; i < dist; i++) {
       const nx = x + dx, ny = y + dy;
-      let blocked = !E.walkable(f, nx, ny);
+      let blocked = !Entities.walkable(f, nx, ny);
       // diagonal steps may not cut a wall corner
-      if (!blocked && dx && dy) blocked = !(E.walkable(f, x + dx, y) && E.walkable(f, x, y + dy));
-      if (blocked) { collided = { wall: true }; break; }
-      const occ = E.occupant(f, nx, ny);
-      if (occ) { collided = { entityId: occ }; break; }
-      x = nx; y = ny; moved++;
+      if (!blocked && dx && dy) blocked = !(Entities.walkable(f, x + dx, y) && Entities.walkable(f, x, y + dy));
+      if (blocked) {
+        collided = { wall: true };
+        break;
+      }
+      const occ = Entities.occupant(f, nx, ny);
+      if (occ) {
+        collided = { entityId: occ };
+        break;
+      }
+      x = nx;
+      y = ny;
+      moved++;
     }
     if (moved) {
-      BD.sim.movement.displace(world, tgt, x, y, 60 * moved, 'knock');
-      if (tgt.kind === 'monster' && tgt.ai) tgt.ai.timer = Math.max(tgt.ai.timer, 60 * moved);
+      BD.sim.movement.displace(world, tgt, x, y, KNOCK_MS_PER_TILE * moved, 'knock');
+      if (tgt.kind === 'monster' && tgt.ai) tgt.ai.timer = Math.max(tgt.ai.timer, KNOCK_MS_PER_TILE * moved);
       if (tgt.kind === 'player') BD.sim.fov.refresh(world);
     }
     return { moved, collided };
@@ -102,15 +129,15 @@
     if (BD.sim.entities.rankOf(e).steady) return true;
     if (e.mods && e.mods.indexOf('stone_skin') >= 0) return true;
     if (e.kind === 'monster' && BD.data.monsters[e.def] && BD.data.monsters[e.def].spawner) return true;
-    return !!ST().statsOf(world, e).knockback_immune;
+    return !!Stats().statsOf(world, e).knockback_immune;
   }
   function pull(world, tgt, toX, toY, dist) {
     if (immuneToKnock(world, tgt)) return;
     const f = world.floor;
     const dx = Math.sign(toX - tgt.x), dy = Math.sign(toY - tgt.y);
     const nx = tgt.x + dx, ny = tgt.y + dy;
-    if ((nx === toX && ny === toY) || !E.isFree(f, nx, ny)) return;
-    BD.sim.movement.displace(world, tgt, nx, ny, 60 * dist, 'knock');
+    if ((nx === toX && ny === toY) || !Entities.isFree(f, nx, ny)) return;
+    BD.sim.movement.displace(world, tgt, nx, ny, KNOCK_MS_PER_TILE * dist, 'knock');
   }
 
   /**
@@ -122,64 +149,88 @@
     if (eff.onlyOnCrit && !(prev && prev.crit)) return null;
     if (eff.targets === 'center' && ctx.centerId != null && tgt.id !== ctx.centerId) return null;
     if (eff.chance != null) {
-      const chanceMult = eff.type === 'status' ? ST().statsOf(world, caster).statusChanceMult : 1;
+      const chanceMult = eff.type === 'status' ? Stats().statsOf(world, caster).statusChanceMult : 1;
       if (!world.rng.chance(eff.chance * chanceMult)) return null;
     }
-    switch (eff.type) {
-      case 'damage': {
-        let xm = (ctx.packetMult || 1) * (eff.areaFalloff && tgt.id !== ctx.centerId ? eff.areaFalloff : 1);
-        if (eff.missingLife) {
-          const mx = ST().statsOf(world, tgt).maxLife;
-          xm *= 1 + Math.min(eff.missingLife, Math.max(0, 1 - tgt.hp / mx));
-        }
-        const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, {
-          combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: xm, fixed: ctx.fixed,
-        });
-        const tags = (ctx.tags || ctx.ab.tags || []).slice();
-        if (ctx.aoe && tags.indexOf('aoe') < 0) tags.push('aoe');
-        const r = BD.sim.damage.dealDamage(world, {
-          srcId: ctx.srcId != null ? ctx.srcId : caster.id, tgtId: tgt.id, amounts: h.amounts, tags, canCrit: eff.canCrit !== false,
-          canDodge: eff.canDodge !== false, canBlock: eff.canBlock !== false, mult: 1, abilityId: ctx.ab.id, forceCrit: !!ctx.forceCrit,
-          critChanceAdd: ctx.critAdd || 0, noOnHit: !!ctx.noOnHit,
-        });
-        return r;
-      }
-      case 'status': {
-        if (prev === null && eff.needsHit) return null;
-        const mag = eff.magnitude != null ? (eff.scaleMag ? AB().scale({ mult: eff.magnitude }, ctx.rank) : eff.magnitude) : undefined;
-        const hit = prev && prev.total ? prev.total : 0;
-        SS().apply(world, tgt, eff.id, { durMs: eff.durMs, magnitude: mag, sourceId: caster.id, hit });
-        return null;
-      }
-      case 'knockback': {
-        const kb = knockback(world, tgt, ctx.cx != null ? ctx.cx : caster.x, ctx.cy != null ? ctx.cy : caster.y, eff.dist);
-        if (kb.collided && eff.collide) BD.sim.effects.special(world, caster, ctx.ab, ctx.rank, 'collide', { tgt, kb, ctx });
-        return null;
-      }
-      case 'pull': pull(world, tgt, caster.x, caster.y, eff.dist || 1); return null;
-      case 'heal': {
-        const max = ST().statsOf(world, tgt).maxLife;
-        const amt = (max * (eff.perRank ? AB().scale(eff, ctx.rank) : AB().scale({ mult: eff.pctMaxLife }, ctx.rank))) / 100;
-        if (eff.overMs) SS().apply(world, tgt, 'healing', { durMs: eff.overMs, magnitude: amt });
-        else SS().heal(world, tgt, amt);
-        return null;
-      }
-      case 'cleanse': SS().cleanse(world, tgt, eff.statuses); return null;
-      case 'buff': {
-        let mag;
-        if (eff.magnitude == null) mag = undefined;
-        else if (eff.fixed) mag = eff.magnitude;
-        else if (eff.perRank) mag = AB().scale(eff, ctx.rank);
-        else mag = AB().scale({ mult: eff.magnitude }, ctx.rank);
-        const dur = eff.durKey && ctx.ab[eff.durKey] ? ctx.ab[eff.durKey] : eff.durMs;
-        SS().apply(world, tgt, eff.id, { durMs: dur, magnitude: mag, sourceId: caster.id });
-        return null;
-      }
-      case 'resource': BD.sim.resources.gain(world, caster, eff.res || BD.sim.resources.kind(caster), eff.gen); return null;
-      case 'combo': BD.sim.resources.addCombo(world, caster, eff.add); return null;
-      case 'special': BD.sim.effects.special(world, caster, ctx.ab, ctx.rank, eff.id, { tgt, ctx, eff, prev }); return null;
-      default: return null;
+    const apply = EFFECT_TYPES[eff.type];
+    if (!apply) return null;
+    return apply(world, ctx, eff, tgt, prev, caster);
+  }
+
+  /** per effect type: (world, ctx, eff, tgt, prev, caster) → damage result or null */
+  const EFFECT_TYPES = {
+    damage: applyDamage,
+    status(world, ctx, eff, tgt, prev, caster) {
+      if (prev === null && eff.needsHit) return null;
+      let mag;
+      if (eff.magnitude != null) mag = eff.scaleMag ? Abilities().scale({ mult: eff.magnitude }, ctx.rank) : eff.magnitude;
+      const hit = prev && prev.total ? prev.total : 0;
+      Status().apply(world, tgt, eff.id, { durMs: eff.durMs, magnitude: mag, sourceId: caster.id, hit });
+      return null;
+    },
+    knockback(world, ctx, eff, tgt, prev, caster) {
+      const fromX = ctx.cx != null ? ctx.cx : caster.x;
+      const fromY = ctx.cy != null ? ctx.cy : caster.y;
+      const kb = knockback(world, tgt, fromX, fromY, eff.dist);
+      if (kb.collided && eff.collide) BD.sim.effects.special(world, caster, ctx.ab, ctx.rank, 'collide', { tgt, kb, ctx });
+      return null;
+    },
+    pull(world, ctx, eff, tgt, prev, caster) {
+      pull(world, tgt, caster.x, caster.y, eff.dist || 1);
+      return null;
+    },
+    heal(world, ctx, eff, tgt) {
+      const max = Stats().statsOf(world, tgt).maxLife;
+      const pct = eff.perRank ? Abilities().scale(eff, ctx.rank) : Abilities().scale({ mult: eff.pctMaxLife }, ctx.rank);
+      const amt = (max * pct) / 100;
+      if (eff.overMs) Status().apply(world, tgt, 'healing', { durMs: eff.overMs, magnitude: amt });
+      else Status().heal(world, tgt, amt);
+      return null;
+    },
+    cleanse(world, ctx, eff, tgt) {
+      Status().cleanse(world, tgt, eff.statuses);
+      return null;
+    },
+    buff(world, ctx, eff, tgt, prev, caster) {
+      let mag;
+      if (eff.magnitude == null) mag = undefined;
+      else if (eff.fixed) mag = eff.magnitude;
+      else if (eff.perRank) mag = Abilities().scale(eff, ctx.rank);
+      else mag = Abilities().scale({ mult: eff.magnitude }, ctx.rank);
+      const dur = eff.durKey && ctx.ab[eff.durKey] ? ctx.ab[eff.durKey] : eff.durMs;
+      Status().apply(world, tgt, eff.id, { durMs: dur, magnitude: mag, sourceId: caster.id });
+      return null;
+    },
+    resource(world, ctx, eff, tgt, prev, caster) {
+      BD.sim.resources.gain(world, caster, eff.res || BD.sim.resources.kind(caster), eff.gen);
+      return null;
+    },
+    combo(world, ctx, eff, tgt, prev, caster) {
+      BD.sim.resources.addCombo(world, caster, eff.add);
+      return null;
+    },
+    special(world, ctx, eff, tgt, prev, caster) {
+      BD.sim.effects.special(world, caster, ctx.ab, ctx.rank, eff.id, { tgt, ctx, eff, prev });
+      return null;
+    },
+  };
+
+  function applyDamage(world, ctx, eff, tgt, prev, caster) {
+    let xm = (ctx.packetMult || 1) * (eff.areaFalloff && tgt.id !== ctx.centerId ? eff.areaFalloff : 1);
+    if (eff.missingLife) {
+      const mx = Stats().statsOf(world, tgt).maxLife;
+      xm *= 1 + Math.min(eff.missingLife, Math.max(0, 1 - tgt.hp / mx));
     }
+    const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, {
+      combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: xm, fixed: ctx.fixed,
+    });
+    const tags = (ctx.tags || ctx.ab.tags || []).slice();
+    if (ctx.aoe && tags.indexOf('aoe') < 0) tags.push('aoe');
+    return BD.sim.damage.dealDamage(world, {
+      srcId: ctx.srcId != null ? ctx.srcId : caster.id, tgtId: tgt.id, amounts: h.amounts, tags, canCrit: eff.canCrit !== false,
+      canDodge: eff.canDodge !== false, canBlock: eff.canBlock !== false, mult: 1, abilityId: ctx.ab.id, forceCrit: !!ctx.forceCrit,
+      critChanceAdd: ctx.critAdd || 0, noOnHit: !!ctx.noOnHit,
+    });
   }
 
   /** Apply an effect list to targets in order; damage results feed later effects (onlyOnCrit, needsHit). */
@@ -188,7 +239,8 @@
     for (const tgt of targets) {
       let prev = null;
       for (const eff of effects) {
-        if (tgt.hp <= 0 && eff.type !== 'damage') { if (eff.type !== 'special') continue; }
+        // once the target is down only damage and special effects still run
+        if (tgt.hp <= 0 && eff.type !== 'damage' && eff.type !== 'special') continue;
         const r = applyEffect(world, ctx, eff, tgt, prev);
         if (eff.type === 'damage') prev = r;
       }

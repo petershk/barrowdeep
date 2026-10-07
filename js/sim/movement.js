@@ -4,10 +4,10 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const G = BD.core.grid;
+  const Entities = BD.sim.entities;
+  const Grid = BD.core.grid;
   const { dirOf } = BD.core.util;
-  const B = BD.data.balance;
+  const Balance = BD.data.balance;
 
   /** Clock multiplier from statuses (chill 0.5, freeze/stun 0, enrage 1.3, haste…). */
   function clockMult(world, e) {
@@ -20,24 +20,24 @@
     const dx = nx - e.x, dy = ny - e.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return false;
     // phasing monsters pass through any in-bounds tile except the void
-    const passable = (x, y) => E.walkable(f, x, y) || (e.phase && E.inBounds(f, x, y) && f.tiles[y * f.w + x] !== BD.data.tiles.T.VOID);
-    if (!G.canStep(e.x, e.y, dx, dy, passable)) return false;
-    if (E.occupant(f, nx, ny)) return false;
-    const dur = baseMs * (dx && dy ? B.player.diagMult : 1);
+    const VOID = BD.data.tiles.T.VOID;
+    const passable = (x, y) => Entities.walkable(f, x, y) || (e.phase && Entities.inBounds(f, x, y) && f.tiles[Grid.idx(f, x, y)] !== VOID);
+    if (!Grid.canStep(e.x, e.y, dx, dy, passable)) return false;
+    if (Entities.occupant(f, nx, ny)) return false;
+    const dur = baseMs * (dx && dy ? Balance.player.diagMult : 1);
     e.move = { fromX: e.x, fromY: e.y, toX: nx, toY: ny, elapsed: 0, dur };
     e.dir = dirOf(dx, dy);
-    E.relocate(f, e, nx, ny);
+    Entities.relocate(f, e, nx, ny);
     return true;
   }
 
   /** Fast multi-tile displacement (evade, dash, knockback, leap). Lands on (tx,ty) which must be free. */
   function displace(world, e, tx, ty, dur, kind) {
     const f = world.floor;
-    e.move = {
-      fromX: e.move ? E.posOf(e).x : e.x, fromY: e.move ? E.posOf(e).y : e.y,
-      toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash',
-    };
-    E.relocate(f, e, tx, ty);
+    // start from where the entity is drawn right now (mid-step if it was moving)
+    const from = e.move ? Entities.posOf(e) : { x: e.x, y: e.y };
+    e.move = { fromX: from.x, fromY: from.y, toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash' };
+    Entities.relocate(f, e, tx, ty);
   }
 
   /**
@@ -49,20 +49,21 @@
     const f = world.floor;
     const dx = tx - e.x, dy = ty - e.y;
     if (!dx && !dy) return null;
-    const ray = G.rayTiles(e.x, e.y, dx, dy, maxTiles);
+    const ray = Grid.rayTiles(e.x, e.y, dx, dy, maxTiles);
     const path = [];
     let px = e.x, py = e.y;
     for (const [x, y] of ray) {
       const sx = x - px, sy = y - py;
-      if (!E.walkable(f, x, y)) break;
-      if (sx && sy && !(E.walkable(f, px + sx, py) && E.walkable(f, px, py + sy))) break;
+      if (!Entities.walkable(f, x, y)) break;
+      if (sx && sy && !(Entities.walkable(f, px + sx, py) && Entities.walkable(f, px, py + sy))) break;
       path.push([x, y]);
-      px = x; py = y;
+      px = x;
+      py = y;
       if (opts.stopAt && x === opts.stopAt.x && y === opts.stopAt.y) break;
     }
     for (let i = path.length - 1; i >= 0; i--) {
       const [x, y] = path[i];
-      if (E.isFree(f, x, y)) return { x, y, path: path.slice(0, i + 1) };
+      if (Entities.isFree(f, x, y)) return { x, y, path: path.slice(0, i + 1) };
     }
     return null;
   }

@@ -4,34 +4,43 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const AB = () => BD.sim.abilities;
-  const B = BD.data.balance;
-  const CMD = BD.sim.commands;
+  const Entities = BD.sim.entities;
+  const Abilities = () => BD.sim.abilities;
+  const Balance = BD.data.balance;
+  const Commands = BD.sim.commands;
+  const Grid = BD.core.grid;
+
+  const AIR_SWING_SNAP_RADIUS = 1.5;   // a force-attack near an enemy snaps onto it
+  const FLASK_NERF_ASCENSION = 4;      // from this ascension on, flasks heal less…
+  const FLASK_NERF_MULT = 0.8;         // …by this factor
 
   function basicRange(world, p) {
     const w = BD.sim.stats.statsOf(world, p).weapon;
-    return w.projectile ? w.range : w.reachLine ? w.reachLine : 1;
+    if (w.projectile) return w.range;
+    return w.reachLine ? w.reachLine : 1;
   }
 
   /** Engage intent fires this when in range. */
   function playerBasicAttack(world, p, t) {
     if (p.attack) return false;
-    return AB().tryCast(world, p, 'attack', { entityId: t.id, x: t.x, y: t.y }) === 'cast';
+    return Abilities().tryCast(world, p, 'attack', { entityId: t.id, x: t.x, y: t.y }) === 'cast';
   }
 
   /** Shift+click: attack the tile in place (no movement). */
   function forceAttack(world, p, x, y) {
     if (p.attack) return;
     const f = world.floor;
-    const occ = f.occ[y * f.w + x];
-    const t = occ && occ !== p.id ? E.get(world, occ) : null;
-    if (t && t.faction !== 'player') { AB().tryCast(world, p, 'attack', { entityId: t.id }); return; }
+    const occ = f.occ[Grid.idx(f, x, y)];
+    const t = occ && occ !== p.id ? Entities.get(world, occ) : null;
+    if (t && t.faction !== 'player') {
+      Abilities().tryCast(world, p, 'attack', { entityId: t.id });
+      return;
+    }
     // swing at the air toward the tile
     const w = BD.sim.stats.statsOf(world, p).weapon;
-    const near = BD.sim.targeting.nearestEnemy(world, x, y, 1.5, 'player', null);
+    const near = BD.sim.targeting.nearestEnemy(world, x, y, AIR_SWING_SNAP_RADIUS, 'player', null);
     if (near && (w.projectile || BD.core.util.cheb(p.x, p.y, near.x, near.y) <= 1)) {
-      AB().tryCast(world, p, 'attack', { entityId: near.id });
+      Abilities().tryCast(world, p, 'attack', { entityId: near.id });
       return;
     }
     p.dir = BD.core.util.dirOf(x - p.x, y - p.y);
@@ -39,22 +48,30 @@
   }
 
   // ---- commands ----
-  CMD.register('UseSkill', (world, c) => {
+  Commands.register('UseSkill', (world, c) => {
     const p = world.player;
     const id = p.bar[c.slot];
     if (!id) return;
-    if (p.attack && p.attack.phase === 'recover') { p.queued = { id, aim: c.aim, hold: c.hold }; return; }
-    if (p.attack && p.attack.phase === 'windup') { if (!c.hold) p.queued = { id, aim: c.aim, hold: c.hold }; return; }
-    AB().tryCast(world, p, id, c.aim, { hold: c.hold });
+    // mid-swing: buffer the cast (a held button only re-buffers once the swing is recovering)
+    if (p.attack && p.attack.phase === 'recover') {
+      p.queued = { id, aim: c.aim, hold: c.hold };
+      return;
+    }
+    if (p.attack && p.attack.phase === 'windup') {
+      if (!c.hold) p.queued = { id, aim: c.aim, hold: c.hold };
+      return;
+    }
+    Abilities().tryCast(world, p, id, c.aim, { hold: c.hold });
   });
-  CMD.register('DrinkFlask', (world) => drinkFlask(world, world.player));
+  Commands.register('DrinkFlask', (world) => drinkFlask(world, world.player));
 
   /** fire a buffered cast when the current action ends */
   function queueSystem(world) {
     const p = world.player;
     if (!p || p.dead || p.attack || !p.queued) return;
-    const q = p.queued; p.queued = null;
-    AB().tryCast(world, p, q.id, q.aim, { hold: q.hold });
+    const q = p.queued;
+    p.queued = null;
+    Abilities().tryCast(world, p, q.id, q.aim, { hold: q.hold });
   }
 
   function drinkFlask(world, p) {
@@ -63,10 +80,10 @@
     if (fl.charges <= 0) return BD.sim.interact.deny(world, 'no_flask');
     const s = BD.sim.stats.statsOf(world, p);
     fl.charges--;
-    p.cooldowns.flask = B.player.flaskCdMs;
-    let pct = B.player.flaskHealPct * (1 + (s.flask_heal_pct || 0) / 100);
-    if (world.run.ascension >= 4) pct *= 0.8;
-    BD.sim.status.apply(world, p, 'healing', { durMs: B.player.flaskHealMs, magnitude: (s.maxLife * pct) / 100 });
+    p.cooldowns.flask = Balance.player.flaskCdMs;
+    let pct = Balance.player.flaskHealPct * (1 + (s.flask_heal_pct || 0) / 100);
+    if (world.run.ascension >= FLASK_NERF_ASCENSION) pct *= FLASK_NERF_MULT;
+    BD.sim.status.apply(world, p, 'healing', { durMs: Balance.player.flaskHealMs, magnitude: (s.maxLife * pct) / 100 });
     BD.sim.status.cleanse(world, p, ['poisoned', 'bleeding']);
     world.events.push({ type: 'flask.drink', id: p.id, charges: fl.charges, x: p.x, y: p.y });
     return true;
@@ -79,7 +96,7 @@
     const max = BD.sim.stats.statsOf(world, e).maxLife;
     world.floor.corpses.push({
       id: e.id, def: e.def, x: e.x, y: e.y, packId: e.packId, rank: e.rank, maxLife: max,
-      ms: B.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null,
+      ms: Balance.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null,
     });
     world.events.push({ type: 'corpse', id: e.id, def: e.def, x: e.x, y: e.y });
   });

@@ -4,10 +4,15 @@
 (function (BD) {
   'use strict';
 
-  const B = BD.data.balance;
-  const E = BD.sim.entities;
-  const ST = () => BD.sim.stats;
-  const SS = () => BD.sim.status;
+  const Balance = BD.data.balance;
+  const Entities = BD.sim.entities;
+  const Stats = () => BD.sim.stats;
+  const Status = () => BD.sim.status;
+
+  const CRIT_CAP_SLACK_PCT = 40;       // crit chance may exceed Balance.combat.critCap by this much
+  const MONSTER_PHYS_DR_CAP = 0.75;    // monsters' physical damage reduction cap
+  const MONSTER_RES_CAP = 0.9;         // monsters' elemental resistance cap…
+  const MONSTER_RES_FLOOR = -1;        // …and floor (−100% = double damage)
 
   /** hooks: (world, src, tgt, packet, result) — status chances, leech, procs, resources, retaliation */
   const onHitHooks = [];
@@ -32,15 +37,19 @@
   }
 
   const hasTag = (p, t) => p.tags && p.tags.indexOf(t) >= 0;
-  const alOf = (world, e) => (e ? (e.kind === 'player' ? world.floor.al : e.al || world.floor.al) : world.floor.al);
+  /** attacker level used by evasion/armor: the floor's for the player or no attacker, else the monster's own */
+  function alOf(world, e) {
+    if (!e || e.kind === 'player') return world.floor.al;
+    return e.al || world.floor.al;
+  }
 
   function rollDodge(world, src, tgt, p) {
     if (!(hasTag(p, 'melee') || hasTag(p, 'projectile'))) return false;
-    if (src && SS().has(src, 'blinded') && world.rng.chance(BD.data.statuses.blinded.missChance)) return true;
-    const ts = ST().statsOf(world, tgt);
+    if (src && Status().has(src, 'blinded') && world.rng.chance(BD.data.statuses.blinded.missChance)) return true;
+    const ts = Stats().statsOf(world, tgt);
     if (tgt.kind === 'player') {
       const E_ = ts.evasionTotal, al = alOf(world, src);
-      const ch = Math.min(B.combat.dodgeCap, E_ / (E_ + B.combat.evadeK + B.combat.evadePerAL * al));
+      const ch = Math.min(Balance.combat.dodgeCap, E_ / (E_ + Balance.combat.evadeK + Balance.combat.evadePerAL * al));
       return world.rng.chance(ch);
     }
     return ts.evadeChance > 0 && world.rng.chance(ts.evadeChance);
@@ -49,7 +58,7 @@
   function rollBlock(world, src, tgt, p) {
     if (!(hasTag(p, 'melee') || hasTag(p, 'projectile'))) return false;
     if (tgt.kind === 'player') {
-      const ch = ST().statsOf(world, tgt).blockChance;
+      const ch = Stats().statsOf(world, tgt).blockChance;
       return ch > 0 && world.rng.chance(ch / 100);
     }
     // block_front: frontal hits only, AoE bypasses
@@ -64,18 +73,18 @@
   function rollCrit(world, src, p) {
     if (p.forceCrit) return true;
     if (!src) return false;
-    const s = ST().statsOf(world, src);
+    const s = Stats().statsOf(world, src);
     const resourceBonus = src.kind === 'player' && BD.sim.resources ? BD.sim.resources.critBonus(world, src) : 0;
     const ch = (s.critChance || 0) + (p.critChanceAdd || 0) + resourceBonus;
-    return ch > 0 && world.rng.chance(Math.min(B.combat.critCap + 40, ch) / 100);
+    return ch > 0 && world.rng.chance(Math.min(Balance.combat.critCap + CRIT_CAP_SLACK_PCT, ch) / 100);
   }
 
   /** situational multipliers: weakened, vulnerable/shocked/exposed, vs-family, elites, hooks */
   function multipliers(world, src, tgt, p, el) {
-    let k = SS().takenMult(world, tgt);
-    if (src) k *= SS().dealtMult(world, src);
+    let k = Status().takenMult(world, tgt);
+    if (src) k *= Status().dealtMult(world, src);
     if (src && src.kind !== 'monster' && tgt.kind === 'monster') {
-      const s = src.kind === 'player' ? ST().statsOf(world, src) : null;
+      const s = src.kind === 'player' ? Stats().statsOf(world, src) : null;
       const fam = BD.sim.monsters ? BD.sim.monsters.family(tgt) : '';
       if (s) {
         if (fam === 'undead' && s.dmg_vs_undead_pct) k *= 1 + s.dmg_vs_undead_pct / 100;
@@ -88,25 +97,26 @@
   }
 
   function mitigation(world, src, tgt, el) {
-    const ts = ST().statsOf(world, tgt);
+    const ts = Stats().statsOf(world, tgt);
     if (tgt.kind === 'player' || tgt.kind === 'ally') {
       let m = 0;
       if (el === 'phys') {
         const A = ts.armorTotal || 0, al = alOf(world, src);
-        m = Math.min(B.combat.armorCap, A / (A + B.combat.armorK + B.combat.armorPerAL * al));
+        m = Math.min(Balance.combat.armorCap, A / (A + Balance.combat.armorK + Balance.combat.armorPerAL * al));
       } else m = (ts.res ? ts.res[el] || 0 : 0) / 100;
       return 1 - (1 - m) * (1 - (ts.dr_pct || 0) / 100);
     }
-    if (el === 'phys') return Math.min(0.75, (ts.dr_pct || 0) / 100);
-    return Math.max(-1, Math.min(0.9, (ts.res ? ts.res[el] || 0 : 0) / 100));
+    if (el === 'phys') return Math.min(MONSTER_PHYS_DR_CAP, (ts.dr_pct || 0) / 100);
+    return Math.max(MONSTER_RES_FLOOR, Math.min(MONSTER_RES_CAP, (ts.res ? ts.res[el] || 0 : 0) / 100));
   }
 
   function absorbShields(world, tgt, total) {
-    const sh = SS().has(tgt, 'shielded');
+    const sh = Status().has(tgt, 'shielded');
     if (sh && sh.pool > 0) {
       const a = Math.min(sh.pool, total);
-      sh.pool -= a; total -= a;
-      if (sh.pool <= 0) SS().remove(world, tgt, 'shielded');
+      sh.pool -= a;
+      total -= a;
+      if (sh.pool <= 0) Status().remove(world, tgt, 'shielded');
       world.events.push({ type: 'absorb', id: tgt.id, amount: a });
     }
     if (tgt.kind === 'player' && BD.sim.resources) total = BD.sim.resources.absorb(world, tgt, total);
@@ -115,22 +125,25 @@
 
   /** @param {DamagePacket} p */
   function dealDamage(world, p) {
-    const src = E.get(world, p.srcId), tgt = E.get(world, p.tgtId);
+    const src = Entities.get(world, p.srcId), tgt = Entities.get(world, p.tgtId);
     if (!tgt || tgt.hp <= 0 || tgt.dead) return null;
     if (src && src.faction === tgt.faction && src !== tgt && !p.noFaction) return null; // monsters never damage each other
-    if (SS().invulnerable(tgt) || tgt.untargetable) return emitMiss(world, p, src, tgt, 'immune');
+    if (Status().invulnerable(tgt) || tgt.untargetable) return emitMiss(world, p, src, tgt, 'immune');
     if (p.canDodge && rollDodge(world, src, tgt, p)) return emitMiss(world, p, src, tgt, 'dodge');
     const blocked = p.canBlock && rollBlock(world, src, tgt, p);
     const crit = p.canCrit && rollCrit(world, src, p);
     let total = 0;
     const parts = {};
-    const critMult = crit ? ST().statsOf(world, src).critMult : 1;
+    const critMult = crit ? Stats().statsOf(world, src).critMult : 1;
     for (const el in p.amounts) {
       let v = p.amounts[el] * p.mult * multipliers(world, src, tgt, p, el);
       if (crit) v *= critMult;
       v *= 1 - mitigation(world, src, tgt, el);
-      if (blocked) v *= 1 - B.combat.blockReduce;
-      if (v > 0) { parts[el] = v; total += v; }
+      if (blocked) v *= 1 - Balance.combat.blockReduce;
+      if (v > 0) {
+        parts[el] = v;
+        total += v;
+      }
     }
     total = absorbShields(world, tgt, total);
     total = Math.max(1, Math.round(total));
@@ -152,7 +165,17 @@
     if (tgt.hp <= 0) kill(world, tgt, src, p);
     return res;
   }
-  function maxPart(parts) { let best = 'phys', v = -1; for (const k in parts) if (parts[k] > v) { v = parts[k]; best = k; } return best; }
+  /** the element that dealt the most (phys when nothing did) */
+  function maxPart(parts) {
+    let best = 'phys', v = -1;
+    for (const k in parts) {
+      if (parts[k] > v) {
+        v = parts[k];
+        best = k;
+      }
+    }
+    return best;
+  }
 
   /** Every damage source wakes and alerts (including DoTs). */
   function wake(world, tgt, src) {
@@ -166,8 +189,12 @@
     tgt.dying = true;
     world.pendingDeaths = world.pendingDeaths || [];
     world.pendingDeaths.push({
-      id: tgt.id, killerId: src ? src.id : null, abilityId: p ? p.abilityId : null, tags: p ? p.tags : [],
-      overkill: p ? p.amounts : null, element: p ? maxPart(p.amounts) : 'phys',
+      id: tgt.id,
+      killerId: src ? src.id : null,
+      abilityId: p ? p.abilityId : null,
+      tags: p ? p.tags : [],
+      overkill: p ? p.amounts : null,
+      element: p ? maxPart(p.amounts) : 'phys',
     });
   }
 
@@ -177,9 +204,9 @@
     if (!list || !list.length) return;
     world.pendingDeaths = [];
     for (const d of list) {
-      const e = E.get(world, d.id);
+      const e = Entities.get(world, d.id);
       if (!e || e.dead) continue;
-      const killer = E.get(world, d.killerId);
+      const killer = Entities.get(world, d.killerId);
       if (e.kind === 'player') {
         e.dead = true;
         world.events.push({ type: 'death', id: e.id, kind: 'player', killerId: d.killerId, abilityId: d.abilityId, x: e.x, y: e.y });
@@ -188,9 +215,12 @@
       }
       e.dead = true;
       const f = world.floor;
-      E.vacate(f, e);
+      Entities.vacate(f, e);
       f.entities.delete(e.id);
-      if (e.kind === 'ally') { world.events.push({ type: 'death', id: e.id, kind: 'ally', x: e.x, y: e.y }); continue; }
+      if (e.kind === 'ally') {
+        world.events.push({ type: 'death', id: e.id, kind: 'ally', x: e.x, y: e.y });
+        continue;
+      }
       world.events.push({
         type: 'death', id: e.id, kind: e.kind, def: e.def, rank: e.rank, family: BD.sim.monsters ? BD.sim.monsters.family(e) : '',
         killerId: d.killerId, x: e.x, y: e.y, element: d.element,
