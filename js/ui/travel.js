@@ -9,17 +9,25 @@
     const w = BD.app.world, r = w.run;
     el.appendChild(h('h2', 'Waypoints'));
     const list = h('div.choice-list');
-    const entries = [[0, 'Town of Brennor']].concat(BD.data.floors.WAYPOINTS.map((n) => [n, BD.data.biomes[BD.data.floors.byN(n).biome].name + ' — floor ' + n]));
+    const wpEntry = (n) => [n, BD.data.biomes[BD.data.floors.byN(n).biome].name + ' — floor ' + n];
+    const entries = [[0, 'Town of Brennor']].concat(BD.data.floors.WAYPOINTS.map(wpEntry));
     if (r.flags.sanctum) entries.push([13, "Malgoth's Sanctum"]);
     const here = w.floor.key === 'town' ? 0 : w.floor.n;
     for (const [n, name] of entries) {
       const on = n === 0 || n === 13 || r.waypoints.includes(n);
-      list.appendChild(h('div.choice' + (on ? '' : '.locked') + (n === here ? '.sel' : ''), { data: { action: on && n !== here ? 'go' : '', n } }, [h('b', name), on ? null : h('span.muted', ' — not yet attuned')]));
+      list.appendChild(h('div.choice' + (on ? '' : '.locked') + (n === here ? '.sel' : ''), {
+        data: { action: on && n !== here ? 'go' : '', n },
+      }, [h('b', name), on ? null : h('span.muted', ' — not yet attuned')]));
     }
     el.appendChild(list);
-    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [h('button.btn', { data: { action: 'close' } }, 'Close')]));
+    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [
+      h('button.btn', { data: { action: 'close' } }, 'Close'),
+    ]));
     BD.ui.dom.delegate(el, {
-      go: (t) => { BD.ui.panels.close('waypoints'); BD.input.intent.issue({ type: 'TravelWaypoint', floor: Number(t.dataset.n) }); },
+      go: (t) => {
+        BD.ui.panels.close('waypoints');
+        BD.input.intent.issue({ type: 'TravelWaypoint', floor: Number(t.dataset.n) });
+      },
       close: () => BD.ui.panels.close('waypoints'),
     });
   }
@@ -32,16 +40,23 @@
     for (const c of chars) {
       const cls = BD.data.classes[c.cls];
       const where = c.floor ? 'floor ' + c.floor : 'Brennor';
+      const status = c.alive ? where : c.victory ? 'Victorious' : 'Fallen';
+      const summary = 'Level ' + c.level + ' ' + cls.name + ' · ' + BD.data.difficulties[c.difficulty].name + ' · ' + status;
       list.appendChild(h('div.choice.load-row' + (c.alive ? '' : '.locked'), { data: { action: c.alive ? 'load' : '', id: c.id } }, [
         h('img.load-art', { src: BD.view.sprites.dataURL(cls.art, 2), alt: '' }),
-        h('div', [h('b', c.name), h('div.muted', 'Level ' + c.level + ' ' + cls.name + ' · ' + BD.data.difficulties[c.difficulty].name + ' · ' + (c.alive ? where : c.victory ? 'Victorious' : 'Fallen'))]),
-        c.alive ? h('button.btn.tiny.danger', { data: { action: 'sacrifice', id: c.id }, title: 'Sacrifice for half the souls' }, 'Sacrifice') : h('button.btn.tiny', { data: { action: 'forget', id: c.id } }, 'Forget'),
+        h('div', [h('b', c.name), h('div.muted', summary)]),
+        c.alive
+          ? h('button.btn.tiny.danger', { data: { action: 'sacrifice', id: c.id }, title: 'Sacrifice for half the souls' }, 'Sacrifice')
+          : h('button.btn.tiny', { data: { action: 'forget', id: c.id } }, 'Forget'),
       ]));
     }
     el.appendChild(list);
     el.appendChild(h('div.row', { style: 'justify-content:space-between;margin-top:12px' }, [
       h('button.btn', { data: { action: 'back' } }, 'Back'),
-      h('div.row', [h('button.btn', { data: { action: 'export' } }, 'Export characters'), h('button.btn', { data: { action: 'import' } }, 'Import')]),
+      h('div.row', [
+        h('button.btn', { data: { action: 'export' } }, 'Export characters'),
+        h('button.btn', { data: { action: 'import' } }, 'Import'),
+      ]),
     ]));
     BD.ui.dom.delegate(el, {
       load: (t) => {
@@ -81,7 +96,9 @@
       h('div', [h('b', 'Seed: '), h('input.seed', { type: 'text', readonly: true, value: r.seed })]),
       h('div.muted', p.name + ' the ' + BD.data.backgrounds[p.background].name),
     ]));
-    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [h('button.btn', { data: { action: 'close' } }, 'Close (J)')]));
+    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [
+      h('button.btn', { data: { action: 'close' } }, 'Close (J)'),
+    ]));
     BD.ui.dom.delegate(el, { close: () => BD.ui.panels.close('journal') });
   }
 
@@ -94,7 +111,12 @@
       row.appendChild(h('button.btn', { data: { action: 'pick', id } }, b.name + ' — ' + b.desc));
     }
     el.appendChild(row);
-    BD.ui.dom.delegate(el, { pick: (t) => { BD.sim.commands.apply(BD.app.world, { type: 'ShrineChoose', id: t.dataset.id }); BD.ui.panels.close('shrinechoice'); } });
+    BD.ui.dom.delegate(el, {
+      pick: (t) => {
+        BD.sim.commands.apply(BD.app.world, { type: 'ShrineChoose', id: t.dataset.id });
+        BD.ui.panels.close('shrinechoice');
+      },
+    });
   }
   BD.ui.panels.register({ id: 'shrinechoice', build: buildShrine });
   BD.ui.panels.register({ id: 'waypoints', build: buildWaypoints });

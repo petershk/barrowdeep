@@ -11,7 +11,8 @@
     const p = world.player, r = world.run;
     const L = p.level;
     const base = (L - 1) * (L + 3);
-    const bonus = 10 * r.keepersSlain + 40 * r.bossesKilled.filter((b) => b !== 'malgoth').length + (r.bossesKilled.includes('malgoth') ? 150 : 0);
+    const lesserBosses = r.bossesKilled.filter((b) => b !== 'malgoth').length;
+    const bonus = 10 * r.keepersSlain + 40 * lesserBosses + (r.bossesKilled.includes('malgoth') ? 150 : 0);
     const diff = BD.data.difficulties[r.difficulty];
     const gear = 1 + (BD.sim.stats.statsOf(world, p).souls_pct || 0) / 100;
     const v = Math.round((base + bonus) * diff.souls * (1 + 0.15 * (r.ascension || 0)) * gear);
@@ -70,8 +71,8 @@
     if (plan) world.run.portal = { key, x: -1, y: -1, to: isArena ? 'gate' : 'up' };
     world.events.push({ type: 'revive', id: p.id, x: p.x, y: p.y });
     return true;
-  });
-  CMD.register('Harvest', (world) => harvest(world));
+  }, { ui: true, whileDead: true });
+  CMD.register('Harvest', (world) => harvest(world), { ui: true, whileDead: true });
 
   function harvest(world) {
     const r = world.run;

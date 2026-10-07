@@ -19,21 +19,35 @@
     const d = TD()[o.trap], dmg = trashDmg(world);
     o.cooldown = world.time + 3000;
     world.events.push({ type: 'trap.trigger', trap: o.trap, x: o.x, y: o.y });
+    let school = 'steel';
+    if (o.trap === 'gas') school = 'poison';
+    else if (o.trap === 'fire_vent') school = 'fire';
     const strike = (tiles, armMs, mult, statuses, linger) => BD.sim.zones.create(world, {
-      tiles, cx: o.x, cy: o.y, armMs, faction: null, noFaction: true, srcId: null, school: o.trap === 'gas' ? 'poison' : o.trap === 'fire_vent' ? 'fire' : 'steel', kind: 'trap_' + o.trap,
+      tiles, cx: o.x, cy: o.y, armMs, faction: null, noFaction: true, srcId: null, school, kind: 'trap_' + o.trap,
       resolve: { type: 'packet', amounts: { [d.element]: dmg * mult }, statuses: statuses || [], linger: linger || null },
     });
     if (o.trap === 'spike') strike([[o.x, o.y]], d.armMs, d.mult);
     else if (o.trap === 'gas') strike(MV().circle(o.x, o.y, 1), d.armMs, d.mult, [{ id: 'poisoned', durMs: 4000 }]);
-    else if (o.trap === 'fire_vent') strike([[o.x, o.y]], d.armMs, d.mult, [], { kind: 'burning_ground', durMs: d.activeMs, amount: dmg * d.mult });
-    else if (o.trap === 'dart') {
-      const line = BD.core.grid.rayTiles(o.x - o.dx * 4, o.y - o.dy * 4, o.dx, o.dy, 8).filter(([x, y]) => BD.sim.entities.walkable(world.floor, x, y));
-      for (let i = 0; i < d.darts; i++) BD.core.scheduler.after(world, d.armMs + i * 150, 'trap.dart', { x: o.x - o.dx * 4, y: o.y - o.dy * 4, dx: o.dx, dy: o.dy, amt: dmg * d.mult });
-      BD.sim.zones.create(world, { tiles: line, cx: o.x, cy: o.y, armMs: d.armMs, faction: null, srcId: null, school: 'steel', resolve: null, kind: 'dart_line' });
+    else if (o.trap === 'fire_vent') {
+      strike([[o.x, o.y]], d.armMs, d.mult, [], { kind: 'burning_ground', durMs: d.activeMs, amount: dmg * d.mult });
+    } else if (o.trap === 'dart') {
+      const line = BD.core.grid.rayTiles(o.x - o.dx * 4, o.y - o.dy * 4, o.dx, o.dy, 8)
+        .filter(([x, y]) => BD.sim.entities.walkable(world.floor, x, y));
+      for (let i = 0; i < d.darts; i++) {
+        const dart = { x: o.x - o.dx * 4, y: o.y - o.dy * 4, dx: o.dx, dy: o.dy, amt: dmg * d.mult };
+        BD.core.scheduler.after(world, d.armMs + i * 150, 'trap.dart', dart);
+      }
+      BD.sim.zones.create(world, {
+        tiles: line, cx: o.x, cy: o.y, armMs: d.armMs, faction: null, srcId: null, school: 'steel', resolve: null, kind: 'dart_line',
+      });
     }
   }
   BD.core.scheduler.register('trap.dart', (world, pl) => {
-    BD.sim.projectiles.spawn(world, { kind: 'arrow', srcId: null, faction: 'trap', x: pl.x, y: pl.y, dx: pl.dx, dy: pl.dy, maxDist: 9, speed: 12, payload: { type: 'packet', amounts: { phys: pl.amt } } });
+    BD.sim.projectiles.spawn(world, {
+      kind: 'arrow', srcId: null, faction: 'trap',
+      x: pl.x, y: pl.y, dx: pl.dx, dy: pl.dy, maxDist: 9, speed: 12,
+      payload: { type: 'packet', amounts: { phys: pl.amt } },
+    });
   });
 
   function system(world, dt) {
@@ -42,11 +56,16 @@
     const range = world.run.difficulty === 'pilgrim' ? 99 : world.run.ascension >= 7 ? 2 : 3;
     for (const o of f.objects) {
       if (o.kind !== 'trap' || o.disarmed) continue;
-      if (!o.visible && within(o.x, o.y, p.x, p.y, range) && f.visible[o.y * f.w + o.x]) { o.visible = true; world.events.push({ type: 'trap.reveal', x: o.x, y: o.y }); }
+      if (!o.visible && within(o.x, o.y, p.x, p.y, range) && f.visible[o.y * f.w + o.x]) {
+        o.visible = true;
+        world.events.push({ type: 'trap.reveal', x: o.x, y: o.y });
+      }
       // disarming: stay adjacent and still for 0.8 s
       if (o.disarmUntil) {
-        if (cheb(o.x, o.y, p.x, p.y) > 1 || p.move || p.attack) { o.disarmUntil = 0; world.events.push({ type: 'trap.disarm.fail', x: o.x, y: o.y }); }
-        else if (world.time >= o.disarmUntil) {
+        if (cheb(o.x, o.y, p.x, p.y) > 1 || p.move || p.attack) {
+          o.disarmUntil = 0;
+          world.events.push({ type: 'trap.disarm.fail', x: o.x, y: o.y });
+        } else if (world.time >= o.disarmUntil) {
           o.disarmed = true; o.disarmUntil = 0;
           const g = BD.sim.loot.goldOf(world, f.al, 1);
           p.gold += g;

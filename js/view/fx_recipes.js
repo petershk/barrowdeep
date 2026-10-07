@@ -35,11 +35,31 @@
     light: { radius: 2, color: '#ffd27a', intensity: 0.7, life: 160 },
     shake: 0.18,
   };
-  R.impact_arrow = { particles: [{ count: 5, shape: 'cone', spread: 0.5, speed: [0.001, 0.003], life: [150, 300], size: [1, 2], palette: 'steel' }], shapes: [{ kind: 'spike', len: 10, w: 1.6, life: 80, palette: 'steel' }], shake: 0.05 };
-  R.impact_bolt = { particles: [{ count: 6, shape: 'cone', spread: 0.5, speed: [0.0015, 0.0035], life: [150, 320], size: [1.2, 2.2], palette: 'steel' }], shapes: [{ kind: 'spike', len: 14, w: 2.4, life: 90, palette: 'steel' }], shake: 0.08 };
-  R.impact_magic = { particles: [{ count: 8, shape: 'ring', speed: [0.001, 0.003], life: [200, 380], size: [1.2, 2.4], palette: 'auto' }], shapes: [{ kind: 'flash', radius: 0.7, life: 140, palette: 'auto' }], light: { radius: 1.6, color: '#b88aff', intensity: 0.5, life: 140 } };
-  R.monster_hit = { particles: [{ count: 6, shape: 'cone', speed: [0.0012, 0.003], life: [160, 320], size: [1.2, 2.4], palette: 'blood' }], shapes: [{ kind: 'arc', half: 0.8, radius: 0.45, width: 3, life: 120, palette: 'blood' }], shake: 0.15 };
-  R.block = { particles: [{ count: 8, shape: 'cone', spread: 1.2, speed: [0.002, 0.004], life: [120, 260], size: [1, 2], palette: 'gold' }], shapes: [{ kind: 'star', rays: 4, radius: 0.5, life: 120, palette: 'steel' }], shake: 0.05 };
+  R.impact_arrow = {
+    particles: [{ count: 5, shape: 'cone', spread: 0.5, speed: [0.001, 0.003], life: [150, 300], size: [1, 2], palette: 'steel' }],
+    shapes: [{ kind: 'spike', len: 10, w: 1.6, life: 80, palette: 'steel' }],
+    shake: 0.05,
+  };
+  R.impact_bolt = {
+    particles: [{ count: 6, shape: 'cone', spread: 0.5, speed: [0.0015, 0.0035], life: [150, 320], size: [1.2, 2.2], palette: 'steel' }],
+    shapes: [{ kind: 'spike', len: 14, w: 2.4, life: 90, palette: 'steel' }],
+    shake: 0.08,
+  };
+  R.impact_magic = {
+    particles: [{ count: 8, shape: 'ring', speed: [0.001, 0.003], life: [200, 380], size: [1.2, 2.4], palette: 'auto' }],
+    shapes: [{ kind: 'flash', radius: 0.7, life: 140, palette: 'auto' }],
+    light: { radius: 1.6, color: '#b88aff', intensity: 0.5, life: 140 },
+  };
+  R.monster_hit = {
+    particles: [{ count: 6, shape: 'cone', speed: [0.0012, 0.003], life: [160, 320], size: [1.2, 2.4], palette: 'blood' }],
+    shapes: [{ kind: 'arc', half: 0.8, radius: 0.45, width: 3, life: 120, palette: 'blood' }],
+    shake: 0.15,
+  };
+  R.block = {
+    particles: [{ count: 8, shape: 'cone', spread: 1.2, speed: [0.002, 0.004], life: [120, 260], size: [1, 2], palette: 'gold' }],
+    shapes: [{ kind: 'star', rays: 4, radius: 0.5, life: 120, palette: 'steel' }],
+    shake: 0.05,
+  };
   R.whiff = { shapes: [{ kind: 'arc', half: 0.9, radius: 0.5, width: 2, life: 120, palette: 'dust' }] };
 
   // ---- element flair on hits ----
@@ -63,12 +83,21 @@
     shapes: [{ kind: 'column', height: 140, width: 18, life: 900, palette: 'holy' }, { kind: 'ring', from: 0.2, to: 2.4, life: 600, palette: 'holy' }],
     light: { radius: 4, color: '#ffe38a', intensity: 1, life: 900 },
   };
-  R.evade = { shapes: [{ kind: 'dash', life: 200, palette: 'dust' }], particles: [{ count: 6, shape: 'ring', speed: [0.0005, 0.0015], life: [200, 380], size: [1.5, 3], palette: 'dust', z: [0, 4] }] };
+  R.evade = {
+    shapes: [{ kind: 'dash', life: 200, palette: 'dust' }],
+    particles: [{ count: 6, shape: 'ring', speed: [0.0005, 0.0015], life: [200, 380], size: [1.5, 3], palette: 'dust', z: [0, 4] }],
+  };
   R.alert = {};
-  R.heal = { particles: [{ count: 10, shape: 'ring', radius: 0.5, speed: [0.0002, 0.0006], vz: [0.03, 0.06], g: -0.00003, life: [500, 800], size: [1.5, 2.5], palette: 'poison' }] };
+  R.heal = {
+    particles: [{ count: 10, shape: 'ring', radius: 0.5, speed: [0.0002, 0.0006], vz: [0.03, 0.06], g: -0.00003, life: [500, 800], size: [1.5, 2.5], palette: 'poison' }],
+  };
   R.portal = {
     particles: [{ count: 30, shape: 'ring', radius: 0.8, speed: [0.0004, 0.0012], vz: [0.03, 0.07], g: -0.00002, life: [600, 1100], size: [1.5, 3], palette: 'portal' }],
-    shapes: [{ kind: 'ring', from: 0.2, to: 1.2, life: 400, palette: 'portal' }, { kind: 'ring', from: 0.2, to: 1.6, life: 500, delay: 120, palette: 'portal' }, { kind: 'ring', from: 0.2, to: 2.0, life: 600, delay: 240, palette: 'portal' }],
+    shapes: [
+      { kind: 'ring', from: 0.2, to: 1.2, life: 400, palette: 'portal' },
+      { kind: 'ring', from: 0.2, to: 1.6, life: 500, delay: 120, palette: 'portal' },
+      { kind: 'ring', from: 0.2, to: 2.0, life: 600, delay: 240, palette: 'portal' },
+    ],
     light: { radius: 3, color: '#b06aff', intensity: 1, life: 800 },
   };
   R.seal_break = {
@@ -76,14 +105,25 @@
     shapes: [{ kind: 'column', height: 220, width: 14, life: 1100, palette: 'seal' }, { kind: 'ring', from: 0.3, to: 3, life: 600, palette: 'seal' }],
     light: { radius: 5, color: '#ff4030', intensity: 1, life: 1000 }, shake: 0.3,
   };
-  R.zone_hit = { particles: [{ count: 10, shape: 'ring', radius: 0.5, speed: [0.001, 0.004], z: [2, 12], vz: [0.03, 0.07], life: [260, 520], size: [1.5, 3.4], palette: 'auto' }], shapes: [{ kind: 'flash', radius: 0.8, life: 160, palette: 'auto' }] };
+  R.zone_hit = {
+    particles: [{ count: 10, shape: 'ring', radius: 0.5, speed: [0.001, 0.004], z: [2, 12], vz: [0.03, 0.07], life: [260, 520], size: [1.5, 3.4], palette: 'auto' }],
+    shapes: [{ kind: 'flash', radius: 0.8, life: 160, palette: 'auto' }],
+  };
   R.zone_heavy = {
     particles: [{ count: 22, shape: 'ring', radius: 0.8, speed: [0.002, 0.005], z: [2, 16], vz: [0.04, 0.09], life: [300, 650], size: [2, 4], palette: 'auto' }],
     shapes: [{ kind: 'ring', from: 0.2, to: 1.8, life: 320, palette: 'auto' }, { kind: 'flash', radius: 1.4, life: 200, palette: 'auto' }],
     shake: 0.45,
   };
-  R.blink = { particles: [{ count: 16, shape: 'ring', radius: 0.4, speed: [0.0006, 0.002], vz: [0.02, 0.05], life: [250, 500], size: [1.5, 3], palette: 'auto' }], shapes: [{ kind: 'flash', radius: 0.8, life: 160, palette: 'auto' }] };
-  R.exposed = { shapes: [{ kind: 'ring', from: 0.3, to: 1.1, life: 300, palette: 'gold' }], particles: [{ count: 10, shape: 'ring', speed: [0.001, 0.002], life: [300, 500], size: [1.5, 2.5], palette: 'gold' }] };
-  R.loot_fountain = { particles: [{ count: 48, shape: 'ring', speed: [0.0005, 0.0018], z: [6, 12], vz: [0.10, 0.24], g: 0.0005, life: [700, 1200], size: [2, 3], palette: 'gold' }] };
+  R.blink = {
+    particles: [{ count: 16, shape: 'ring', radius: 0.4, speed: [0.0006, 0.002], vz: [0.02, 0.05], life: [250, 500], size: [1.5, 3], palette: 'auto' }],
+    shapes: [{ kind: 'flash', radius: 0.8, life: 160, palette: 'auto' }],
+  };
+  R.exposed = {
+    shapes: [{ kind: 'ring', from: 0.3, to: 1.1, life: 300, palette: 'gold' }],
+    particles: [{ count: 10, shape: 'ring', speed: [0.001, 0.002], life: [300, 500], size: [1.5, 2.5], palette: 'gold' }],
+  };
+  R.loot_fountain = {
+    particles: [{ count: 48, shape: 'ring', speed: [0.0005, 0.0018], z: [6, 12], vz: [0.10, 0.24], g: 0.0005, life: [700, 1200], size: [2, 3], palette: 'gold' }],
+  };
   R.explored = { particles: [{ count: 60, shape: 'ring', radius: 1.5, speed: [0.001, 0.004], z: [20, 60], vz: [0.02, 0.08], life: [600, 1200], size: [1.5, 3], palette: 'holy' }] };
 })(globalThis.BD);

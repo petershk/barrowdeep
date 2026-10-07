@@ -18,7 +18,7 @@
     cam.y += (gy - cam.y) * k;
     cam.t += dtReal;
     cam.trauma = Math.max(0, cam.trauma - (1.6 * dtReal) / 1000);
-    const scale = BD.ui && BD.ui.options ? BD.ui.options.get('shake') / 100 : 1;
+    const scale = BD.view.host.prefs.shake / 100;
     const amt = cam.trauma * cam.trauma * 14 * iso.view.Z * iso.view.dpr * scale;
     cam.shakeX = amt * noise(cam.t * 0.031, 1.7);
     cam.shakeY = amt * noise(cam.t * 0.029, 9.1);

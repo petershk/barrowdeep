@@ -23,7 +23,8 @@
   leg('crown_of_embers', 'Crown of Embers', 'great_helm', 'base', null, ['life', 'res_fire'], 'Burning enemies within 3 tiles take +30% damage from you.');
   leg('band_of_ages', 'Band of Ages', 'ring', 'base', null, ['all_attr'], '+1 to all skills.');
   leg('mantle_of_souls', 'Mantle of Souls', 'heavy_cloak', 'base', null, ['life', 'magic_find'], '+25% souls from this character.');
-  leg('bishops_bulwark', "The Bishop's Bulwark", 'kite', 'base', null, ['res_all', 'armor_pct'], 'Blocking releases a holy nova (radius 1, 60% weapon hit, at most once per second).');
+  leg('bishops_bulwark', "The Bishop's Bulwark", 'kite', 'base', null, ['res_all', 'armor_pct'],
+    'Blocking releases a holy nova (radius 1, 60% weapon hit, at most once per second).');
   leg('ferrymans_coin', "Ferryman's Coin", 'amulet', 'ledger1', null, ['gold_find', 'life'], "The Ferryman's Bargain has +20% success chance.");
   leg('gravewalkers_shroud', "Gravewalker's Shroud", 'cloak', 'ledger1', null, ['move', 'res_cold'], 'Evade has 2 charges.');
   leg('lantern_of_the_lost', 'Lantern of the Lost', 'amulet', 'ledger2', null, ['life_pct', 'crit'], 'Light radius +3; enemies in your light take +10% damage.');

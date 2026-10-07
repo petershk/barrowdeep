@@ -3,7 +3,10 @@
 (function (BD) {
   'use strict';
   const S = (BD.data.skills = BD.data.skills || {});
-  const sk = (o) => { S[o.id] = Object.assign({ cls: 'assassin', tags: [], effects: [], breakpoints: [], cues: { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' } }, o); };
+  const sk = (o) => {
+    const cues = { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' };
+    S[o.id] = Object.assign({ cls: 'assassin', tags: [], effects: [], breakpoints: [], cues }, o);
+  };
 
   // ---------------- Martial Arts ----------------
   sk({
@@ -37,7 +40,8 @@
       { rank: 3, set: { extra: 1 }, text: '+1 radius / +2 chain jumps.' },
       { rank: 5, set: { field: true }, text: 'Leaves a matching field for 3 s.' },
     ],
-    desc: 'The element follows your charges — 0: fire nova (radius 1, 0.8×). 1: fire nova (radius 2, 1.4×, Burning). 2: chain lightning (4 jumps, 1.2×, Shocked). 3: ice burst (radius 3, 1.8×, Frozen).',
+    desc: 'The element follows your charges — 0: fire nova (radius 1, 0.8×). 1: fire nova (radius 2, 1.4×, Burning). ' +
+      '2: chain lightning (4 jumps, 1.2×, Shocked). 3: ice burst (radius 3, 1.8×, Frozen).',
   });
   sk({ id: 'endless_flurry', branch: 'martial', tier: 4, name: 'Endless Flurry', icon: 'endless_flurry', keystone: true, passive: () => void 0, school: 'ki',
     desc: 'Maximum combo charges 4. Basic attacks have a 25% chance to build a charge.' });
@@ -76,7 +80,9 @@
       { rank: 3, set: { corpses: 2 }, text: 'Two corpses per pulse.' },
       { rank: 5, set: { vulnerable: true }, text: 'Explosions apply Vulnerable.' },
     ],
-    desc: 'A sentry for 12 s. Every 1.5 s it detonates a corpse within 5 tiles: fire in radius 2 for 40% of the corpse\'s maximum life (capped at 3× your weapon hit). With no corpse, it fires a 0.5× lightning bolt.',
+    desc: 'A sentry for 12 s. Every 1.5 s it detonates a corpse within 5 tiles: ' +
+      'fire in radius 2 for 40% of the corpse\'s maximum life (capped at 3× your weapon hit). ' +
+      'With no corpse, it fires a 0.5× lightning bolt.',
   });
   sk({ id: 'clockwork_mind', branch: 'traps', tier: 4, name: 'Clockwork Mind', icon: 'clockwork_mind', keystone: true, passive: () => void 0, school: 'gold',
     desc: 'Sentries inherit your critical strike chance and on-hit effects, and prefer your locked target.' });
@@ -114,7 +120,8 @@
     desc: 'A shadow clone for 15 s that copies your basic attacks and finishers at 50% damage (90% at rank 5). Enemies target it 40% of the time.',
   });
   sk({ id: 'unseen', branch: 'shadow', tier: 4, name: 'Unseen', icon: 'unseen', keystone: true, passive: () => void 0, school: 'shadow',
-    desc: 'After 2 s without attacking or being hit you become Hidden: monsters don\'t notice you on sight, and your next hit deals 3× and doesn\'t alert the rest of the pack.' });
+    desc: 'After 2 s without attacking or being hit you become Hidden: monsters don\'t notice you on sight, ' +
+      'and your next hit deals 3× and doesn\'t alert the rest of the pack.' });
 
   for (const id in S) if (S[id].cls === 'assassin') BD.data.stats.ensureSkillKey(id, S[id].name);
 })(globalThis.BD);

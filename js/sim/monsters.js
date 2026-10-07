@@ -12,7 +12,7 @@
   function family(e) { const d = defOf(e); return d ? d.family : ''; }
   function hasBehaviour(e, id) { const d = defOf(e); return !!(d && d.behaviours && d.behaviours.some((b) => b.id === id)); }
   function behaviour(e, id) { const d = defOf(e); return d && d.behaviours ? d.behaviours.find((b) => b.id === id) || null : null; }
-  function fearless(e) { return hasBehaviour(e, 'fearless') || e.rank === 'keeper' || e.rank === 'boss' || e.rank === 'malgoth'; }
+  function fearless(e) { return hasBehaviour(e, 'fearless') || !!BD.sim.entities.rankOf(e).fearless; }
   function blockFront(e) { const b = behaviour(e, 'block_front'); return b ? b.pct : 0; }
 
   /** Create a monster entity (not yet placed). m: plan member {def, x, y, rank, mods, name, keeper, packLeader} */
@@ -40,7 +40,8 @@
     const spot = E.nearestFree(f, x, y, 4, f.reach ? (sx, sy) => f.reach[sy * f.w + sx] >= 0 : null);
     if (!spot) return null;
     const id = world.nextId++;
-    const e = create(world, f, id, Object.assign({ def, x: spot.x, y: spot.y, al: f.al, rank: 'normal' }, o || {}), o && o.pack ? o.pack : null);
+    const spec = Object.assign({ def, x: spot.x, y: spot.y, al: f.al, rank: 'normal' }, o || {});
+    const e = create(world, f, id, spec, o && o.pack ? o.pack : null);
     e.runtime = true;
     e.home = { x: spot.x, y: spot.y };
     f.entities.set(id, e);
@@ -52,7 +53,9 @@
   /** zone payload helper: spawn one def on each tile */
   function spawnAt(world, sp, tiles, srcId) {
     const owner = E.get(world, srcId);
-    for (const [x, y] of tiles) spawn(world, sp.def, x, y, { noLoot: true, noXp: true, packId: owner ? owner.packId : null, spawnedBy: srcId });
+    for (const [x, y] of tiles) {
+      spawn(world, sp.def, x, y, { noLoot: true, noXp: true, packId: owner ? owner.packId : null, spawnedBy: srcId });
+    }
   }
 
   /** derived-stat contributions from mods (called by statsOf) */
@@ -100,5 +103,8 @@
   /** average damage of one basic hit (for zone multipliers and traps) */
   function avgDmg(world, e) { const s = BD.sim.stats.statsOf(world, e); return (s.dmgLo + s.dmgHi) / 2; }
 
-  BD.sim.monsters = { defOf, family, hasBehaviour, behaviour, fearless, blockFront, create, spawn, spawnAt, modStats, speedMult, hitAmounts, avgDmg, packHasMod };
+  BD.sim.monsters = {
+    defOf, family, hasBehaviour, behaviour, fearless, blockFront, create, spawn, spawnAt,
+    modStats, speedMult, hitAmounts, avgDmg, packHasMod,
+  };
 })(globalThis.BD);

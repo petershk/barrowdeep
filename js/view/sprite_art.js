@@ -31,7 +31,10 @@
     ]] },
   };
   A.thief = {
-    pal: {H:"#66785a", h:"#475641", x:"#2f3a2b", W:"#d8e6c8", F:"#e3b388", f:"#b9855a", D:"#b8bdc6", d:"#707683", B:"#5a3d24", G:"#c9a23f", b:"#3c2a18"},
+    pal: {
+      H:"#66785a", h:"#475641", x:"#2f3a2b", W:"#d8e6c8", F:"#e3b388", f:"#b9855a",
+      D:"#b8bdc6", d:"#707683", B:"#5a3d24", G:"#c9a23f", b:"#3c2a18",
+    },
     frames: { idle: [[
       '.....KKKK.......',
       '....KhHHhK......',
@@ -54,7 +57,10 @@
     ]] },
   };
   A.magician = {
-    pal: {P:"#8a5ae0", p:"#5e3aa6", q:"#3e2570", Y:"#ffd75a", O:"#fff3cf", F:"#ecbd8d", f:"#c4905e", W:"#e9e4f2", w:"#b9b2c8", B:"#6f4c2c", b:"#4a3015"},
+    pal: {
+      P:"#8a5ae0", p:"#5e3aa6", q:"#3e2570", Y:"#ffd75a", O:"#fff3cf", F:"#ecbd8d",
+      f:"#c4905e", W:"#e9e4f2", w:"#b9b2c8", B:"#6f4c2c", b:"#4a3015",
+    },
     frames: { idle: [[
       '.......KK.......',
       '......KppK......',
@@ -79,7 +85,10 @@
     ]] },
   };
   A.valkyrie = {
-    pal: {A:"#8fb0d8", a:"#5e7ba0", G:"#d2a73f", g:"#8f6f26", F:"#ecbd8d", f:"#c4905e", H:"#e8c64a", h:"#b9962c", W:"#eef2f8", w:"#c4d0e0", B:"#8a5c34", s:"#e8e0c8", b:"#3c2a18"},
+    pal: {
+      A:"#8fb0d8", a:"#5e7ba0", G:"#d2a73f", g:"#8f6f26", F:"#ecbd8d", f:"#c4905e", H:"#e8c64a",
+      h:"#b9962c", W:"#eef2f8", w:"#c4d0e0", B:"#8a5c34", s:"#e8e0c8", b:"#3c2a18",
+    },
     frames: { idle: [[
       '.....KHK.........',
       '.wK..HHH..Kw.....',

@@ -9,12 +9,36 @@
   const CMD = (w, c) => BD.sim.commands.issue(w, c);
   const { cheb, within } = U;
 
-  const ATTR_PLAN = { fighter: { str: 3, vit: 2 }, assassin: { dex: 3, vit: 2 }, magician: { mag: 3, vit: 2 }, valkyrie: { dex: 3, vit: 2 } };
+  const ATTR_PLAN = {
+    fighter: { str: 3, vit: 2 }, assassin: { dex: 3, vit: 2 }, magician: { mag: 3, vit: 2 }, valkyrie: { dex: 3, vit: 2 },
+  };
   const SKILL_PLAN = {
-    fighter: ['bash', 'bash', 'charge', 'bash', 'bash', 'war_cry', 'bash', 'war_cry', 'charge', 'berserk_strike', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'warlord', 'bloodlust', 'earthshaker', 'berserk_strike', 'war_cry', 'charge', 'brace', 'brace', 'second_wind', 'second_wind', 'war_cry', 'earthshaker', 'avalanche_leap', 'juggernaut'],
-    assassin: ['tiger_strike', 'tiger_strike', 'fire_blast', 'tiger_strike', 'tiger_strike', 'dragon_talon', 'dragon_talon', 'dragon_talon', 'shadowstep', 'phoenix_strike', 'phoenix_strike', 'phoenix_strike', 'dragon_talon', 'phoenix_strike', 'phoenix_strike', 'endless_flurry', 'dragon_talon', 'lightning_sentry', 'lightning_sentry', 'fire_blast', 'fire_blast', 'smoke_bomb', 'shadowstep', 'lightning_sentry', 'death_sentry', 'shadow_master', 'shadow_master', 'fire_blast', 'smoke_bomb', 'unseen'],
-    magician: ['firebolt', 'firebolt', 'firebolt', 'frost_nova', 'firebolt', 'fireball', 'fireball', 'fireball', 'frost_nova', 'fireball', 'fireball', 'meteor', 'meteor', 'meteor', 'meteor', 'meteor', 'pyre', 'teleport', 'teleport', 'frost_nova', 'frost_nova', 'ice_shard', 'blizzard', 'blizzard', 'spark', 'chain_lightning', 'chain_lightning', 'blizzard', 'chain_lightning', 'energy_shield'],
-    valkyrie: ['multishot', 'aimed_shot', 'multishot', 'multishot', 'multishot', 'vault', 'aimed_shot', 'aimed_shot', 'multishot', 'aimed_shot', 'aimed_shot', 'rain_of_arrows', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot', 'rain_of_arrows', 'rain_of_arrows', 'deadeye', 'javelin', 'vault', 'pinning_shot', 'pinning_shot', 'piercing_shot', 'piercing_shot', 'sky_spear', 'sky_spear', 'valkyries_call', 'valkyries_call', 'javelin', 'wind_dancer'],
+    fighter: [
+      'bash', 'bash', 'charge', 'bash', 'bash', 'war_cry', 'bash', 'war_cry', 'charge', 'berserk_strike',
+      'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'warlord',
+      'bloodlust', 'earthshaker', 'berserk_strike', 'war_cry', 'charge', 'brace', 'brace', 'second_wind',
+      'second_wind', 'war_cry', 'earthshaker', 'avalanche_leap', 'juggernaut'
+    ],
+    assassin: [
+      'tiger_strike', 'tiger_strike', 'fire_blast', 'tiger_strike', 'tiger_strike', 'dragon_talon', 'dragon_talon',
+      'dragon_talon', 'shadowstep', 'phoenix_strike', 'phoenix_strike', 'phoenix_strike', 'dragon_talon',
+      'phoenix_strike', 'phoenix_strike', 'endless_flurry', 'dragon_talon', 'lightning_sentry', 'lightning_sentry',
+      'fire_blast', 'fire_blast', 'smoke_bomb', 'shadowstep', 'lightning_sentry', 'death_sentry', 'shadow_master',
+      'shadow_master', 'fire_blast', 'smoke_bomb', 'unseen'
+    ],
+    magician: [
+      'firebolt', 'firebolt', 'firebolt', 'frost_nova', 'firebolt', 'fireball', 'fireball', 'fireball', 'frost_nova',
+      'fireball', 'fireball', 'meteor', 'meteor', 'meteor', 'meteor', 'meteor', 'pyre', 'teleport', 'teleport',
+      'frost_nova', 'frost_nova', 'ice_shard', 'blizzard', 'blizzard', 'spark', 'chain_lightning', 'chain_lightning',
+      'blizzard', 'chain_lightning', 'energy_shield'
+    ],
+    valkyrie: [
+      'multishot', 'aimed_shot', 'multishot', 'multishot', 'multishot', 'vault', 'aimed_shot', 'aimed_shot',
+      'multishot', 'aimed_shot', 'aimed_shot', 'rain_of_arrows', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot',
+      'rain_of_arrows', 'rain_of_arrows', 'deadeye', 'javelin', 'vault', 'pinning_shot', 'pinning_shot',
+      'piercing_shot', 'piercing_shot', 'sky_spear', 'sky_spear', 'valkyries_call', 'valkyries_call', 'javelin',
+      'wind_dancer'
+    ],
   };
   const BAR = {
     fighter: { rmb: 'bash', s1: 'berserk_strike', s2: 'earthshaker', s3: 'war_cry', s4: 'charge' },
@@ -24,9 +48,17 @@
   };
 
   function make(world, opts) {
-    return { world, opts: opts || {}, tick: 0, lastProgress: 0, lastPos: '', stuckMs: 0, stats: newStats(), floorStart: 0, floorTimes: {}, mode: 'explore', target: null, bossTimer: 0, deathCauses: [], skillUse: {}, lastFloor: null, done: false };
+    return {
+      world, opts: opts || {}, tick: 0, lastProgress: 0, lastPos: '', stuckMs: 0, stats: newStats(), floorStart: 0, floorTimes: {},
+      mode: 'explore', target: null, bossTimer: 0, deathCauses: [], skillUse: {}, lastFloor: null, done: false,
+    };
   }
-  function newStats() { return { kills: {}, ttk: {}, dmgTakenBySrc: {}, goldEarned: 0, goldSpent: 0, items: { common: 0, magic: 0, rare: 0, legendary: 0 }, levelAtFloor: {}, deaths: 0, bossTimes: {}, swaps: 0, usable: 0, drops: 0 }; }
+  function newStats() {
+    return {
+      kills: {}, ttk: {}, dmgTakenBySrc: {}, goldEarned: 0, goldSpent: 0, items: { common: 0, magic: 0, rare: 0, legendary: 0 },
+      levelAtFloor: {}, deaths: 0, bossTimes: {}, swaps: 0, usable: 0, drops: 0,
+    };
+  }
 
   // ---------------- progression ----------------
   function spendPoints(bot) {
@@ -34,7 +66,10 @@
     const plan = ATTR_PLAN[p.cls];
     let guard = 0;
     while (p.unspent.attr > 0 && guard++ < 50) {
-      for (const k in plan) { if (p.unspent.attr <= 0) break; BD.sim.commands.apply(w, { type: 'SpendAttr', key: k, n: Math.min(plan[k], p.unspent.attr) }); }
+      for (const k in plan) {
+        if (p.unspent.attr <= 0) break;
+        BD.sim.commands.apply(w, { type: 'SpendAttr', key: k, n: Math.min(plan[k], p.unspent.attr) });
+      }
     }
     // the plan is an ordered list of picks: the k-th mention of a skill means "raise it to rank k"
     const want = {};
@@ -43,7 +78,10 @@
       want[id] = (want[id] || 0) + 1;
       if ((p.skills[id] || 0) < want[id] && BD.sim.progression.canLearn(w, p, id).ok) BD.sim.commands.apply(w, { type: 'SpendSkill', id });
     }
-    for (const slot in BAR[p.cls]) { const id = BAR[p.cls][slot]; if (p.skills[id] && p.bar[slot] !== id) BD.sim.commands.apply(w, { type: 'SetBar', slot, id }); }
+    for (const slot in BAR[p.cls]) {
+      const id = BAR[p.cls][slot];
+      if (p.skills[id] && p.bar[slot] !== id) BD.sim.commands.apply(w, { type: 'SetBar', slot, id });
+    }
   }
 
   /** score an item swap by DPS and effective-life deltas from statsOf */
@@ -53,7 +91,9 @@
     const cur = BD.sim.stats.statsOf(w, p);
     const d0 = BD.sim.itemsDescribe.dps(cur), e0 = BD.sim.itemsDescribe.ehp(w, cur);
     // casters are scored by spell power (Magic, spell% and their main element), not weapon DPS
-    const sp = (s) => (1 + 0.03 * (s.mag || 0)) * (1 + ((s.spell_pct || 0) + (s.fire_pct || 0)) / 100) * (1 + (Math.min(60, s.critChance || 0) / 100) * ((s.critMult || 1.75) - 1));
+    const sp = (s) => (1 + 0.03 * (s.mag || 0))
+      * (1 + ((s.spell_pct || 0) + (s.fire_pct || 0)) / 100)
+      * (1 + (Math.min(60, s.critChance || 0) / 100) * ((s.critMult || 1.75) - 1));
     const caster = p.cls === 'magician', sp0 = caster ? sp(cur) : 0;
     let best = null;
     for (const c of cmp) {
@@ -73,7 +113,10 @@
 
   // ---------------- perception ----------------
   function dangerAt(w, x, y) {
-    for (const z of w.floor.zones) if (!z.resolved && z.faction !== 'player' && z.armMs < 900 && z.tiles.some(([a, b]) => a === x && b === y)) return z;
+    for (const z of w.floor.zones) {
+      if (z.resolved || z.faction === 'player' || z.armMs >= 900) continue;
+      if (z.tiles.some(([a, b]) => a === x && b === y)) return z;
+    }
     return null;
   }
   function visibleEnemies(w, r) {
@@ -96,7 +139,10 @@
       if (d[i] < 2 || d[i] >= bd) continue;
       const x = i % f.w, y = (i / f.w) | 0;
       let open = false;
-      for (const [dx, dy] of U.DIRS) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < f.w && ny < f.h && !f.explored[ny * f.w + nx]) { open = true; break; } }
+      for (const [dx, dy] of U.DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < f.w && ny < f.h && !f.explored[ny * f.w + nx]) { open = true; break; }
+      }
       if (open) { bd = d[i]; best = i; }
     }
     return best < 0 ? null : { x: best % f.w, y: (best / f.w) | 0 };
@@ -110,7 +156,8 @@
     const ab = BD.data.skills[id];
     if (BD.sim.abilities.cooldownLeft(p, ab) > 0) return false;
     const res = ab.resource || {};
-    if (res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0 && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart)) return false;
+    const costly = res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0;
+    if (costly && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart)) return false;
     // a cast that was just tried and didn't start (rejected: no room, out of sight…) waits, so the rotation falls through
     bot.tries = bot.tries || {};
     if (!p.attack && bot.tries[id] != null && w.time - bot.tries[id] < 1500) return false;
@@ -146,8 +193,10 @@
       if (close >= 2 && m >= 18 && useSkill(bot, 's3', t)) return true;
       // a caster doesn't trade blows: when something reaches melee range, back off a few tiles
       const awake = t.ai && t.ai.state !== 'idle' && t.ai.state !== 'dormant';
-      const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7 || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
-      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000) && kiteFrom(bot, t)) { bot.kitedAt = bot.world.time; return true; }
+      const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7
+        || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
+      const canKite = !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000);
+      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && canKite && kiteFrom(bot, t)) { bot.kitedAt = bot.world.time; return true; }
       if (near.length >= 3 && m >= 30 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (m >= 14 + 10 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
@@ -203,7 +252,11 @@
     // give up on targets we can't reach after 4 s without progress
     const key = t.id + ':' + p.x + ',' + p.y;
     if (p.attack) bot.fightSince = w.time;   // swinging counts as progress
-    if (!isBoss && bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) { bot.unreach.set(t.id, w.time + 20000); bot.fightKey = null; return progress(bot); }
+    if (!isBoss && bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) {
+      bot.unreach.set(t.id, w.time + 20000);
+      bot.fightKey = null;
+      return progress(bot);
+    }
     if (bot.fightKey !== key) { bot.fightKey = key; bot.fightSince = w.time; }
     if (p.attack && p.attack.phase === 'windup') return;
     if (!ROTATION[p.cls](bot, t, near)) CMD(w, { type: 'Engage', entityId: t.id, hold: true });
@@ -217,7 +270,9 @@
     const s = BD.sim.stats.statsOf(w, p);
     if (p.hp < s.maxLife * 0.5 && p.flask.charges > 0 && !(p.cooldowns.flask > 0)) CMD(w, { type: 'DrinkFlask' });
     // out of flasks and hurting, away from a boss: portal home, rest, come back (what a player would do)
-    if (!f.arena && f.n !== 13 && f.key !== 'town' && p.flask.charges === 0 && p.hp < s.maxLife * 0.35 && (p.pouch.portal || 0) > 0 && !(bot.portalAt > w.time - 20000)) {
+    const inDungeon = !f.arena && f.n !== 13 && f.key !== 'town';
+    const outOfFlasks = p.flask.charges === 0 && p.hp < s.maxLife * 0.35;
+    if (inDungeon && outOfFlasks && (p.pouch.portal || 0) > 0 && !(bot.portalAt > w.time - 20000)) {
       bot.portalAt = w.time;
       if (BD.sim.commands.apply(w, { type: 'ReadScroll', kind: 'portal' })) { bot.goHome = true; return; }
     }
@@ -235,8 +290,9 @@
     const z = dangerAt(w, p.x, p.y);
     if (z) {
       const away = escapeTile(w, z);
-      if (away && !(p.cooldowns.evade > 0) && z.armMs < 400) CMD(w, { type: 'Evade', dirX: Math.sign(away.x - p.x), dirY: Math.sign(away.y - p.y) });
-      else if (away) CMD(w, { type: 'Move', x: away.x, y: away.y });
+      if (away && !(p.cooldowns.evade > 0) && z.armMs < 400) {
+        CMD(w, { type: 'Evade', dirX: Math.sign(away.x - p.x), dirY: Math.sign(away.y - p.y) });
+      } else if (away) CMD(w, { type: 'Move', x: away.x, y: away.y });
       return;
     }
     if (f.key === 'town') { bot.goHome = false; return townRoutine(bot); }
@@ -247,7 +303,14 @@
     bot.ignore = bot.ignore || new Set();
     // the nearest wanted item, committed to until picked up (8 s, then ignored) so the bot never oscillates
     const quest = (it) => it.kind === 'seal' || it.kind === 'key';   // always wanted, at any distance, never written off
-    const wanted = (it) => quest(it) || !bot.ignore.has(it.uid) && !(it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) && (it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold' || (it.kind === 'orb' && p.flask.charges < p.flask.max)) && within(it.x, it.y, p.x, p.y, 12);
+    const wanted = (it) => {
+      if (quest(it)) return true;
+      if (bot.ignore.has(it.uid)) return false;
+      if (it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) return false;
+      const kindOk = it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold'
+        || (it.kind === 'orb' && p.flask.charges < p.flask.max);
+      return kindOk && within(it.x, it.y, p.x, p.y, 12);
+    };
     // quest items first
     let g = f.items.find(quest) || (bot.lootUid != null ? f.items.find((it) => it.uid === bot.lootUid && wanted(it)) : null);
     if (!g) {
@@ -264,7 +327,8 @@
     if (p.pack.length >= 26) sellJunkOrDrop(bot);
     // chests
     // chests: commit to the nearest until opened (8 s, then skip it) so two chests can't tug-of-war
-    const openable = (o) => (o.kind === 'chest' || o.kind === 'pile') && !o.used && !bot.ignore.has('o' + o.x + ',' + o.y) && f.explored[o.y * f.w + o.x] && within(o.x, o.y, p.x, p.y, 10);
+    const openable = (o) => (o.kind === 'chest' || o.kind === 'pile') && !o.used && !bot.ignore.has('o' + o.x + ',' + o.y)
+      && f.explored[o.y * f.w + o.x] && within(o.x, o.y, p.x, p.y, 10);
     let ch = bot.chestAt ? f.objects.find((o) => o.x === bot.chestAt.x && o.y === bot.chestAt.y && openable(o)) : null;
     if (!ch) {
       let bd = 1e9;
@@ -295,7 +359,8 @@
       return;
     }
     if (f.n === 13) {
-      const boss = Array.from(f.entities.values()).find((e) => e.rank === 'malgoth' && !e.dead) || Array.from(f.entities.values()).find((e) => e.kind === 'monster' && !e.dead);
+      const ents = Array.from(f.entities.values());
+      const boss = ents.find((e) => e.rank === 'malgoth' && !e.dead) || ents.find((e) => e.kind === 'monster' && !e.dead);
       if (boss) CMD(w, { type: 'Engage', entityId: boss.id, hold: true });
       return;
     }
@@ -318,9 +383,14 @@
 
   function sellJunkOrDrop(bot) {
     const w = bot.world, p = w.player;
-    const junk = p.pack.filter((it) => !improves(w, p, it)).sort((a, b) => BD.sim.items.derive(a).value - BD.sim.items.derive(b).value);
+    const value = (it) => BD.sim.items.derive(it).value;
+    const junk = p.pack.filter((it) => !improves(w, p, it)).sort((a, b) => value(a) - value(b));
     bot.ignore = bot.ignore || new Set();
-    for (const it of junk.slice(0, Math.max(0, p.pack.length - 20))) if (it.rarity === 'common' || it.rarity === 'magic') { bot.ignore.add(it.uid); BD.sim.commands.apply(w, { type: 'Drop', uid: it.uid }); }
+    for (const it of junk.slice(0, Math.max(0, p.pack.length - 20))) {
+      if (it.rarity !== 'common' && it.rarity !== 'magic') continue;
+      bot.ignore.add(it.uid);
+      BD.sim.commands.apply(w, { type: 'Drop', uid: it.uid });
+    }
   }
 
   // ---------------- town ----------------
@@ -332,9 +402,20 @@
       bot.stats.goldEarned += Math.max(0, p.gold - g0);
       const t = BD.sim.economy.townState(w);
       const g1 = p.gold;
-      for (let i = t.stock.length - 1; i >= 0; i--) { const it = t.stock[i]; if (BD.sim.economy.price(it) <= p.gold * 0.5 && improves(w, p, it)) { BD.sim.commands.apply(w, { type: 'Buy', idx: i }); BD.sim.commands.apply(w, { type: 'Equip', uid: it.uid }); } }
-      if (p.equip.weapon && (p.equip.weapon.enhance || 0) < 5 && BD.sim.economy.enhanceCost(w, p.equip.weapon) <= p.gold * 0.4) BD.sim.commands.apply(w, { type: 'Enhance', uid: p.equip.weapon.uid });
-      if (!r.blessing && BD.sim.economy.costs(w).blessing <= p.gold * 0.3) BD.sim.commands.apply(w, { type: 'Bless', id: t.blessOffer[0] });
+      for (let i = t.stock.length - 1; i >= 0; i--) {
+        const it = t.stock[i];
+        if (BD.sim.economy.price(it) <= p.gold * 0.5 && improves(w, p, it)) {
+          BD.sim.commands.apply(w, { type: 'Buy', idx: i });
+          BD.sim.commands.apply(w, { type: 'Equip', uid: it.uid });
+        }
+      }
+      const wpn = p.equip.weapon;
+      if (wpn && (wpn.enhance || 0) < 5 && BD.sim.economy.enhanceCost(w, wpn) <= p.gold * 0.4) {
+        BD.sim.commands.apply(w, { type: 'Enhance', uid: wpn.uid });
+      }
+      if (!r.blessing && BD.sim.economy.costs(w).blessing <= p.gold * 0.3) {
+        BD.sim.commands.apply(w, { type: 'Bless', id: t.blessOffer[0] });
+      }
       if (BD.sim.economy.costs(w).flask <= p.gold * 0.5) BD.sim.commands.apply(w, { type: 'FlaskUpgrade' });
       if ((p.pouch.portal || 0) < 2) BD.sim.commands.apply(w, { type: 'BuyScroll', kind: 'portal' });
       BD.sim.commands.apply(w, { type: 'Rest' });
@@ -377,7 +458,10 @@
       if (ev.type === 'death' && ev.kind === 'monster') {
         bot.stats.kills[ev.rank] = (bot.stats.kills[ev.rank] || 0) + 1;
         const born = bot.fightStart.get(ev.id);
-        if (born != null) { (bot.stats.ttk[ev.rank] = bot.stats.ttk[ev.rank] || []).push((w.time - born) / 1000); bot.fightStart.delete(ev.id); }
+        if (born != null) {
+          (bot.stats.ttk[ev.rank] = bot.stats.ttk[ev.rank] || []).push((w.time - born) / 1000);
+          bot.fightStart.delete(ev.id);
+        }
       } else if (ev.type === 'damage' && ev.tgtId === p.id) {
         const src = BD.sim.entities.get(w, ev.srcId);
         const key = src ? src.def + (ev.tags && ev.tags.includes('zone') ? ':zone' : '') : 'other';
@@ -390,7 +474,9 @@
     }
     const key = w.floor.key;
     if (key !== bot.lastFloor) {
-      if (bot.lastFloor != null && typeof bot.lastFloor === 'number') bot.floorTimes[bot.lastFloor] = (bot.floorTimes[bot.lastFloor] || 0) + (w.time - bot.floorStart) / 1000;
+      if (bot.lastFloor != null && typeof bot.lastFloor === 'number') {
+        bot.floorTimes[bot.lastFloor] = (bot.floorTimes[bot.lastFloor] || 0) + (w.time - bot.floorStart) / 1000;
+      }
       bot.floorStart = w.time; bot.lastFloor = key;
       if (typeof key === 'number' && bot.stats.levelAtFloor[key] == null) bot.stats.levelAtFloor[key] = w.player.level;
     }
@@ -411,7 +497,13 @@
       // stuck detection
       const pos = w.floor.key + ':' + w.player.x + ',' + w.player.y;
       if (pos === bot.lastPos) bot.stuckMs += STEP; else { bot.stuckMs = 0; bot.lastPos = pos; }
-      if (bot.stuckMs > 20000) { bot.stuckMs = 0; const f = w.floor; const t = BD.sim.entities.nearestFree(f, w.player.x + w.rng.int(-6, 6), w.player.y + w.rng.int(-6, 6), 6); if (t) CMD(w, { type: 'Move', x: t.x, y: t.y }); }
+      if (bot.stuckMs > 20000) {
+        bot.stuckMs = 0;
+        const f = w.floor;
+        const nx = w.player.x + w.rng.int(-6, 6), ny = w.player.y + w.rng.int(-6, 6);
+        const t = BD.sim.entities.nearestFree(f, nx, ny, 6);
+        if (t) CMD(w, { type: 'Move', x: t.x, y: t.y });
+      }
     }
     return bot;
   }

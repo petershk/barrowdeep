@@ -25,7 +25,7 @@
     info: { color: '#e8d8b0', size: 13, dur: 1400, rise: 24 },
   };
 
-  function mode() { return BD.ui.options ? BD.ui.options.get('damageNumbers') : 'full'; }
+  function mode() { return BD.view.host.prefs.damageNumbers; }
 
   /** add(text, x, y, style, {id, color}) — id stacks multiple texts on one target */
   function add(text, x, y, style, o) {

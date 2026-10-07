@@ -52,7 +52,10 @@
     if (typeof f.key === 'string' && f.key[0] === 'a') return f.bossDead ? 'Take the portal to town' : 'Slay the guardian';
     if (f.n === 13) return 'Face Malgoth';
     const fl = BD.data.floors.byN(f.n);
-    if (fl.actEnd) return r.flags['key' + f.n] ? (f.gateOpen ? 'Enter the gate' : 'Open the boss gate') : 'Slay the Keeper for the Gate Key';
+    if (fl.actEnd) {
+      if (!r.flags['key' + f.n]) return 'Slay the Keeper for the Gate Key';
+      return f.gateOpen ? 'Enter the gate' : 'Open the boss gate';
+    }
     return f.sealBroken ? 'The seal is broken — descend' : 'Slay the Keeper';
   }
 

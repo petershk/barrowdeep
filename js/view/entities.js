@@ -11,7 +11,13 @@
 
   function stateOf(id) {
     let s = vis.get(id);
-    if (!s) { s = { flash: 0, recoil: 0, rx: 0, ry: 0, lunge: 0, lx: 0, ly: 0, hurt: 0, alertT: 0, dieT: -1, walkPhase: 0, lastX: null, lastY: null, windup: 0, aura: 0, fade: 1 }; vis.set(id, s); }
+    if (!s) {
+      s = {
+        flash: 0, recoil: 0, rx: 0, ry: 0, lunge: 0, lx: 0, ly: 0, hurt: 0, alertT: 0, dieT: -1,
+        walkPhase: 0, lastX: null, lastY: null, windup: 0, aura: 0, fade: 1,
+      };
+      vis.set(id, s);
+    }
     return s;
   }
   function clear() { vis.clear(); }

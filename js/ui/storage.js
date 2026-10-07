@@ -29,7 +29,11 @@
     s.why = why;
     if (!write('char_' + id, s)) return false;
     const p = world.player, r = world.run;
-    const entry = { id, name: p.name, cls: p.cls, level: p.level, floor: r.floor, difficulty: r.difficulty, alive: !r.dead || false, savedAt: s.savedAt, victory: !!r.victory, ascension: r.ascension || 0 };
+    const entry = {
+      id, name: p.name, cls: p.cls, level: p.level,
+      floor: r.floor, difficulty: r.difficulty, alive: !r.dead,
+      savedAt: s.savedAt, victory: !!r.victory, ascension: r.ascension || 0,
+    };
     const idx = list().filter((c) => c.id !== id);
     idx.unshift(entry);
     write('index', idx);

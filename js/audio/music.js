@@ -53,9 +53,26 @@
     if (amb) ambience(amb);
   }
   function start(r) { if (r && r.ok !== false && r.a.paused && !paused) { const pr = r.a.play(); if (pr && pr.catch) pr.catch(() => {}); } }
-  function unlock() { unlocked = true; if (want) start(els[want]); if (bed && A().ctx) bed.g.gain.setTargetAtTime(0.9, A().ctx.currentTime, 1.2); }
-  function pause(h) { paused = h; for (const k in els) { const r = els[k]; if (!r) continue; if (h) r.a.pause(); else if (r.target > 0) start(r); } }
-  function applyVolume() { for (const k in els) { const r = els[k]; if (r) r.a.volume = Math.max(0, Math.min(1, r.cur * r.base * musicLevel())); } }
+  function unlock() {
+    unlocked = true;
+    if (want) start(els[want]);
+    if (bed && A().ctx) bed.g.gain.setTargetAtTime(0.9, A().ctx.currentTime, 1.2);
+  }
+  function pause(h) {
+    paused = h;
+    for (const k in els) {
+      const r = els[k];
+      if (!r) continue;
+      if (h) r.a.pause();
+      else if (r.target > 0) start(r);
+    }
+  }
+  function applyVolume() {
+    for (const k in els) {
+      const r = els[k];
+      if (r) r.a.volume = Math.max(0, Math.min(1, r.cur * r.base * musicLevel()));
+    }
+  }
 
   // ---------------- ambience bed ----------------
   let bed = null, prof = null, sched = null;
@@ -85,7 +102,10 @@
     if (!bed) { bed = buildBed(ctx); bed.g.gain.setTargetAtTime(0.9, t, 1.2); }
     prof = AMB[name] || AMB.catacombs;
     bed.lp.frequency.setTargetAtTime(prof.cutoff, t, R);
-    bed.oscs.forEach((o, i) => { o.frequency.setTargetAtTime(prof.drones[i], t, R); bed.gains[i].gain.setTargetAtTime(prof.droneVol * (i === 2 ? 0.5 : 1), t, R); });
+    bed.oscs.forEach((o, i) => {
+      o.frequency.setTargetAtTime(prof.drones[i], t, R);
+      bed.gains[i].gain.setTargetAtTime(prof.droneVol * (i === 2 ? 0.5 : 1), t, R);
+    });
     bed.wbp.frequency.setTargetAtTime(prof.wind[0], t, R); bed.wbp.Q.value = prof.wind[1];
     bed.wg.gain.setTargetAtTime(prof.wind[2], t, R);
     if (!sched) sched = { next: t + 0.4, nextMoan: t + 3, step: 0, chord: -1 };
@@ -94,7 +114,9 @@
   function drip(ctx, when, pan) {
     const o = ctx.createOscillator(), g = ctx.createGain(), f = 900 + Math.random() * 1500;
     o.frequency.setValueAtTime(f, when); o.frequency.exponentialRampToValueAtTime(f * 0.45, when + 0.05);
-    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.05, when + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.13);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(0.05, when + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.13);
     const pn = ctx.createStereoPanner(); pn.pan.value = pan;
     o.connect(g); g.connect(pn); pn.connect(A().amb); pn.connect(A().reverb);
     o.start(when); o.stop(when + 0.16);
@@ -103,7 +125,9 @@
     const dur = 2.2 + Math.random() * 1.8, base = hz * (0.92 + Math.random() * 0.18);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480; lp.Q.value = 5;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.045, when + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(0.045, when + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
     for (let i = 0; i < 2; i++) {
       const o = ctx.createOscillator(); o.type = 'sawtooth';
       o.frequency.setValueAtTime(base * (i ? 1.012 : 1), when);
@@ -118,15 +142,23 @@
     const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
     o1.type = o2.type = 'triangle'; o2.detune.value = 6; o1.frequency.value = o2.frequency.value = freq;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.5;
-    lp.frequency.setValueAtTime(Math.min(3200, freq * 4), when); lp.frequency.exponentialRampToValueAtTime(Math.max(360, freq * 1.4), when + 0.4);
-    g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(vol, when + 0.022); g.gain.exponentialRampToValueAtTime(0.0001, when + 2.4);
+    lp.frequency.setValueAtTime(Math.min(3200, freq * 4), when);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(360, freq * 1.4), when + 0.4);
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + 0.022);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 2.4);
     o1.connect(lp); o2.connect(lp); lp.connect(g);
     const pn = ctx.createStereoPanner(); pn.pan.value = pan; g.connect(pn); pn.connect(A().amb);
     const rs = ctx.createGain(); rs.gain.value = 0.35; pn.connect(rs); rs.connect(A().reverb);
     o1.start(when); o2.start(when); o1.stop(when + 2.45); o2.stop(when + 2.45);
   }
   // town guitar: a slow minor progression, Travis-ish fingerpicking with grace notes
-  const GUITAR = { bpm: 74, root: 110, prog: [[0, 1], [-2, 0], [-4, 0], [0, 1], [-2, 0], [3, 0], [-4, 0], [-5, 1]], pat: [0, 2, 3, 1, 0, 3, 2, 1] };
+  const GUITAR = {
+    bpm: 74, root: 110,
+    prog: [[0, 1], [-2, 0], [-4, 0], [0, 1], [-2, 0], [3, 0], [-4, 0], [-5, 1]],
+    pat: [0, 2, 3, 1, 0, 3, 2, 1],
+  };
+  const GRACE = [0, 3, 7, 10, 12];   // grace-note intervals, two octaves up
   function schedule(ctx) {
     const t = ctx.currentTime, ahead = t + 0.6;
     if (sched.next < t) sched.next = t + 0.1;           // never burst-catch-up after a pause
@@ -141,13 +173,24 @@
         const voice = [base, base * Math.pow(2, 19 / 12), base * Math.pow(2, ((minor ? 3 : 4) + 12) / 12), base * 4];
         const idx = GUITAR.pat[bar];
         pluck(ctx, sched.next, voice[idx], idx === 0 ? 0.06 : 0.04, (idx - 1.5) * 0.16);
-        if (idx && Math.random() < 0.24) pluck(ctx, sched.next + beat * 0.5, base * Math.pow(2, ([0, 3, 7, 10, 12][Math.floor(Math.random() * 5)] + 24) / 12), 0.03, 0.35);
+        if (idx && Math.random() < 0.24) {
+          const grace = GRACE[Math.floor(Math.random() * 5)];
+          pluck(ctx, sched.next + beat * 0.5, base * Math.pow(2, (grace + 24) / 12), 0.03, 0.35);
+        }
         sched.next += beat; sched.step++;
       }
       return;
     }
-    while (sched.next < ahead) { drip(ctx, sched.next, (Math.random() * 2 - 1) * 0.85); sched.next += prof.drip[0] + Math.random() * prof.drip[1]; }
-    if (prof.moanHz) while (sched.nextMoan < ahead) { moan(ctx, sched.nextMoan, (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.4), prof.moanHz); sched.nextMoan += prof.moan[0] + Math.random() * prof.moan[1]; }
+    while (sched.next < ahead) {
+      drip(ctx, sched.next, (Math.random() * 2 - 1) * 0.85);
+      sched.next += prof.drip[0] + Math.random() * prof.drip[1];
+    }
+    if (!prof.moanHz) return;
+    while (sched.nextMoan < ahead) {
+      const pan = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.4);
+      moan(ctx, sched.nextMoan, pan, prof.moanHz);
+      sched.nextMoan += prof.moan[0] + Math.random() * prof.moan[1];
+    }
   }
 
   // ---------------- per frame ----------------
@@ -167,8 +210,8 @@
     if (!a || !a.live()) return;
     if (ambWant && (!prof || prof !== AMB[ambWant])) ambience(ambWant);
     if (sched && prof) schedule(a.ctx);
-    const w = BD.app && BD.app.world, p = w && w.player;
-    if (!p || BD.app.state !== 'playing') return;
+    const w = BD.audio.host.world(), p = w && w.player;
+    if (!p || !BD.audio.host.playing()) return;
     // footsteps every other tile
     const key = p.x * 4096 + p.y;
     if (lastStep !== null && key !== lastStep && ++stepN % 2 === 0) BD.audio.synth.play(w.floor.n ? 'step_stone' : 'step_dirt', {});
@@ -184,11 +227,12 @@
   /** follow the world: biome ambience and the track for where we are */
   function wire(bus) {
     const sync = () => {
-      const w = BD.app.world;
+      const w = BD.audio.host.world();
       if (!w || !w.floor) return;
       const f = w.floor;
       ambience(f.biome === 'town' ? 'town' : AMB[f.biome] ? f.biome : 'catacombs');
-      const bossAwake = Array.from(f.entities.values()).some((e) => (e.rank === 'boss' || e.rank === 'malgoth') && !e.dead && e.ai && e.ai.woke);
+      const isBoss = (e) => e.rank === 'boss' || e.rank === 'malgoth';
+      const bossAwake = Array.from(f.entities.values()).some((e) => isBoss(e) && !e.dead && e.ai && e.ai.woke);
       play(f.biome === 'town' ? 'town' : bossAwake ? 'boss' : 'dungeon');
     };
     bus.on('app.world', sync);

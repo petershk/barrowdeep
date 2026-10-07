@@ -51,7 +51,10 @@
         break;
       }
       case 'spike': {
-        const len = (s.len || 17) * zk * (0.5 + t), ang = s.vert ? Math.PI / 2 : Math.atan2((Math.cos(s.ang) + Math.sin(s.ang)) * iso.HH, (Math.cos(s.ang) - Math.sin(s.ang)) * iso.HW);
+        const len = (s.len || 17) * zk * (0.5 + t);
+        const ang = s.vert
+          ? Math.PI / 2
+          : Math.atan2((Math.cos(s.ang) + Math.sin(s.ang)) * iso.HH, (Math.cos(s.ang) - Math.sin(s.ang)) * iso.HW);
         ctx.globalAlpha = fade;
         ctx.strokeStyle = pal.core; ctx.lineWidth = (s.w || 2.4) * zk;
         const cx = a.x - (s.vert ? 0 : Math.cos(ang) * len * 0.5), cy = a.y - lift - (s.vert ? len * (1 - t) : Math.sin(ang) * len * 0.5);
@@ -74,8 +77,10 @@
         iso.toScreen(s.x1 != null ? s.x1 : s.x, s.y1 != null ? s.y1 : s.y, b);
         ctx.globalAlpha = fade * 0.8;
         ctx.strokeStyle = pal.mid; ctx.lineWidth = 2 * zk;
+        const reach = 0.3 + 0.7 * t;
         for (let i = -1; i <= 1; i++) {
-          ctx.beginPath(); ctx.moveTo(a.x, a.y - lift + i * 4 * zk); ctx.lineTo(a.x + (b.x - a.x) * (0.3 + 0.7 * t), a.y - lift + (b.y - a.y) * (0.3 + 0.7 * t) + i * 4 * zk); ctx.stroke();
+          const y0 = a.y - lift + i * 4 * zk;
+          ctx.beginPath(); ctx.moveTo(a.x, y0); ctx.lineTo(a.x + (b.x - a.x) * reach, y0 + (b.y - a.y) * reach); ctx.stroke();
         }
         break;
       }
@@ -103,7 +108,8 @@
           const n = 7;
           for (let i = 1; i < n; i++) {
             const f = i / n;
-            ctx.lineTo(a.x + (b.x - a.x) * f + (Math.random() - 0.5) * 10 * zk, a.y - lift + (b.y - a.y) * f + (Math.random() - 0.5) * 10 * zk);
+            const jx = (Math.random() - 0.5) * 10 * zk, jy = (Math.random() - 0.5) * 10 * zk;
+            ctx.lineTo(a.x + (b.x - a.x) * f + jx, a.y - lift + (b.y - a.y) * f + jy);
           }
           ctx.lineTo(b.x, b.y - lift); ctx.stroke();
         }
@@ -128,7 +134,9 @@
         ctx.globalAlpha = 1;
         ctx.drawImage(BD.view.fx.glow(pal.mid), b.x - r * 1.5, b.y - hgt - r * 1.5, r * 3, r * 3);
         ctx.drawImage(BD.view.fx.glow(pal.core), b.x - r * 0.6, b.y - hgt - r * 0.6, r * 1.2, r * 1.2);
-        if (Math.random() < 0.6) BD.view.fx.spark(px, py, { z: hgt / zk, vz: 0, g: 0.0002, life: 300, size: 2, color: pal.mid, ambient: true });
+        if (Math.random() < 0.6) {
+          BD.view.fx.spark(px, py, { z: hgt / zk, vz: 0, g: 0.0002, life: 300, size: 2, color: pal.mid, ambient: true });
+        }
         break;
       }
       default: break;

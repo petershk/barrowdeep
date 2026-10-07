@@ -49,8 +49,17 @@
       // conversion (e.g. Sky Spear: half lightning)
       const conv = eff.convert || null;
       let physLeft = phys;
-      if (conv) for (const el in conv) { const part = phys * conv[el]; physLeft -= part; amounts[el] = (amounts[el] || 0) + part * (1 + (s[EL_PCT[el]] || 0) / 100); }
-      if (eff.element && eff.element !== 'phys' && !conv) { amounts[eff.element] = phys * (1 + (s[EL_PCT[eff.element]] || 0) / 100); physLeft = 0; }
+      if (conv) {
+        for (const el in conv) {
+          const part = phys * conv[el];
+          physLeft -= part;
+          amounts[el] = (amounts[el] || 0) + part * (1 + (s[EL_PCT[el]] || 0) / 100);
+        }
+      }
+      if (eff.element && eff.element !== 'phys' && !conv) {
+        amounts[eff.element] = phys * (1 + (s[EL_PCT[eff.element]] || 0) / 100);
+        physLeft = 0;
+      }
       if (physLeft > 0) amounts.phys = physLeft;
       // flat elemental adds
       for (const el of ['fire', 'cold', 'light', 'pois']) {
@@ -74,7 +83,10 @@
     let x = tgt.x, y = tgt.y, moved = 0, collided = null;
     for (let i = 0; i < dist; i++) {
       const nx = x + dx, ny = y + dy;
-      if (!E.walkable(f, nx, ny) || (dx && dy && !(E.walkable(f, x + dx, y) && E.walkable(f, x, y + dy)))) { collided = { wall: true }; break; }
+      let blocked = !E.walkable(f, nx, ny);
+      // diagonal steps may not cut a wall corner
+      if (!blocked && dx && dy) blocked = !(E.walkable(f, x + dx, y) && E.walkable(f, x, y + dy));
+      if (blocked) { collided = { wall: true }; break; }
       const occ = E.occupant(f, nx, ny);
       if (occ) { collided = { entityId: occ }; break; }
       x = nx; y = ny; moved++;
@@ -87,7 +99,7 @@
     return { moved, collided };
   }
   function immuneToKnock(world, e) {
-    if (e.rank === 'boss' || e.rank === 'malgoth' || e.rank === 'keeper') return true;
+    if (BD.sim.entities.rankOf(e).steady) return true;
     if (e.mods && e.mods.indexOf('stone_skin') >= 0) return true;
     if (e.kind === 'monster' && BD.data.monsters[e.def] && BD.data.monsters[e.def].spawner) return true;
     return !!ST().statsOf(world, e).knockback_immune;
@@ -109,12 +121,20 @@
     const caster = ctx.caster;
     if (eff.onlyOnCrit && !(prev && prev.crit)) return null;
     if (eff.targets === 'center' && ctx.centerId != null && tgt.id !== ctx.centerId) return null;
-    if (eff.chance != null && !world.rng.chance(eff.chance * (eff.type === 'status' ? ST().statsOf(world, caster).statusChanceMult : 1))) return null;
+    if (eff.chance != null) {
+      const chanceMult = eff.type === 'status' ? ST().statsOf(world, caster).statusChanceMult : 1;
+      if (!world.rng.chance(eff.chance * chanceMult)) return null;
+    }
     switch (eff.type) {
       case 'damage': {
         let xm = (ctx.packetMult || 1) * (eff.areaFalloff && tgt.id !== ctx.centerId ? eff.areaFalloff : 1);
-        if (eff.missingLife) { const mx = ST().statsOf(world, tgt).maxLife; xm *= 1 + Math.min(eff.missingLife, Math.max(0, 1 - tgt.hp / mx)); }
-        const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, { combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: xm, fixed: ctx.fixed });
+        if (eff.missingLife) {
+          const mx = ST().statsOf(world, tgt).maxLife;
+          xm *= 1 + Math.min(eff.missingLife, Math.max(0, 1 - tgt.hp / mx));
+        }
+        const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, {
+          combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: xm, fixed: ctx.fixed,
+        });
         const tags = (ctx.tags || ctx.ab.tags || []).slice();
         if (ctx.aoe && tags.indexOf('aoe') < 0) tags.push('aoe');
         const r = BD.sim.damage.dealDamage(world, {
@@ -127,7 +147,8 @@
       case 'status': {
         if (prev === null && eff.needsHit) return null;
         const mag = eff.magnitude != null ? (eff.scaleMag ? AB().scale({ mult: eff.magnitude }, ctx.rank) : eff.magnitude) : undefined;
-        SS().apply(world, tgt, eff.id, { durMs: eff.durMs, magnitude: mag, sourceId: caster.id, hit: prev && prev.total ? prev.total : eff.hitPct ? 0 : 0 });
+        const hit = prev && prev.total ? prev.total : 0;
+        SS().apply(world, tgt, eff.id, { durMs: eff.durMs, magnitude: mag, sourceId: caster.id, hit });
         return null;
       }
       case 'knockback': {
@@ -145,7 +166,11 @@
       }
       case 'cleanse': SS().cleanse(world, tgt, eff.statuses); return null;
       case 'buff': {
-        const mag = eff.magnitude == null ? undefined : eff.fixed ? eff.magnitude : eff.perRank ? AB().scale(eff, ctx.rank) : AB().scale({ mult: eff.magnitude }, ctx.rank);
+        let mag;
+        if (eff.magnitude == null) mag = undefined;
+        else if (eff.fixed) mag = eff.magnitude;
+        else if (eff.perRank) mag = AB().scale(eff, ctx.rank);
+        else mag = AB().scale({ mult: eff.magnitude }, ctx.rank);
         const dur = eff.durKey && ctx.ab[eff.durKey] ? ctx.ab[eff.durKey] : eff.durMs;
         SS().apply(world, tgt, eff.id, { durMs: dur, magnitude: mag, sourceId: caster.id });
         return null;

@@ -6,13 +6,25 @@
 (function (BD) {
   'use strict';
 
-  const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+  const BTN = {
+    A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7,
+    BACK: 8, START: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
+  };
   const SLOT = { [BTN.X]: 's1', [BTN.Y]: 's2', [BTN.B]: 's3', [BTN.RB]: 's4', [BTN.RT]: 'rmb' };
   const DEAD = 0.28, CONE = (35 * Math.PI) / 180, LOCK_RANGE = 9, MOVE_REPEAT = 120;
-  const INTERACT_LABEL = { STAIRS_DOWN: 'Descend', STAIRS_UP: 'Ascend', STAIRS_SEALED: 'Sealed stairs', WAYPOINT: 'Use waypoint', PORTAL_STONE: 'Enter portal', GATE: 'Open gate', TOWN_DOOR: 'Enter' };
-  const OBJ_LABEL = { chest: 'Open chest', shrine: 'Pray at shrine', altar: 'Offer blood', lever: 'Pull lever', door: 'Open door', trap: 'Disarm trap', portal: 'Enter portal', npc: 'Talk', seal: 'Take the seal', key: 'Take the key' };
+  const INTERACT_LABEL = {
+    STAIRS_DOWN: 'Descend', STAIRS_UP: 'Ascend', STAIRS_SEALED: 'Sealed stairs', WAYPOINT: 'Use waypoint',
+    PORTAL_STONE: 'Enter portal', GATE: 'Open gate', TOWN_DOOR: 'Enter',
+  };
+  const OBJ_LABEL = {
+    chest: 'Open chest', shrine: 'Pray at shrine', altar: 'Offer blood', lever: 'Pull lever', door: 'Open door',
+    trap: 'Disarm trap', portal: 'Enter portal', npc: 'Talk', seal: 'Take the seal', key: 'Take the key',
+  };
 
-  const pad = { active: false, index: -1, prev: [], target: null, face: { x: 1, y: 0 }, moveT: 0, navT: 0, navDir: null, focus: null, prompt: null, lastStick: false };
+  const pad = {
+    active: false, index: -1, prev: [], target: null, face: { x: 1, y: 0 },
+    moveT: 0, navT: 0, navDir: null, focus: null, prompt: null, lastStick: false,
+  };
 
   function attach() {
     window.addEventListener('gamepadconnected', (e) => { pad.index = /** @type {any} */ (e).gamepad.index; });
@@ -26,7 +38,10 @@
     if (!on) { pad.target = null; showPrompt(null); clearFocus(); }
   }
   // touch drives a virtual pad through the same code path
-  const virtual = { active: false, index: -1, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+  const virtual = {
+    active: false, index: -1, connected: true, axes: [0, 0, 0, 0],
+    buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })),
+  };
   function getPad() {
     if (virtual.active) return virtual;
     if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
@@ -43,7 +58,10 @@
     const l = Math.hypot(wx, wy) || 1;
     return { x: wx / l, y: wy / l };
   }
-  const snap = (v) => { const ang = Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) * (Math.PI / 4); return { x: Math.round(Math.cos(ang)), y: Math.round(Math.sin(ang)) }; };
+  const snap = (v) => {
+    const ang = Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) * (Math.PI / 4);
+    return { x: Math.round(Math.cos(ang)), y: Math.round(Math.sin(ang)) };
+  };
 
   function bestTarget(w, dir) {
     const p = w.player, f = w.floor;
@@ -72,9 +90,18 @@
       const o = I.objectAt(w, x, y);
       if (o) { best = { x, y, label: OBJ_LABEL[o.kind] || 'Use' }; bd = d; continue; }
       const it = (f.items || []).find((q) => q.x === x && q.y === y);
-      if (it) { best = { x, y, item: it.uid, label: 'Pick up' + (it.item ? ' ' + BD.sim.items.derive(it.item).name : it.kind === 'gold' ? ' gold' : '') }; bd = d; continue; }
+      if (it) {
+        const what = it.item ? ' ' + BD.sim.items.derive(it.item).name : it.kind === 'gold' ? ' gold' : '';
+        best = { x, y, item: it.uid, label: 'Pick up' + what };
+        bd = d;
+        continue;
+      }
       const t = f.tiles[y * f.w + x];
-      if (PROPS[t] && PROPS[t].interact) { const name = Object.keys(T).find((k) => T[k] === t); best = { x, y, label: INTERACT_LABEL[name] || 'Use' }; bd = d; }
+      if (PROPS[t] && PROPS[t].interact) {
+        const name = Object.keys(T).find((k) => T[k] === t);
+        best = { x, y, label: INTERACT_LABEL[name] || 'Use' };
+        bd = d;
+      }
     }
     return best;
   }
@@ -92,7 +119,9 @@
   function rumble(strong, weak, ms) {
     if (!pad.active || (BD.ui.options && !BD.ui.options.get('rumble'))) return;
     const g = getPad(), act = g && /** @type {any} */ (g).vibrationActuator;
-    if (act && act.playEffect) act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: weak }).catch(() => {});
+    if (act && act.playEffect) {
+      act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strong, weakMagnitude: weak }).catch(() => {});
+    }
   }
 
   // ---------------- menus ----------------
@@ -100,7 +129,8 @@
     const t = BD.ui.panels.top();
     const scope = t ? t.el : document.querySelector('.panel');
     if (!scope) return [];
-    return Array.from(scope.querySelectorAll('button, [data-action], .slot, .item-row, input, select, .focusable')).filter((el) => /** @type {HTMLElement} */ (el).offsetParent !== null && !/** @type {any} */ (el).disabled);
+    const els = Array.from(scope.querySelectorAll('button, [data-action], .slot, .item-row, input, select, .focusable'));
+    return els.filter((el) => /** @type {HTMLElement} */ (el).offsetParent !== null && !/** @type {any} */ (el).disabled);
   }
   function clearFocus() { if (pad.focus) pad.focus.classList.remove('focus', 'pad-focus'); pad.focus = null; }
   function setFocus(el) {
@@ -109,7 +139,10 @@
     el.classList.add('focus', 'pad-focus');
     el.scrollIntoView({ block: 'nearest' });
     const r = el.getBoundingClientRect();
-    for (const type of ['mouseover', 'mouseenter']) el.dispatchEvent(new MouseEvent(type, { bubbles: type === 'mouseover', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    for (const type of ['mouseover', 'mouseenter']) {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: type === 'mouseover', clientX: cx, clientY: cy }));
+    }
   }
   function nav(dx, dy) {
     const els = focusables();
@@ -180,7 +213,8 @@
     } else {
       if (pad.lastStick) { I.issue({ type: 'Stop' }); pad.lastStick = false; }
       pad.moveT = 0;
-      if (pad.target && (pad.target.dead || Math.hypot(pad.target.x - p.x, pad.target.y - p.y) > LOCK_RANGE + 2)) pad.target = bestTarget(w, pad.face);
+      const tg = pad.target;
+      if (tg && (tg.dead || Math.hypot(tg.x - p.x, tg.y - p.y) > LOCK_RANGE + 2)) pad.target = bestTarget(w, pad.face);
       if (!pad.target) pad.target = bestTarget(w, pad.face);
     }
     // aim point: the target, else a few tiles ahead
@@ -198,8 +232,11 @@
     // skills (held buttons recast through intent's hold loop)
     for (const b in SLOT) {
       const slot = SLOT[b];
-      if (pressed(+b)) { I.hold.keys[slot] = true; I.issue({ type: 'UseSkill', slot, aim: tgt ? { entityId: tgt.id, x: tgt.x, y: tgt.y } : { x: aimTile.x, y: aimTile.y }, hold: false }); }
-      else if (!btn[+b] && pad.prev[+b]) I.hold.keys[slot] = false;
+      if (pressed(+b)) {
+        I.hold.keys[slot] = true;
+        const aim = tgt ? { entityId: tgt.id, x: tgt.x, y: tgt.y } : { x: aimTile.x, y: aimTile.y };
+        I.issue({ type: 'UseSkill', slot, aim, hold: false });
+      } else if (!btn[+b] && pad.prev[+b]) I.hold.keys[slot] = false;
     }
     if (pressed(BTN.LB)) { const s = snap(pad.face); I.issue({ type: 'Evade', dirX: s.x, dirY: s.y }); }
     if (pressed(BTN.LT)) I.issue({ type: 'DrinkFlask' });
@@ -219,7 +256,11 @@
   }
 
   function wire(bus) {
-    bus.on('damage', (ev) => { const w = BD.app.world; if (w && ev.tgtId === w.player.id && ev.total > 0) rumble(0.35, 0.5, 90); else if (w && ev.srcId === w.player.id && ev.crit) rumble(0, 0.4, 60); });
+    bus.on('damage', (ev) => {
+      const w = BD.app.world;
+      if (w && ev.tgtId === w.player.id && ev.total > 0) rumble(0.35, 0.5, 90);
+      else if (w && ev.srcId === w.player.id && ev.crit) rumble(0, 0.4, 60);
+    });
     bus.on('boss.land', () => rumble(0.9, 0.6, 260));
     bus.on('slam', () => rumble(0.6, 0.4, 160));
   }

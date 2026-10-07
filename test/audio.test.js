@@ -5,7 +5,7 @@ const path = require('path');
 const { loadBD, ROOT } = require('./harness');
 
 module.exports = (T) => {
-  const BD = loadBD({ extra: ['js/audio/sounds.js', 'js/audio/cues.js'] });
+  const BD = loadBD({ extra: ['js/audio/host.js', 'js/audio/sounds.js', 'js/audio/cues.js'] });
   const { CUES, SILENT, resolve } = BD.audio.cues;
   const S = BD.audio.sounds;
 

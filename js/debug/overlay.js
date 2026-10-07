@@ -9,9 +9,18 @@
 
   // time the sim step and the render without touching their code
   const step0 = BD.sim.world.step;
-  BD.sim.world.step = function (w, dt) { const t = performance.now(); step0(w, dt); stepMs = stepMs * 0.95 + (performance.now() - t) * 0.05; };
+  BD.sim.world.step = function (w, dt) {
+    const t = performance.now();
+    step0(w, dt);
+    stepMs = stepMs * 0.95 + (performance.now() - t) * 0.05;
+  };
   const draw0 = BD.view.render.draw;
-  BD.view.render.draw = function (w, a, r) { const t = performance.now(); draw0(w, a, r); renderMs = renderMs * 0.95 + (performance.now() - t) * 0.05; if (mode && w && w.floor) tick(w, r); };
+  BD.view.render.draw = function (w, a, r) {
+    const t = performance.now();
+    draw0(w, a, r);
+    renderMs = renderMs * 0.95 + (performance.now() - t) * 0.05;
+    if (mode && w && w.floor) tick(w, r);
+  };
 
   window.addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); setMode((mode + 1) % 3); } });
   function setMode(m) { mode = m; if (box) box.style.display = m ? '' : 'none'; }
@@ -22,13 +31,19 @@
     if (!box) { box = document.createElement('pre'); box.className = 'debug-overlay'; document.body.appendChild(box); }
     const f = w.floor;
     let mons = 0, awake = 0;
-    for (const e of f.entities.values()) if (e.faction === 'monster' && !e.dead) { mons++; if (e.ai && e.ai.state !== 'idle' && e.ai.state !== 'dormant') awake++; }
+    for (const e of f.entities.values()) {
+      if (e.faction !== 'monster' || e.dead) continue;
+      mons++;
+      if (e.ai && e.ai.state !== 'idle' && e.ai.state !== 'dormant') awake++;
+    }
     const p = w.player;
     box.textContent = [
       'seed ' + w.run.seed + '   floor ' + f.key + '   AL ' + f.al + '   biome ' + f.biome,
       'fps ' + fps + '   step ' + stepMs.toFixed(2) + ' ms   render ' + renderMs.toFixed(2) + ' ms',
-      'monsters ' + mons + ' (' + awake + ' awake)   projectiles ' + f.projectiles.length + '   zones ' + f.zones.length + '   items ' + (f.items || []).length,
-      'particles ' + BD.view.fx.live + '   voices ' + (BD.audio.synth ? BD.audio.synth.voiceCount : 0) + '   time ' + (w.time / 1000).toFixed(1) + ' s',
+      'monsters ' + mons + ' (' + awake + ' awake)   projectiles ' + f.projectiles.length
+        + '   zones ' + f.zones.length + '   items ' + (f.items || []).length,
+      'particles ' + BD.view.fx.live + '   voices ' + (BD.audio.synth ? BD.audio.synth.voiceCount : 0)
+        + '   time ' + (w.time / 1000).toFixed(1) + ' s',
       'player ' + p.x + ',' + p.y + '   L' + p.level + '   hp ' + Math.round(p.hp) + '   intent ' + (p.intent ? p.intent.kind : '-'),
       mode === 2 ? 'layers: reach mask (red) · zones · AI state #pack' : 'F3: world layers',
     ].join('\n');
@@ -48,7 +63,12 @@
         const i = y * f.w + x;
         if (!f.explored[i] || f.reach[i] >= 0 || !BD.sim.entities.walkable(f, x, y)) continue;
         iso.toScreen(x, y, a);
-        ctx.beginPath(); ctx.moveTo(a.x, a.y - iso.HH * S); ctx.lineTo(a.x + iso.HW * S, a.y); ctx.lineTo(a.x, a.y + iso.HH * S); ctx.lineTo(a.x - iso.HW * S, a.y); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y - iso.HH * S);
+        ctx.lineTo(a.x + iso.HW * S, a.y);
+        ctx.lineTo(a.x, a.y + iso.HH * S);
+        ctx.lineTo(a.x - iso.HW * S, a.y);
+        ctx.fill();
       }
     }
     for (const z of f.zones) {

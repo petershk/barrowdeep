@@ -17,7 +17,7 @@
       if (!action) return;
       const repeat = down.has(ev.code);
       down.add(ev.code);
-      handle(action, repeat, ev);
+      handle(action, repeat);
     });
     window.addEventListener('keyup', (ev) => {
       down.delete(ev.code);
@@ -28,7 +28,7 @@
     window.addEventListener('blur', () => { down.clear(); BD.input.intent.hold.keys = {}; BD.app.showLabels = false; });
   }
 
-  function handle(action, repeat, ev) {
+  function handle(action, repeat) {
     const app = BD.app, w = app.world;
     if (!w) return;
     const m = BD.input.mouse;
@@ -59,7 +59,6 @@
       case 'pause': app.togglePause(); break;
       default: if (BD.ui.panels) BD.ui.panels.hotkey(action);
     }
-    void ev;
   }
 
   BD.input.keyboard = { attach, down };

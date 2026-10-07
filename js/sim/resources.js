@@ -42,7 +42,11 @@
     let spent = 0;
     if (type === 'rage' && r.rage) { spent = cost === 'all' ? r.rage.cur : cost; r.rage.cur -= spent; }
     else if (type === 'energy' && r.energy) { spent = cost === 'all' ? r.energy.cur : cost; r.energy.cur -= spent; }
-    else if (type === 'mana' && r.mana) { spent = cost === 'all' ? r.mana.cur : cost; r.mana.cur -= spent; if (spent > 0) { p.lastCastMs = world.time; r.surge = false; } }
+    else if (type === 'mana' && r.mana) {
+      spent = cost === 'all' ? r.mana.cur : cost;
+      r.mana.cur -= spent;
+      if (spent > 0) { p.lastCastMs = world.time; r.surge = false; }
+    }
     else if (type === 'focus' && r.focus) { spent = cost === 'all' ? r.focus.n : Math.min(r.focus.n, cost); r.focus.n -= spent; }
     if (spent) { emit(world, p); checkMomentum(world, p); }
     return spent;
@@ -93,7 +97,11 @@
   }
   function traitMods(world, p, add) {
     if (p.momentum) { add('dmg_pct', B.momentumDmg, 'Momentum'); add('ias', B.momentumIas, 'Momentum'); }
-    if (keystone(p, 'juggernaut')) { add('knockback_immune', true, 'Juggernaut'); add('chill_immune', true, 'Juggernaut'); add('slow_immune', true, 'Juggernaut'); }
+    if (keystone(p, 'juggernaut')) {
+      add('knockback_immune', true, 'Juggernaut');
+      add('chill_immune', true, 'Juggernaut');
+      add('slow_immune', true, 'Juggernaut');
+    }
   }
   /** +crit from focus (Steady Hand) and Tiger Strike r3 charges */
   function critBonus(world, p) {
@@ -167,8 +175,10 @@
     if (r.focus) {
       const f = r.focus;
       const still = !p.move && !p.intent.path;
-      if (still && inCombat) { f.stillMs += dt; if (f.stillMs >= B.focusStillMs) { f.stillMs -= B.focusStillMs; gain(world, p, 'focus', 1); } }
-      else f.stillMs = 0;
+      if (still && inCombat) {
+        f.stillMs += dt;
+        if (f.stillMs >= B.focusStillMs) { f.stillMs -= B.focusStillMs; gain(world, p, 'focus', 1); }
+      } else f.stillMs = 0;
       if (f.n > 0 && world.time - f.lastDealtMs > B.focusLoseMs && world.time - f.lastGainMs > B.focusLoseMs) { f.n = 0; emit(world, p); }
     }
     // life regeneration (05 §2): 0.4%/s, 3%/s out of combat after 4 s without damage
@@ -179,7 +189,10 @@
     } else if (p.hp > s.maxLife) p.hp = s.maxLife;
   }
 
-  BD.sim.resources = { init, kind, amount, canPay, spend, refund, gain, addCombo, takeCombo, combo, comboMax, checkMomentum, traitMods, critBonus, onHit, absorb, system, keystone };
+  BD.sim.resources = {
+    init, kind, amount, canPay, spend, refund, gain, addCombo, takeCombo, combo, comboMax,
+    checkMomentum, traitMods, critBonus, onHit, absorb, system, keystone,
+  };
   BD.sim.damage.onHitHooks.push(onHit);
   BD.sim.world.addSystem('resources', system, 35);
 })(globalThis.BD);

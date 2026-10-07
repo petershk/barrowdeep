@@ -19,8 +19,12 @@
   const objectHandlers = {};
   function registerObject(kind, fn) { objectHandlers[kind] = fn; }
 
-  function announce(world, key, extra) { world.events.push(Object.assign({ type: 'announce', key, text: S() ? S().t(key) : key }, extra || {})); }
-  function deny(world, key) { world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: S() ? S().t(key) : key }); }
+  function announce(world, key, extra) {
+    world.events.push(Object.assign({ type: 'announce', key, text: S() ? S().t(key) : key }, extra || {}));
+  }
+  function deny(world, key) {
+    world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: S() ? S().t(key) : key });
+  }
 
   /** Interact with whatever is at (x,y). The player is adjacent (or on it). */
   function at(world, x, y) {

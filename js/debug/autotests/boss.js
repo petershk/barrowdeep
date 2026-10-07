@@ -7,6 +7,10 @@ BD.debug.autotests.boss = (D) => {
   D.step(3200);
   const b = [...w.floor.entities.values()].find((e) => e.rank === 'boss');
   BD.sim.commands.issue(w, { type: 'Move', x: b.x, y: b.y + 3 });
-  for (let i = 0; i < 60; i++) { D.step(50); const z = w.floor.zones.find((q) => !q.resolved && q.armMs < q.armTotal * 0.6 && q.armMs > 150); if (z && i > 10) break; }
+  for (let i = 0; i < 60; i++) {
+    D.step(50);
+    const z = w.floor.zones.find((q) => !q.resolved && q.armMs < q.armTotal * 0.6 && q.armMs > 150);
+    if (z && i > 10) break;
+  }
   D.render(3); D.capture();
 };

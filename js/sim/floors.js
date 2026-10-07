@@ -45,9 +45,10 @@
       const after = world.run.flags.wayfinder ? 180000 : 360000;
       if (f.timeOnFloor >= after) {
         const k = E.get(world, f.keeperId);
-        if (k && !k.dead && (!f.keeperPing || (world.time % 2000) < 17)) {
+        // the marker follows the Keeper every 2 s
+        if (k && !k.dead && (!f.keeperPing || world.time >= f.keeperPing.at + 2000)) {
           if (!f.keeperPing) world.events.push({ type: 'keeper.ping', x: k.x, y: k.y });
-          f.keeperPing = { x: k.x, y: k.y };
+          f.keeperPing = { x: k.x, y: k.y, at: world.time };
         }
       }
     }
@@ -77,15 +78,22 @@
     const alive = new Set();
     for (const e of f.entities.values()) {
       if (e.runtime || e.kind !== 'monster') continue;
-      if (e.rank === 'boss' || e.rank === 'malgoth') { alive.add(e.id); continue; }   // bosses reset unless slain
+      if (BD.sim.entities.isBoss(e)) { alive.add(e.id); continue; }   // bosses reset unless slain
       alive.add(e.id);
       const max = BD.sim.stats.statsOf(world, e).maxLife;
-      if (e.hp < max || e.x !== e.home.x || e.y !== e.home.y) survivors.push({ id: e.id, hp: e.hp, x: e.x, y: e.y, statuses: e.statuses.filter((s) => !BD.data.statuses[s.id].invuln) });
+      if (e.hp < max || e.x !== e.home.x || e.y !== e.home.y) {
+        const statuses = e.statuses.filter((s) => !BD.data.statuses[s.id].invuln);
+        survivors.push({ id: e.id, hp: e.hp, x: e.x, y: e.y, statuses });
+      }
     }
     for (const id of f.genIds || []) if (!alive.has(id)) dead.push(id);
     return {
       explored: U.rleEncode(f.explored), seen: U.rleEncode(f.seen), deadIds: dead,
-      objects: f.objects.map((o, i) => (o.opened || o.used || o.disarmed || o.visible ? { i, opened: !!o.opened, used: !!o.used, disarmed: !!o.disarmed, visible: !!o.visible } : null)).filter(Boolean),
+      objects: f.objects
+        .map((o, i) => (o.opened || o.used || o.disarmed || o.visible
+          ? { i, opened: !!o.opened, used: !!o.used, disarmed: !!o.disarmed, visible: !!o.visible }
+          : null))
+        .filter(Boolean),
       extraObjects: f.objects.filter((o) => o.runtime && o.kind !== 'portal').map((o) => U.clone(o)),
       droppedItems: f.items.map((g) => U.clone(g)), sealBroken: !!f.sealBroken, gateOpen: !!f.gateOpen, bossDead: !!f.bossDead,
       hidden: f.hidden.slice(), keeperRevealed: !!f.keeperRevealed, fullyExplored: !!f.fullyExplored, timeOnFloor: f.timeOnFloor,
@@ -106,7 +114,7 @@
     const N = f.w * f.h;
     f.explored = U.rleDecode(d.explored, N); f.seen = U.rleDecode(d.seen, N);
     f.seenCount = 0; for (let i = 0; i < N; i++) if (f.seen[i]) f.seenCount++;
-    for (const id of d.deadIds) { const e = f.entities.get(id); if (e) { E.vacate(f, e); f.entities.delete(id); if (e.keeper) f.keeperId = null; } }
+    for (const id of d.deadIds) { const e = f.entities.get(id); if (e) E.remove(world, e); }
     for (const s of d.survivors) {
       const e = f.entities.get(s.id);
       if (!e) continue;
@@ -115,7 +123,10 @@
       if (E.isFree(f, s.x, s.y)) { e.x = s.x; e.y = s.y; }
       E.occupy(f, e);
     }
-    for (const o of d.objects) { const ob = f.objects[o.i]; if (ob) Object.assign(ob, { opened: o.opened, used: o.used, disarmed: o.disarmed, visible: o.visible }); }
+    for (const o of d.objects) {
+      const ob = f.objects[o.i];
+      if (ob) Object.assign(ob, { opened: o.opened, used: o.used, disarmed: o.disarmed, visible: o.visible });
+    }
     for (const o of d.extraObjects || []) f.objects.push(o);
     f.items = d.droppedItems.map((g) => U.clone(g));
     f.sealBroken = d.sealBroken; f.gateOpen = d.gateOpen; f.bossDead = d.bossDead;
@@ -126,7 +137,10 @@
       f.hidden = d.hidden.slice();
     }
     if (d.event) f.event = U.clone(d.event);
-    if (f.bossDead) { for (const e of [...f.entities.values()]) if (e.rank === 'boss' || e.rank === 'malgoth') { E.vacate(f, e); f.entities.delete(e.id); } if (BD.sim.bossfight && f.arena) BD.sim.bossfight.placeExit(world); }
+    if (f.bossDead) {
+      for (const e of [...f.entities.values()]) if (E.isBoss(e)) E.remove(world, e);
+      if (BD.sim.bossfight && f.arena) BD.sim.bossfight.placeExit(world);
+    }
     f.exploreDirty = true;
   }
 

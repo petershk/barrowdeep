@@ -28,7 +28,10 @@
       if (!m) continue;
       if (m.periodic && near && due(world, e, 'mod_' + id, m.periodic.everyMs)) {
         const pd = m.periodic;
-        MV().strike(world, e, MV().circle(e.x, e.y, pd.radius), pd.armMs, pd.mult, { element: pd.element, school: pd.school, statuses: [{ id: pd.status, durMs: pd.statusMs }], cx: e.x, cy: e.y, kind: 'mod_burst' });
+        MV().strike(world, e, MV().circle(e.x, e.y, pd.radius), pd.armMs, pd.mult, {
+          element: pd.element, school: pd.school, statuses: [{ id: pd.status, durMs: pd.statusMs }],
+          cx: e.x, cy: e.y, kind: 'mod_burst',
+        });
       }
       if (m.teleportEveryMs && near && due(world, e, 'mod_tp', m.teleportEveryMs)) {
         const spot = E.nearestFree(world.floor, p.x, p.y, 2, (x, y) => cheb(x, y, p.x, p.y) === 1);
@@ -40,7 +43,9 @@
       if (m.mortar && near && due(world, e, 'mod_mortar', m.mortar.everyMs)) {
         const md = m.mortar;
         world.events.push({ type: 'lob', srcId: e.id, fromX: e.x, fromY: e.y, x: p.x, y: p.y, ms: md.armMs, kind: 'mortar' });
-        MV().strike(world, e, MV().circle(p.x, p.y, md.radius), md.armMs, md.mult, { element: md.element, school: md.school, cx: p.x, cy: p.y, kind: 'mortar' });
+        MV().strike(world, e, MV().circle(p.x, p.y, md.radius), md.armMs, md.mult, {
+          element: md.element, school: md.school, cx: p.x, cy: p.y, kind: 'mortar',
+        });
       }
       if (m.shield && due(world, e, 'mod_shield', m.shield.everyMs)) {
         let best = null;
@@ -48,7 +53,11 @@
           if (o.dead || o.faction !== 'monster' || o === e || cheb(o.x, o.y, e.x, e.y) > m.shield.radius) continue;
           if (!best || o.hp / BD.sim.stats.statsOf(world, o).maxLife < best.hp / BD.sim.stats.statsOf(world, best).maxLife) best = o;
         }
-        if (best) { BD.sim.status.apply(world, best, 'shielded', { durMs: 6000, magnitude: BD.sim.stats.statsOf(world, best).maxLife * m.shield.pct }); world.events.push({ type: 'mod.shield', from: e.id, to: best.id }); }
+        if (best) {
+          const magnitude = BD.sim.stats.statsOf(world, best).maxLife * m.shield.pct;
+          BD.sim.status.apply(world, best, 'shielded', { durMs: 6000, magnitude });
+          world.events.push({ type: 'mod.shield', from: e.id, to: best.id });
+        }
       }
     }
   }
@@ -64,7 +73,11 @@
   });
 
   function onStep(world, e) {
-    if (hasMod(e, 'molten')) BD.sim.zones.ground(world, 'molten_trail', [[e.move ? e.move.fromX : e.x, e.move ? e.move.fromY : e.y]], { durMs: 3000, faction: 'monster', srcId: e.id, amount: MON.avgDmg(world, e) * 0.15 });
+    if (!hasMod(e, 'molten')) return;
+    // the trail is left on the tile being stepped off
+    const tile = [e.move ? e.move.fromX : e.x, e.move ? e.move.fromY : e.y];
+    const amount = MON.avgDmg(world, e) * 0.15;
+    BD.sim.zones.ground(world, 'molten_trail', [tile], { durMs: 3000, faction: 'monster', srcId: e.id, amount });
   }
 
   BD.sim.damage.onHitHooks.push((world, src, tgt, pk, res) => {
@@ -77,12 +90,16 @@
       }
     }
     // taken by a lightning-enchanted monster: release sparks (visible crackle aura)
-    if (tgt.kind === 'monster' && hasMod(tgt, 'lightning_enchanted') && !pk.isDot && (!tgt._sparkAt || world.time - tgt._sparkAt >= CM().lightning_enchanted.sparkCdMs)) {
+    const sparkReady = (e) => !e._sparkAt || world.time - e._sparkAt >= CM().lightning_enchanted.sparkCdMs;
+    if (tgt.kind === 'monster' && hasMod(tgt, 'lightning_enchanted') && !pk.isDot && sparkReady(tgt)) {
       Object.defineProperty(tgt, '_sparkAt', { value: world.time, writable: true, configurable: true, enumerable: false });
       const amt = MON.avgDmg(world, tgt) * 0.5;
       for (let i = 0; i < 3; i++) {
         const a = world.rng.range(0, Math.PI * 2);
-        BD.sim.projectiles.spawn(world, { kind: 'spark', srcId: tgt.id, faction: 'monster', x: tgt.x, y: tgt.y, dx: Math.cos(a), dy: Math.sin(a), maxDist: 5, payload: { type: 'packet', amounts: { light: amt } } });
+        BD.sim.projectiles.spawn(world, {
+          kind: 'spark', srcId: tgt.id, faction: 'monster', x: tgt.x, y: tgt.y, dx: Math.cos(a), dy: Math.sin(a), maxDist: 5,
+          payload: { type: 'packet', amounts: { light: amt } },
+        });
       }
     }
   });
@@ -95,8 +112,10 @@
       const dz = m.deathZone;
       const tiles = MV().circle(e.x, e.y, dz.radius);
       const amounts = {}; amounts[dz.element] = MON.avgDmg(world, e) * dz.mult;
-      BD.sim.zones.create(world, { tiles, cx: e.x, cy: e.y, armMs: dz.armMs, faction: 'monster', srcId: null, school: dz.school, heavy: true, kind: 'death_burst',
-        resolve: { type: 'packet', amounts, statuses: dz.status ? [{ id: dz.status, durMs: dz.statusMs }] : [] } });
+      BD.sim.zones.create(world, {
+        tiles, cx: e.x, cy: e.y, armMs: dz.armMs, faction: 'monster', srcId: null, school: dz.school, heavy: true, kind: 'death_burst',
+        resolve: { type: 'packet', amounts, statuses: dz.status ? [{ id: dz.status, durMs: dz.statusMs }] : [] },
+      });
     }
   });
 

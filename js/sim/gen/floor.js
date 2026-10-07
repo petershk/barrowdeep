@@ -66,7 +66,8 @@
 
     // waypoint near the up stairs
     if (fl.waypoint) {
-      const tiles = C.roomTiles(p, up).filter(([x, y]) => C.get(p, x, y) === T.FLOOR && Math.abs(x - ux) + Math.abs(y - uy) >= 2 && openAround(p, x, y));
+      const tiles = C.roomTiles(p, up)
+        .filter(([x, y]) => C.get(p, x, y) === T.FLOOR && Math.abs(x - ux) + Math.abs(y - uy) >= 2 && openAround(p, x, y));
       const near = tiles.sort((a, b) => Math.abs(a[0] - ux) + Math.abs(a[1] - uy) - (Math.abs(b[0] - ux) + Math.abs(b[1] - uy)))[0]
         || freeNeighbour(p, ux, uy, dist, 3);
       const wx = near.x !== undefined ? near.x : near[0], wy = near.y !== undefined ? near.y : near[1];
@@ -106,7 +107,13 @@
     for (let y = 2; y < p.h - 3; y++) for (let x = 2; x < p.w - 3; x++) {
       // block (x..x+1, y..y+1) all wall, unprotected
       let ok = true;
-      for (let j = 0; j < 2 && ok; j++) for (let i = 0; i < 2; i++) { const k = C.idx(p, x + i, y + j); const t = p.tiles[k]; if (!(t === T.WALL || t === T.LAVA) || p.protect[k]) ok = false; }
+      for (let j = 0; j < 2 && ok; j++) {
+        for (let i = 0; i < 2; i++) {
+          const k = C.idx(p, x + i, y + j);
+          const t = p.tiles[k];
+          if (!(t === T.WALL || t === T.LAVA) || p.protect[k]) ok = false;
+        }
+      }
       if (!ok) continue;
       // the 2 tiles directly below (or right of) the block must be reachable floor (front of the gate)
       const fronts = [[[x, y + 2], [x + 1, y + 2]], [[x + 2, y], [x + 2, y + 1]]];
@@ -121,7 +128,12 @@
     if (!cands.length) throw new Error('no gate spot (seed ' + p.seed + ', floor ' + p.n + ')');
     cands.sort((a, b) => b.d - a.d);
     const g = cands[Math.min(cands.length - 1, rng.int(0, Math.min(5, cands.length - 1)))];
-    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { C.set(p, g.x + i, g.y + j, T.GATE); p.protect[C.idx(p, g.x + i, g.y + j)] = 1; }
+    for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 2; i++) {
+        C.set(p, g.x + i, g.y + j, T.GATE);
+        p.protect[C.idx(p, g.x + i, g.y + j)] = 1;
+      }
+    }
     // the gate tile that touches the front: where interaction happens
     const below = g.front[0][1] === g.y + 2;
     p.gatePos = { x: g.x, y: g.y, front: g.front, at: below ? { x: g.x, y: g.y + 1 } : { x: g.x + 1, y: g.y } };

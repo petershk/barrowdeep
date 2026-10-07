@@ -32,7 +32,8 @@
     const pr = {
       id: world.nextId++, kind: o.kind, srcId: o.srcId, faction: o.faction, x: o.x, y: o.y, dx: o.dx / len, dy: o.dy / len,
       speed: o.speed || kind.speed, maxDist: o.maxDist, dist: 0, pierce: o.pierce || 0, hitIds: [], payload: o.payload,
-      stopAt: o.stopAt || null, element: kind.element, ricochet: o.ricochet || 0, returns: !!o.returns, returning: false, erratic: !!kind.erratic, seed: world.nextId,
+      stopAt: o.stopAt || null, element: kind.element, ricochet: o.ricochet || 0, returns: !!o.returns, returning: false,
+      erratic: !!kind.erratic, seed: world.nextId,
     };
     f.projectiles.push(pr);
     world.events.push({ type: 'projectile.spawn', id: pr.id, kind: pr.kind, srcId: pr.srcId, x: pr.x, y: pr.y, dx: pr.dx, dy: pr.dy });
@@ -53,13 +54,17 @@
     const kind = d.projectile || 'arrow';
     // a volley strikes each enemy at most twice: later arrows pass through (big targets can't eat a whole volley)
     const group = { hits: 0, abilityId: ab.id, ids: count > 1 ? [] : null };
+    const casterId = caster.kind === 'ally' ? caster.ownerId || caster.id : caster.id;
     for (let i = 0; i < count; i++) {
       const ang = count > 1 ? base - spread / 2 + (spread * i) / (count - 1) : base;
       spawn(world, {
         kind, srcId: ctx.srcId, faction: caster.faction, x: caster.x, y: caster.y, dx: Math.cos(ang), dy: Math.sin(ang),
         maxDist: d.maxDist || range + 1, pierce: d.pierce === 'all' ? 99 : d.pierce || 0, ricochet: d.ricochet || 0, returns: !!d.returns,
         stopAt: d.stopAtTarget ? { x: tx, y: ty } : null,
-        payload: { type: 'ability', abilityId: ab.id, rank, combo: ctx.combo, focus: ctx.focus, casterId: caster.kind === 'ally' ? caster.ownerId || caster.id : caster.id, forceCrit: ctx.forceCrit, critAdd: ctx.critAdd, packetMult: ctx.packetMult, idx: i, group },
+        payload: {
+          type: 'ability', abilityId: ab.id, rank, combo: ctx.combo, focus: ctx.focus, casterId,
+          forceCrit: ctx.forceCrit, critAdd: ctx.critAdd, packetMult: ctx.packetMult, idx: i, group,
+        },
       });
     }
   }
@@ -80,8 +85,15 @@
     if (pl.group && pl.group.ids) pl.group.ids.push(tgt.id);
     world.events.push({ type: 'projectile.hit', id: pr.id, kind: pr.kind, tgtId: tgt.id, x: tgt.x, y: tgt.y });
     if (pl.type === 'packet') {
-      const r = BD.sim.damage.dealDamage(world, { srcId: pr.srcId, tgtId: tgt.id, amounts: pl.amounts, tags: ['projectile', 'ranged'], canCrit: false, canDodge: true, canBlock: true, mult: 1 });
-      if (r && pl.onHit) for (const oh of pl.onHit) BD.sim.status.apply(world, tgt, oh.status, { durMs: oh.durMs, magnitude: oh.mag, sourceId: pr.srcId, hit: r.total });
+      const r = BD.sim.damage.dealDamage(world, {
+        srcId: pr.srcId, tgtId: tgt.id, amounts: pl.amounts, tags: ['projectile', 'ranged'],
+        canCrit: false, canDodge: true, canBlock: true, mult: 1,
+      });
+      if (r && pl.onHit) {
+        for (const oh of pl.onHit) {
+          BD.sim.status.apply(world, tgt, oh.status, { durMs: oh.durMs, magnitude: oh.mag, sourceId: pr.srcId, hit: r.total });
+        }
+      }
       return;
     }
     const caster = E.get(world, pl.casterId);
@@ -89,13 +101,17 @@
     const ab = BD.sim.abilities.def(pl.abilityId) || BD.data.basicAttack;
     const rab = pl.abilityId === 'attack' ? BD.sim.abilities.basicFor(world, caster) : BD.sim.abilities.resolved(ab, pl.rank, caster);
     const ctx = BD.sim.effects.baseCtx(world, caster, rab, pl.rank, null);
-    ctx.srcId = pr.srcId; ctx.combo = pl.combo; ctx.focus = pl.focus; ctx.forceCrit = pl.forceCrit; ctx.critAdd = pl.critAdd || 0; ctx.packetMult = pl.packetMult || 1;
+    ctx.srcId = pr.srcId; ctx.combo = pl.combo; ctx.focus = pl.focus;
+    ctx.forceCrit = pl.forceCrit; ctx.critAdd = pl.critAdd || 0; ctx.packetMult = pl.packetMult || 1;
     ctx.cx = pr.x - pr.dx; ctx.cy = pr.y - pr.dy; ctx.centerId = tgt.id; ctx.projectile = pr;
     if (pr.returning && rab.returnMult) ctx.packetMult *= rab.returnMult;
     // an exploding projectile damages the struck target through its explosion only (never twice)
-    const res = rab.delivery && rab.delivery.explode ? explode(world, pr, tgt.x, tgt.y, rab, ctx) || [] : BD.sim.hits.applyEffects(world, ctx, rab.effects, [tgt]);
+    let res;
+    if (rab.delivery && rab.delivery.explode) res = explode(world, pr, tgt.x, tgt.y, rab, ctx) || [];
+    else res = BD.sim.hits.applyEffects(world, ctx, rab.effects, [tgt]);
     BD.sim.effects.special(world, caster, rab, pl.rank, 'projectileHit', { pr, tgt, res, ctx });
-    if (caster.kind === 'player' && (pl.idx === 0 || (rab.delivery && rab.delivery.eachLands))) BD.sim.effects.afterHits(world, caster, rab, pl.rank, null, res);
+    const lands = pl.idx === 0 || (rab.delivery && rab.delivery.eachLands);
+    if (caster.kind === 'player' && lands) BD.sim.effects.afterHits(world, caster, rab, pl.rank, null, res);
   }
 
   function explode(world, pr, x, y, rab, ctx) {
@@ -108,6 +124,25 @@
     const res = BD.sim.effects.areaAt(world, c2, rab, x, y, area, rab.explodeEffects || rab.effects);
     BD.sim.effects.special(world, caster, rab, pl.rank, 'explode', { x, y, ctx: c2, pr });
     return res;
+  }
+
+  /** may this projectile strike entity e (occupying tile id)? a volley group lands at most twice per target */
+  function canHit(pr, e, id) {
+    const g = pr.payload.group;
+    if (e.faction === pr.faction || !(e.hp > 0) || e.untargetable) return false;
+    if (pr.hitIds.indexOf(id) >= 0) return false;
+    if (g && g.ids && countOf(g.ids, id) >= 2) return false;
+    return !(e.move && e.move.kind === 'leap');
+  }
+
+  /** an exploding ability projectile that stops (wall or aimed tile) still explodes there */
+  function explodeStopped(world, pr, x, y) {
+    const pl = pr.payload;
+    const rab = BD.sim.abilities.def(pl.abilityId);
+    if (!rab || !rab.delivery || !rab.delivery.explode) return;
+    const caster = E.get(world, pl.casterId);
+    if (!caster) return;
+    explode(world, pr, x, y, BD.sim.abilities.resolved(rab, pl.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pl.rank, null));
   }
 
   function system(world, dt) {
@@ -126,14 +161,13 @@
         if (tx < 0 || ty < 0 || tx >= f.w || ty >= f.h || !SEE[f.tiles[ty * f.w + tx]] || f.block[ty * f.w + tx]) {
           if (pr.ricochet > 0) { pr.ricochet--; pr.dx = -pr.dx; pr.dy = -pr.dy; nx = pr.x; ny = pr.y; return false; }
           world.events.push({ type: 'projectile.hit', id: pr.id, kind: pr.kind, wall: true, x: pr.x, y: pr.y });
-          if (pr.payload.type === 'ability') { const rab = BD.sim.abilities.def(pr.payload.abilityId); if (rab && rab.delivery && rab.delivery.explode) { const caster = E.get(world, pr.payload.casterId); if (caster) explode(world, pr, Math.round(pr.x), Math.round(pr.y), BD.sim.abilities.resolved(rab, pr.payload.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null)); } }
+          if (pr.payload.type === 'ability') explodeStopped(world, pr, Math.round(pr.x), Math.round(pr.y));
           dead = true; return false;
         }
         const id = f.occ[ty * f.w + tx];
         if (id) {
           const e = E.get(world, id);
-          const g = pr.payload.group;
-          if (e && e.faction !== pr.faction && e.hp > 0 && !e.untargetable && pr.hitIds.indexOf(id) < 0 && !(g && g.ids && countOf(g.ids, id) >= 2) && !(e.move && e.move.kind === 'leap')) {
+          if (e && canHit(pr, e, id)) {
             hitEntity(world, pr, e);
             if (pr.pierce > 0) pr.pierce--;
             else if (pr.ricochet > 0) { pr.ricochet--; retarget(world, pr, e); nx = e.x; ny = e.y; return false; }
@@ -141,9 +175,7 @@
           }
         }
         if (pr.stopAt && tx === pr.stopAt.x && ty === pr.stopAt.y) {
-          const rab = BD.sim.abilities.def(pr.payload.abilityId);
-          const caster = E.get(world, pr.payload.casterId);
-          if (rab && caster && rab.delivery && rab.delivery.explode) explode(world, pr, tx, ty, BD.sim.abilities.resolved(rab, pr.payload.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null));
+          explodeStopped(world, pr, tx, ty);
           dead = true; return false;
         }
         return true;

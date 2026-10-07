@@ -6,7 +6,10 @@
 
   const { h, setText, root } = BD.ui.dom;
   let el = null, life = null, res = null, xp = null, flask = null, pouch = null, chips = null, pips = null;
-  const RES_COL = { rage: ['#ff8a2a', '#8a3008'], energy: ['#d0e850', '#4a6010'], mana: ['#4a8aff', '#10307a'], focus: ['#f0e0a0', '#7a6020'] };
+  const RES_COL = {
+    rage: ['#ff8a2a', '#8a3008'], energy: ['#d0e850', '#4a6010'],
+    mana: ['#4a8aff', '#10307a'], focus: ['#f0e0a0', '#7a6020'],
+  };
 
   function orb(cls) {
     const cv = /** @type {HTMLCanvasElement} */ (h('canvas', { width: 96, height: 96 }));
@@ -66,10 +69,25 @@
     const kind = BD.data.classes[p.cls].resource;
     const r = p.resources;
     let frac = 0, txt = '', lab = '', pulse = false;
-    if (kind === 'rage') { frac = r.rage.cur / r.rage.max; txt = Math.floor(r.rage.cur) + ''; lab = p.momentum ? 'Rage · Momentum' : 'Rage'; pulse = p.momentum; }
-    else if (kind === 'energy') { frac = r.energy.cur / r.energy.max; txt = Math.floor(r.energy.cur) + ''; lab = 'Energy'; }
-    else if (kind === 'mana') { frac = r.mana.max ? r.mana.cur / r.mana.max : 0; txt = Math.floor(r.mana.cur) + ' / ' + Math.round(r.mana.max); lab = r.surge ? 'Mana · Surge' : 'Mana'; pulse = r.surge; }
-    else if (kind === 'focus') { frac = r.focus.n / 5; txt = r.focus.n + ' / 5'; lab = 'Focus'; }
+    if (kind === 'rage') {
+      frac = r.rage.cur / r.rage.max;
+      txt = Math.floor(r.rage.cur) + '';
+      lab = p.momentum ? 'Rage · Momentum' : 'Rage';
+      pulse = p.momentum;
+    } else if (kind === 'energy') {
+      frac = r.energy.cur / r.energy.max;
+      txt = Math.floor(r.energy.cur) + '';
+      lab = 'Energy';
+    } else if (kind === 'mana') {
+      frac = r.mana.max ? r.mana.cur / r.mana.max : 0;
+      txt = Math.floor(r.mana.cur) + ' / ' + Math.round(r.mana.max);
+      lab = r.surge ? 'Mana · Surge' : 'Mana';
+      pulse = r.surge;
+    } else if (kind === 'focus') {
+      frac = r.focus.n / 5;
+      txt = r.focus.n + ' / 5';
+      lab = 'Focus';
+    }
     const c = RES_COL[kind];
     drawOrb(res, frac, c[0], c[1], t, pulse);
     setText(res.val, txt); setText(res.lab, lab);
@@ -96,11 +114,17 @@
       BD.ui.dom.clear(chips);
       for (const st of want) {
         const d = BD.data.statuses[st.id];
-        chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: d.name, style: { borderColor: BD.view.palette.STATUS_COLOR[st.id] || '#888' } }, [h('span.chip-name', d.name), h('span.chip-t')]));
+        const style = { borderColor: BD.view.palette.STATUS_COLOR[st.id] || '#888' };
+        chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: d.name, style }, [
+          h('span.chip-name', d.name), h('span.chip-t'),
+        ]));
       }
       chips.dataset.key = key;
     }
-    want.forEach((st, i) => { const c = chips.children[i]; if (c) setText(c.lastChild, st.remainingMs > 0 ? (st.remainingMs / 1000).toFixed(1) + 's' : ''); });
+    want.forEach((st, i) => {
+      const c = chips.children[i];
+      if (c) setText(c.lastChild, st.remainingMs > 0 ? (st.remainingMs / 1000).toFixed(1) + 's' : '');
+    });
   }
 
   /** combo / focus pips above the player */

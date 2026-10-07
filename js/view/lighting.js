@@ -45,7 +45,9 @@
     // coloured point lights (only onto explored tiles; full strength where visible)
     for (const L of frameLights) {
       const [cr, cg, cb] = P.rgb(L.color);
-      const fl = L.flicker ? 1 - L.flicker * 0.5 + L.flicker * 0.5 * Math.sin(timeMs / 90 + L.x * 3.1 + L.y * 1.7) * Math.sin(timeMs / 37 + L.x) : 1;
+      const fl = L.flicker
+        ? 1 - L.flicker * 0.5 + L.flicker * 0.5 * Math.sin(timeMs / 90 + L.x * 3.1 + L.y * 1.7) * Math.sin(timeMs / 37 + L.x)
+        : 1;
       const r = L.radius, x0 = Math.max(0, Math.floor(L.x - r)), x1 = Math.min(w - 1, Math.ceil(L.x + r));
       const y0 = Math.max(0, Math.floor(L.y - r)), y1 = Math.min(h - 1, Math.ceil(L.y + r));
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {

@@ -19,7 +19,9 @@
     const f = world.floor;
     const dx = nx - e.x, dy = ny - e.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== 1) return false;
-    if (!G.canStep(e.x, e.y, dx, dy, (x, y) => E.walkable(f, x, y) || (e.phase && E.inBounds(f, x, y) && f.tiles[y * f.w + x] !== BD.data.tiles.T.VOID))) return false;
+    // phasing monsters pass through any in-bounds tile except the void
+    const passable = (x, y) => E.walkable(f, x, y) || (e.phase && E.inBounds(f, x, y) && f.tiles[y * f.w + x] !== BD.data.tiles.T.VOID);
+    if (!G.canStep(e.x, e.y, dx, dy, passable)) return false;
     if (E.occupant(f, nx, ny)) return false;
     const dur = baseMs * (dx && dy ? B.player.diagMult : 1);
     e.move = { fromX: e.x, fromY: e.y, toX: nx, toY: ny, elapsed: 0, dur };
@@ -31,7 +33,10 @@
   /** Fast multi-tile displacement (evade, dash, knockback, leap). Lands on (tx,ty) which must be free. */
   function displace(world, e, tx, ty, dur, kind) {
     const f = world.floor;
-    e.move = { fromX: e.move ? E.posOf(e).x : e.x, fromY: e.move ? E.posOf(e).y : e.y, toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash' };
+    e.move = {
+      fromX: e.move ? E.posOf(e).x : e.x, fromY: e.move ? E.posOf(e).y : e.y,
+      toX: tx, toY: ty, elapsed: 0, dur, kind: kind || 'dash',
+    };
     E.relocate(f, e, tx, ty);
   }
 

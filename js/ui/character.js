@@ -6,8 +6,12 @@
 
   const { h } = BD.ui.dom;
   const CMD = () => BD.sim.commands;
-  const ATTR = [['str', 'Strength', '+3% damage with Strength weapons, +0.5 armour'], ['dex', 'Dexterity', '+3% damage with Dexterity weapons, +0.1% crit chance, +2 evasion'],
-    ['mag', 'Magic', '+3% spell damage and Magic-weapon damage, +1.5 mana (Magician), better status chances'], ['vit', 'Vitality', '+3 life']];
+  const ATTR = [
+    ['str', 'Strength', '+3% damage with Strength weapons, +0.5 armour'],
+    ['dex', 'Dexterity', '+3% damage with Dexterity weapons, +0.1% crit chance, +2 evasion'],
+    ['mag', 'Magic', '+3% spell damage and Magic-weapon damage, +1.5 mana (Magician), better status chances'],
+    ['vit', 'Vitality', '+3 life'],
+  ];
   let session = { str: 0, dex: 0, mag: 0, vit: 0 };
 
   function onOpen() { session = { str: 0, dex: 0, mag: 0, vit: 0 }; }
@@ -16,7 +20,10 @@
     return (c) => {
       c.appendChild(h('div.tt-title', label));
       const rows = (key === 'life' ? s.bdLife.concat(s.bd.life || []) : s.bd[key]) || [];
-      for (const r of rows) c.appendChild(h('div.tt-line', r.source + ': ' + (typeof r.value === 'number' ? (r.value > 0 ? '+' : '') + BD.core.util.fmtNum(r.value) : r.value)));
+      for (const r of rows) {
+        const val = typeof r.value === 'number' ? (r.value > 0 ? '+' : '') + BD.core.util.fmtNum(r.value) : r.value;
+        c.appendChild(h('div.tt-line', r.source + ': ' + val));
+      }
       c.appendChild(h('div.tt-line.dmg', '= ' + total));
     };
   }
@@ -35,7 +42,11 @@
         h('button.btn.tiny', { data: { action: 'add', key: k, n: 5 }, disabled: p.unspent.attr < 1 }, '+5'),
         h('button.btn.tiny', { data: { action: 'undo', key: k }, disabled: !session[k] }, 'Undo'),
       ]);
-      BD.ui.tooltip.bind(row, (c) => { c.appendChild(h('div.tt-title', name)); c.appendChild(h('div.tt-desc', help)); breakdownTip(s, k, name, s[k])(c); });
+      BD.ui.tooltip.bind(row, (c) => {
+        c.appendChild(h('div.tt-title', name));
+        c.appendChild(h('div.tt-desc', help));
+        breakdownTip(s, k, name, s[k])(c);
+      });
       left.appendChild(row);
     }
     const right = h('div.col');
@@ -65,10 +76,24 @@
     right.appendChild(stat('Gold find', '+' + Math.round(s.gold_find) + '%', 'gold_find'));
     right.appendChild(stat('Gold', p.gold));
     el.appendChild(h('div.char-cols', [left, right]));
-    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:12px' }, [h('button.btn', { data: { action: 'close' } }, 'Close (C)')]));
+    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:12px' }, [
+      h('button.btn', { data: { action: 'close' } }, 'Close (C)'),
+    ]));
     BD.ui.dom.delegate(el, {
-      add: (t) => { const k = t.dataset.key, n = Math.min(Number(t.dataset.n), p.unspent.attr); if (n > 0 && CMD().apply(w, { type: 'SpendAttr', key: k, n })) { session[k] += n; BD.ui.panels.rebuild('character'); } },
-      undo: (t) => { const k = t.dataset.key; if (session[k] > 0 && CMD().apply(w, { type: 'UnspendAttr', key: k, n: session[k], max: session[k] })) { session[k] = 0; BD.ui.panels.rebuild('character'); } },
+      add: (t) => {
+        const k = t.dataset.key, n = Math.min(Number(t.dataset.n), p.unspent.attr);
+        if (n > 0 && CMD().apply(w, { type: 'SpendAttr', key: k, n })) {
+          session[k] += n;
+          BD.ui.panels.rebuild('character');
+        }
+      },
+      undo: (t) => {
+        const k = t.dataset.key;
+        if (session[k] > 0 && CMD().apply(w, { type: 'UnspendAttr', key: k, n: session[k], max: session[k] })) {
+          session[k] = 0;
+          BD.ui.panels.rebuild('character');
+        }
+      },
       close: () => BD.ui.panels.close('character'),
     });
   }

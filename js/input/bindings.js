@@ -13,7 +13,8 @@
     skill1: 'Skill slot 1', skill2: 'Skill slot 2', skill3: 'Skill slot 3', skill4: 'Skill slot 4', evade: 'Evade',
     flask: 'Drink flask', portal: 'Read Town Portal', inventory: 'Inventory', character: 'Character sheet', skills: 'Skills',
     journal: 'Journal', map: 'Map overlay', labels: 'Show item labels (hold)', bars: 'Toggle health bars', pause: 'Tactical pause',
-    menu: 'Menu / close', up: 'Move up (WASD mode)', down: 'Move down (WASD mode)', left: 'Move left (WASD mode)', right: 'Move right (WASD mode)',
+    menu: 'Menu / close', up: 'Move up (WASD mode)', down: 'Move down (WASD mode)',
+    left: 'Move left (WASD mode)', right: 'Move right (WASD mode)',
   };
 
   let map = Object.assign({}, DEFAULTS);

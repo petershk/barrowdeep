@@ -11,8 +11,10 @@
   function corridorish(p, x, y) {
     // a tile is in a narrow corridor if both perpendicular sides are blocked within 1 tile
     const wk = (a, b) => BD.data.tiles.WALK[C.get(p, a, b)] === 1;
-    const horiz = !wk(x, y - 1) || !wk(x, y + 1) ? (!wk(x, y - 1) && !wk(x, y + 1)) || (!wk(x, y - 2) && !wk(x, y + 1)) || (!wk(x, y - 1) && !wk(x, y + 2)) : false;
-    const vert = !wk(x - 1, y) || !wk(x + 1, y) ? (!wk(x - 1, y) && !wk(x + 1, y)) || (!wk(x - 2, y) && !wk(x + 1, y)) || (!wk(x - 1, y) && !wk(x + 2, y)) : false;
+    const horiz = (!wk(x, y - 1) || !wk(x, y + 1))
+      && ((!wk(x, y - 1) && !wk(x, y + 1)) || (!wk(x, y - 2) && !wk(x, y + 1)) || (!wk(x, y - 1) && !wk(x, y + 2)));
+    const vert = (!wk(x - 1, y) || !wk(x + 1, y))
+      && ((!wk(x - 1, y) && !wk(x + 1, y)) || (!wk(x - 2, y) && !wk(x + 1, y)) || (!wk(x - 1, y) && !wk(x + 2, y)));
     return horiz || vert;
   }
 
@@ -59,7 +61,10 @@
     const rooms = rng.shuffle(p.rooms.filter((r) => r !== p.upRoom && r !== p.keeperRoom && !r.setpiece));
     const room = rooms[0];
     if (!room) return;
-    const spots = C.roomTiles(p, room).filter(([x, y]) => { const i = y * p.w + x; return p.tiles[i] === T.FLOOR && dist[i] >= 0 && !taken.has(i) && far(x, y); });
+    const spots = C.roomTiles(p, room).filter(([x, y]) => {
+      const i = y * p.w + x;
+      return p.tiles[i] === T.FLOOR && dist[i] >= 0 && !taken.has(i) && far(x, y);
+    });
     if (!spots.length) return;
     const centre = spots.sort((a, b) => cheb(a[0], a[1], room.cx, room.cy) - cheb(b[0], b[1], room.cx, room.cy))[0];
     taken.add(centre[1] * p.w + centre[0]);
@@ -70,9 +75,13 @@
     else if (id === 'trapped_vault') {
       p.objects.push({ kind: 'chest', vault: true, x: centre[0], y: centre[1] });
       const ring = spots.filter(([x, y]) => cheb(x, y, centre[0], centre[1]) === 2 || cheb(x, y, centre[0], centre[1]) === 1).slice(0, 5);
-      for (const [x, y] of ring) { taken.add(y * p.w + x); p.objects.push({ kind: 'trap', trap: rng.pick(['spike', 'fire_vent', 'gas']), x, y, visible: true }); }
+      for (const [x, y] of ring) {
+        taken.add(y * p.w + x);
+        p.objects.push({ kind: 'trap', trap: rng.pick(['spike', 'fire_vent', 'gas']), x, y, visible: true });
+      }
     } else if (id === 'hoarder') {
-      p.spawns.push({ id: 900, members: [{ def: 'hoarder', x: centre[0], y: centre[1], rank: 'unique', name: 'The Hoarder', eventId: 'hoarder' }], kind: 'event' });
+      const hoarder = { def: 'hoarder', x: centre[0], y: centre[1], rank: 'unique', name: 'The Hoarder', eventId: 'hoarder' };
+      p.spawns.push({ id: 900, members: [hoarder], kind: 'event' });
     } else if (id === 'restless_dead') {
       const graves = spots.filter(([x, y]) => cheb(x, y, centre[0], centre[1]) <= 2);
       p.event.tiles = graves;

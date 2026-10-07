@@ -10,7 +10,12 @@
 
   function townState(world) {
     const r = world.run;
-    if (!r.town) r.town = { stock: [], stockAct: 0, rerolls: 0, freeReroll: false, buyback: [], blessOffer: [], flaskUpgradedAct: 0, respecs: 0 };
+    if (!r.town) {
+      r.town = {
+        stock: [], stockAct: 0, rerolls: 0, freeReroll: false,
+        buyback: [], blessOffer: [], flaskUpgradedAct: 0, respecs: 0,
+      };
+    }
     return r.town;
   }
   const al = (world) => world.run.townAl || 1;
@@ -121,7 +126,8 @@
     taken.add(BD.data.affixes[old.id].stat || old.id);
     let next = null;
     for (let k = 0; k < 20 && !next; k++) {
-      const roll = BD.sim.loot.rollAffixes(world.lootRng, base, 'rare', world.player.cls).find((a) => BD.data.affixes[a.id].band === band && !taken.has(BD.data.affixes[a.id].stat || a.id));
+      const rolled = BD.sim.loot.rollAffixes(world.lootRng, base, 'rare', world.player.cls);
+      const roll = rolled.find((a) => BD.data.affixes[a.id].band === band && !taken.has(BD.data.affixes[a.id].stat || a.id));
       if (roll) next = roll;
     }
     if (!next) next = { id: old.id, roll: Math.round(world.lootRng.next() * 1000) / 1000, skill: old.skill, n: old.n };
@@ -226,16 +232,22 @@
   // ---------------- run-level stat contributions ----------------
   function runMods(world, p, add) {
     const r = world.run;
-    if (r.blessing && BD.data.blessings[r.blessing]) { const b = BD.data.blessings[r.blessing]; for (const k in b.mods) add(k, b.mods[k], 'Blessing: ' + b.name); }
-    if (p.background === 'poacher') add('gold_find', 15, 'Poacher');
+    const b = r.blessing && BD.data.blessings[r.blessing];
+    if (b) for (const k in b.mods) add(k, b.mods[k], 'Blessing: ' + b.name);
+    const bg = BD.data.backgrounds[p.background];
+    if (bg && bg.mods) for (const k in bg.mods) add(k, bg.mods[k], bg.name);
   }
 
   function onRunStart(world, opts) {
     const p = world.player;
-    if (opts.background === 'soldier') {
+    const bg = BD.data.backgrounds[opts.background];
+    const start = bg && bg.startItem;
+    if (start) {
       const rng = world.lootRng;
-      const slot = BD.data.classes[p.cls].uses.includes('buckler') && rng.chance(0.5) ? 'offhand' : 'chest';
-      const it = BD.sim.loot.rollItem(world, rng, { ilvl: 1, rarity: 'magic', slot, cls: p.cls, usable: true });
+      // the offhand is only an option for classes that carry a shield
+      const slots = start.slots.filter((s) => s !== 'offhand' || BD.data.classes[p.cls].uses.includes('buckler'));
+      const slot = slots.length > 1 && rng.chance(0.5) ? slots[0] : slots[slots.length - 1];
+      const it = BD.sim.loot.rollItem(world, rng, { ilvl: 1, rarity: start.rarity, slot, cls: p.cls, usable: true });
       p.pack.push(it);
       BD.sim.inventory.equip(world, it.uid);
     }

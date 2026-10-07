@@ -3,7 +3,10 @@
 (function (BD) {
   'use strict';
   const S = (BD.data.skills = BD.data.skills || {});
-  const sk = (o) => { S[o.id] = Object.assign({ cls: 'fighter', tags: [], effects: [], breakpoints: [], cues: { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' } }, o); };
+  const sk = (o) => {
+    const cues = { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' };
+    S[o.id] = Object.assign({ cls: 'fighter', tags: [], effects: [], breakpoints: [], cues }, o);
+  };
 
   // ---------------- Brawn ----------------
   sk({

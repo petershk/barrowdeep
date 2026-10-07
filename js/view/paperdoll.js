@@ -6,7 +6,10 @@
 (function (BD) {
   'use strict';
 
-  const PAL = { 1: '#c8ced8', 2: '#7a8290', 3: '#f4f6fa', 4: '#d2a73f', 5: '#7a5130', 6: '#4a3015', 7: '#ffd75a', 8: '#fff3cf', 9: '#e8e0c8', 0: '#b23a2c' };
+  const PAL = {
+    1: '#c8ced8', 2: '#7a8290', 3: '#f4f6fa', 4: '#d2a73f', 5: '#7a5130',
+    6: '#4a3015', 7: '#ffd75a', 8: '#fff3cf', 9: '#e8e0c8', 0: '#b23a2c',
+  };
 
   /** per class art: rects to erase {x0,x1,y0,y1} for the painted weapon / offhand, and hand anchors */
   const CLASS = {
@@ -19,7 +22,10 @@
   // weapon overlays, drawn upright; g = grip row
   const WEAPON = {
     blade: { g: 7, rows: ['..K..', '.K3K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', 'K444K', '.K5K.', '.K4K.', '..K..'] },
-    blade2: { g: 9, rows: ['..K..', '.K3K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', 'K444K', '.K5K.', '.K5K.', '.K4K.', '..K..'] },
+    blade2: {
+      g: 9,
+      rows: ['..K..', '.K3K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', '.K1K.', 'K444K', '.K5K.', '.K5K.', '.K4K.', '..K..'],
+    },
     axe: { g: 7, rows: ['KKK.', 'K11K', 'K15K', 'K11K', 'KK5K', '.K5K', '.K5K', '.K5K', '.K5K', '..K.'] },
     mace: { g: 6, rows: ['.KKK.', 'K212K', 'K121K', '.KKK.', '.K5K.', '.K5K.', '.K5K.', '.K5K.', '..K..'] },
     dagger: { g: 5, rows: ['..K..', '.K3K.', '.K1K.', '.K1K.', 'K444K', '.K5K.', '..K..'] },
@@ -73,7 +79,13 @@
     if (!cl || !key) return grid;
     const [wk, ok] = key.split('|');
     const rows = grid.map((r) => r.split(''));
-    const erase = (rects) => { for (const [x0, x1, y0, y1] of rects) for (let y = y0; y <= y1 && y < rows.length; y++) for (let x = x0; x <= x1 && x < rows[y].length; x++) rows[y][x] = '.'; };
+    const erase = (rects) => {
+      for (const [x0, x1, y0, y1] of rects) {
+        for (let y = y0; y <= y1 && y < rows.length; y++) {
+          for (let x = x0; x <= x1 && x < rows[y].length; x++) rows[y][x] = '.';
+        }
+      }
+    };
     erase(cl.weapon);
     if (ok !== '-' || artId === 'fighter') erase(cl.offhand);
     if (ok !== '-') stamp(rows, OFFHAND[ok], cl.off[0], cl.off[1]);

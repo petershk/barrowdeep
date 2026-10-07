@@ -44,7 +44,7 @@
 
   /** where a world position sits for the listener: pan −1..1 and gain 0.1..1 */
   function placement(x, y) {
-    const w = BD.app && BD.app.world, p = w && w.player;
+    const w = BD.audio.host.world(), p = w && w.player;
     if (x == null || !p) return { pan: 0, gain: 1 };
     const dx = x - p.x, dy = y - p.y;
     const dist = Math.hypot(dx, dy);
@@ -73,14 +73,18 @@
     r.push(ms);
     const pl = placement(o.x, o.y);
     const j = spec.jitter || { pitch: 0, vol: 0 };
-    const pitch = (o.pitch || 1) * (1 + (Math.random() * 2 - 1) * (j.pitch || 0)) * (spec.stackPitch && o.stack ? 1 + spec.stackPitch * (o.stack - 1) : 1);
+    const stack = spec.stackPitch && o.stack ? 1 + spec.stackPitch * (o.stack - 1) : 1;   // rising pitch per combo stack
+    const pitch = (o.pitch || 1) * (1 + (Math.random() * 2 - 1) * (j.pitch || 0)) * stack;
     const vol = (o.vol == null ? 1 : o.vol) * pl.gain * (1 + (Math.random() * 2 - 1) * (j.vol || 0));
     const pan = ctx.createStereoPanner(); pan.pan.value = pl.pan;
     pan.connect(o.bus === 'music' ? a.music : a.sfx);
     if (o.reverb && a.reverb) { const s = ctx.createGain(); s.gain.value = o.reverb; pan.connect(s); s.connect(a.reverb); }
     const t0 = now + (o.at || 0) + 0.005;
     let end = t0;
-    for (const L of spec.layers) { (L.osc ? tone : noise)(ctx, pan, L, t0, pitch, vol); end = Math.max(end, t0 + L.t + L.dur + (L.repeat ? L.repeat.n * L.repeat.dt : 0)); }
+    for (const L of spec.layers) {
+      (L.osc ? tone : noise)(ctx, pan, L, t0, pitch, vol);
+      end = Math.max(end, t0 + L.t + L.dur + (L.repeat ? L.repeat.n * L.repeat.dt : 0));
+    }
     voices.push(end);
     return true;
   }

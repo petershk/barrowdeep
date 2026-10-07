@@ -61,9 +61,15 @@
 
     // ---- derived ----
     const L = p.level;
-    s.maxLife = Math.round((B.player.lifeBase + B.player.lifePerLevel * (L - 1) + B.player.lifePerVit * s.vit + s.life) * (1 + s.life_pct / 100));
-    s.bdLife = [{ source: 'Base', value: B.player.lifeBase }, { source: 'Level ' + L, value: B.player.lifePerLevel * (L - 1) }, { source: 'Vitality ×' + B.player.lifePerVit, value: B.player.lifePerVit * s.vit }];
-    s.maxMana = p.cls === 'magician' ? Math.round(B.player.manaBase + B.player.manaPerLevel * (L - 1) + B.player.manaPerMag * s.mag + s.mana) : 0;
+    const flatLife = B.player.lifeBase + B.player.lifePerLevel * (L - 1) + B.player.lifePerVit * s.vit + s.life;
+    s.maxLife = Math.round(flatLife * (1 + s.life_pct / 100));
+    s.bdLife = [
+      { source: 'Base', value: B.player.lifeBase },
+      { source: 'Level ' + L, value: B.player.lifePerLevel * (L - 1) },
+      { source: 'Vitality ×' + B.player.lifePerVit, value: B.player.lifePerVit * s.vit },
+    ];
+    const usesMana = BD.data.classes[p.cls].resource === 'mana';
+    s.maxMana = usesMana ? Math.round(B.player.manaBase + B.player.manaPerLevel * (L - 1) + B.player.manaPerMag * s.mag + s.mana) : 0;
     s.manaRegenPerS = B.player.manaRegenBase + B.player.manaRegenPerMag * s.mag + s.mana_regen;
     s.armorTotal = Math.round((s.armor + 0.5 * s.str) * (1 + s.armor_pct / 100));
     s.evasionTotal = Math.round(s.evasion + 2 * s.dex);
@@ -73,7 +79,9 @@
     const pen = BD.data.difficulties ? BD.data.difficulties[world.run.difficulty].resistPenalty + (world.run.ascension >= 8 ? -20 : 0) : 0;
     const cap = B.combat.resistCap + Math.min(B.combat.resistMaxBonus, s.res_max);
     s.res = {};
-    for (const el of ['fire', 'cold', 'light', 'pois']) s.res[el] = Math.max(B.combat.resistMin, Math.min(cap, s['res_' + el] + s.res_all + pen));
+    for (const el of ['fire', 'cold', 'light', 'pois']) {
+      s.res[el] = Math.max(B.combat.resistMin, Math.min(cap, s['res_' + el] + s.res_all + pen));
+    }
     s.res.phys = 0;
     s.resCap = cap;
     s.weapon = weapon;
@@ -96,8 +104,11 @@
     const actH = M.actHp ? M.actHp[Math.min(4, def.act || 1)] || 1 : 1;
     const hpK = M.hpExp ? Math.pow(al, M.hpExp) : Math.pow(M.hpGrowth, al - 1);
     // Keepers and unique elites scale from their act's mean life, so a tank species isn't a ×8 tank
-    const actMean = def.act && BD.data.monsterRef && e.rank !== 'boss' && e.rank !== 'malgoth' ? BD.data.monsterRef.actRef(Math.min(4, def.act)).hp : def.hp;
-    const baseHp = e.rank === 'keeper' || e.rank === 'unique' ? actMean * ((M.keeperAct && M.keeperAct[Math.min(4, def.act || 1)]) || 1) : e.rank === 'champion' ? (def.hp + actMean) / 2 : def.hp;
+    const useActRef = def.act && BD.data.monsterRef && e.rank !== 'boss' && e.rank !== 'malgoth';
+    const actMean = useActRef ? BD.data.monsterRef.actRef(Math.min(4, def.act)).hp : def.hp;
+    let baseHp = def.hp;
+    if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[Math.min(4, def.act || 1)]) || 1);
+    else if (e.rank === 'champion') baseHp = (def.hp + actMean) / 2;
     s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
     const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK; s.dmgHi = def.dmg[1] * dmgK;
@@ -119,7 +130,10 @@
   function statsOf(world, e) {
     const v = e.statsVersion + ':' + globalVersion + ':' + (e.kind === 'player' ? e.level : e.al);
     if (e._stats && e._statsV === v) return e._stats;
-    const s = e.kind === 'player' ? playerStats(world, e) : e.kind === 'ally' && BD.sim.allies ? BD.sim.allies.stats(world, e) : monsterStats(world, e);
+    let s;
+    if (e.kind === 'player') s = playerStats(world, e);
+    else if (e.kind === 'ally' && BD.sim.allies) s = BD.sim.allies.stats(world, e);
+    else s = monsterStats(world, e);
     Object.defineProperty(e, '_stats', { value: s, writable: true, configurable: true, enumerable: false });
     Object.defineProperty(e, '_statsV', { value: v, writable: true, configurable: true, enumerable: false });
     return s;

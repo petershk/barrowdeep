@@ -28,7 +28,7 @@
   }
 
   function hover(ctx, world) {
-    const m = BD.input.mouse, f = world.floor;
+    const m = BD.view.host.pointer, f = world.floor;
     if (!m.inside || !m.hoverTile || m.hoverEntity) return;
     const { x, y } = m.hoverTile;
     if (x < 0 || y < 0 || x >= f.w || y >= f.h || !f.explored[y * f.w + x]) return;
@@ -40,7 +40,10 @@
     if (!ok) {
       iso.toScreen(x, y, tmp);
       const s = 4 * iso.view.S;
-      ctx.beginPath(); ctx.moveTo(tmp.x - s, tmp.y - s / 2); ctx.lineTo(tmp.x + s, tmp.y + s / 2); ctx.moveTo(tmp.x + s, tmp.y - s / 2); ctx.lineTo(tmp.x - s, tmp.y + s / 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(tmp.x - s, tmp.y - s / 2); ctx.lineTo(tmp.x + s, tmp.y + s / 2);
+      ctx.moveTo(tmp.x + s, tmp.y - s / 2); ctx.lineTo(tmp.x - s, tmp.y + s / 2);
+      ctx.stroke();
     }
   }
 

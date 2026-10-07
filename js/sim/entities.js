@@ -46,7 +46,7 @@
     for (let r = 0; r <= maxR && frontier.length; r++) {
       const next = [];
       for (const [cx, cy] of frontier) {
-        if ((r > 0 || true) && isFree(f, cx, cy) && (!pred || pred(cx, cy))) return { x: cx, y: cy };
+        if (isFree(f, cx, cy) && (!pred || pred(cx, cy))) return { x: cx, y: cy };
         for (const [dx, dy] of DIRS) {
           const nx = cx + dx, ny = cy + dy, k = ny * f.w + nx;
           if (!inBounds(f, nx, ny) || seen.has(k)) continue;
@@ -75,5 +75,21 @@
     for (const e of all(world)) if (e.faction !== faction && e.hp > 0) yield e;
   }
 
-  BD.sim.entities = { makeEntity, get, inBounds, walkable, occupant, isFree, occupy, vacate, relocate, addToFloor, nearestFree, posOf, all, enemiesOf };
+  /** Rank traits from data (boss, fearless, steady); {} for the player and rankless entities. */
+  const NO_RANK = {};
+  const rankOf = (e) => (e && e.rank && BD.data.balance.monsters.ranks[e.rank]) || NO_RANK;
+  const isBoss = (e) => !!rankOf(e).boss;
+
+  /** Take an entity off the floor without killing it (escapes, despawns). No death hooks, no loot. */
+  function remove(world, e) {
+    const f = world.floor;
+    vacate(f, e);
+    f.entities.delete(e.id);
+    if (f.keeperId === e.id) f.keeperId = null;
+  }
+
+  BD.sim.entities = {
+    makeEntity, get, inBounds, walkable, occupant, isFree, occupy, vacate, relocate, addToFloor, nearestFree, posOf, all, enemiesOf,
+    rankOf, isBoss, remove,
+  };
 })(globalThis.BD);

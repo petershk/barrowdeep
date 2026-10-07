@@ -62,7 +62,9 @@
     const last = Math.max(p.lastHitMs, p.lastDamagedMs, p.lastActMs || -1e9);
     if (world.time - last >= 2000 && !BD.sim.status.has(p, 'hidden')) BD.sim.status.apply(world, p, 'hidden', { durMs: 0 });
   }
-  BD.sim.damage.onHitHooks.push((world, src, tgt) => { if (tgt.kind === 'player' && BD.sim.status.has(tgt, 'hidden')) BD.sim.status.remove(world, tgt, 'hidden'); });
+  BD.sim.damage.onHitHooks.push((world, src, tgt) => {
+    if (tgt.kind === 'player' && BD.sim.status.has(tgt, 'hidden')) BD.sim.status.remove(world, tgt, 'hidden');
+  });
 
   // ---------------- Tiger Strike ----------------
   reg('tiger_strike.before', (world, p, ab, rank, { ctx }) => {
@@ -82,12 +84,20 @@
       if (ab.collide && kb.collided && kb.collided.entityId) {
         const other = E.get(world, kb.collided.entityId);
         const hit = H.computeHit(world, p, ab, { source: 'weapon', mult: ab.collide }, rank, { rng: world.rng });
-        for (const t of [r.tgt, other]) if (t && t.faction !== p.faction && !dead(t)) BD.sim.damage.dealDamage(world, { srcId: p.id, tgtId: t.id, amounts: hit.amounts, tags: ['collide'], canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: 'dragon_talon' });
+        for (const t of [r.tgt, other]) {
+          if (!t || t.faction === p.faction || dead(t)) continue;
+          BD.sim.damage.dealDamage(world, {
+            srcId: p.id, tgtId: t.id, amounts: hit.amounts, tags: ['collide'],
+            canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: 'dragon_talon',
+          });
+        }
         world.events.push({ type: 'collide', id: r.tgt.id, x: r.tgt.x, y: r.tgt.y });
       }
     }
   });
-  reg('dragon_talon.landed', (world, p, ab, rank, { landed }) => { if (ab.killRefund && landed.some((r) => dead(r.tgt))) R.addCombo(world, p, ab.killRefund); });
+  reg('dragon_talon.landed', (world, p, ab, rank, { landed }) => {
+    if (ab.killRefund && landed.some((r) => dead(r.tgt))) R.addCombo(world, p, ab.killRefund);
+  });
 
   // ---------------- Phoenix Strike: the element follows the charges ----------------
   reg('phoenix_strike.before', (world, p, ab, rank, { a, ctx }) => {
@@ -98,19 +108,35 @@
       const tiles = G.shapeOffsets('circle', area).map(([dx, dy]) => [p.x + dx, p.y + dy]);
       const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction);
       ctx.aoe = true; ctx.centerId = null;
-      world.events.push({ type: 'ability.explode', abilityId: 'phoenix_strike', x: p.x, y: p.y, area: { shape: 'circle', radius: area }, element: eff.element, kind: 'nova' });
+      world.events.push({
+        type: 'ability.explode', abilityId: 'phoenix_strike', x: p.x, y: p.y,
+        area: { shape: 'circle', radius: area }, element: eff.element, kind: 'nova',
+      });
       results = H.applyEffects(world, ctx, [eff].concat(extraEffects || []), targets);
-      if (ab.field) BD.sim.zones.ground(world, eff.element === 'cold' ? 'frost_patch' : 'burning_ground', tiles, { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.25 });
+      if (ab.field) {
+        const zone = eff.element === 'cold' ? 'frost_patch' : 'burning_ground';
+        BD.sim.zones.ground(world, zone, tiles, { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.25 });
+      }
     };
     if (n === 0) run({ type: 'damage', source: 'weapon', mult: 0.8, element: 'fire' }, 1 + x);
-    else if (n === 1) run({ type: 'damage', source: 'weapon', mult: 1.4, element: 'fire' }, 2 + x, [{ type: 'status', id: 'burning', needsHit: true }]);
-    else if (n === 3) run({ type: 'damage', source: 'weapon', mult: 1.8, element: 'cold' }, 3 + x, [{ type: 'status', id: 'frozen', durMs: 1500 }]);
-    else {
+    else if (n === 1) {
+      run({ type: 'damage', source: 'weapon', mult: 1.4, element: 'fire' }, 2 + x, [{ type: 'status', id: 'burning', needsHit: true }]);
+    } else if (n === 3) {
+      run({ type: 'damage', source: 'weapon', mult: 1.8, element: 'cold' }, 3 + x, [{ type: 'status', id: 'frozen', durMs: 1500 }]);
+    } else {
       const first = BD.sim.targeting.nearestEnemy(world, p.x, p.y, 5, p.faction, { los: true });
       if (first) {
-        const cab = Object.assign({}, ab, { effects: [{ type: 'damage', source: 'weapon', mult: 1.2, element: 'light' }, { type: 'status', id: 'shocked', needsHit: true }], delivery: { kind: 'chain', jumps: 4 + 2 * x, jumpRange: 3, falloff: 0 } });
+        const cab = Object.assign({}, ab, {
+          effects: [{ type: 'damage', source: 'weapon', mult: 1.2, element: 'light' }, { type: 'status', id: 'shocked', needsHit: true }],
+          delivery: { kind: 'chain', jumps: 4 + 2 * x, jumpRange: 3, falloff: 0 },
+        });
         results = FX.chain(world, ctx, cab, first, 4 + 2 * x, 3);
-        if (ab.field) for (const r of results) BD.sim.zones.ground(world, 'static_field', [[r.tgt.x, r.tgt.y]], { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.1 });
+        if (ab.field) {
+          for (const r of results) {
+            const o = { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.1 };
+            BD.sim.zones.ground(world, 'static_field', [[r.tgt.x, r.tgt.y]], o);
+          }
+        }
       }
     }
     FX.afterHits(world, p, ab, rank, a, results);
@@ -140,15 +166,17 @@
     if (PW.has(p, 'gearheart')) n += 2;
     return n + (BD.sim.stats.statsOf(world, p).sentry_max || 0);
   }
-  reg('lightning_sentry.summon', (world, p, ab, rank, { tx, ty, ctx }) => {
+  reg('lightning_sentry.summon', (world, p, ab, rank, { tx, ty }) => {
     const f = world.floor;
     if (!E.walkable(f, tx, ty)) return;
     const combo = R.takeCombo(world, p);
     const durK = 1 + (BD.sim.stats.statsOf(world, p).sentry_dur_pct || 0) / 100;
     const list = A.deployed(world, 'lightning_sentry');
     while (list.length >= sentryCap(world, p, ab)) A.removeDeploy(world, list.shift());
-    A.deploy(world, { kind: 'lightning_sentry', x: tx, y: ty, shots: Math.round((ab.shots + 2 * combo) * durK), timer: ab.intervalMs * 0.5, rank, chain: ab.chain || 0 });
-    void ctx;
+    A.deploy(world, {
+      kind: 'lightning_sentry', x: tx, y: ty, shots: Math.round((ab.shots + 2 * combo) * durK),
+      timer: ab.intervalMs * 0.5, rank, chain: ab.chain || 0,
+    });
   });
   A.registerKind('lightning_sentry', {
     tick(world, d, dt) {
@@ -164,7 +192,11 @@
     },
   });
   function sentryTarget(world, p, d, range) {
-    if (ks(p, 'clockwork_mind') && p.lockId != null) { const l = E.get(world, p.lockId); if (l && !dead(l) && within(l.x, l.y, d.x, d.y, range) && BD.sim.targeting.hasLOS(world, d.x, d.y, l.x, l.y)) return l; }
+    if (ks(p, 'clockwork_mind') && p.lockId != null) {
+      // Clockwork Mind: sentries fire at your locked target when they can see it
+      const l = E.get(world, p.lockId);
+      if (l && !dead(l) && within(l.x, l.y, d.x, d.y, range) && BD.sim.targeting.hasLOS(world, d.x, d.y, l.x, l.y)) return l;
+    }
     return BD.sim.targeting.nearestEnemy(world, d.x, d.y, range, 'player', { los: true });
   }
   function sentryCtx(world, p, ab, d) {
@@ -181,14 +213,20 @@
     const res = H.applyEffects(world, ctx, [eff], [t]);
     if (d.chain && res.length) {
       const next = BD.sim.targeting.nearestEnemy(world, t.x, t.y, 3, 'player', { exclude: new Set([t.id]) });
-      if (next) { world.events.push({ type: 'chain', srcId: p.id, fromX: t.x, fromY: t.y, x: next.x, y: next.y, abilityId: 'lightning_sentry' }); H.applyEffects(world, ctx, [eff], [next]); }
+      if (next) {
+        world.events.push({ type: 'chain', srcId: p.id, fromX: t.x, fromY: t.y, x: next.x, y: next.y, abilityId: 'lightning_sentry' });
+        H.applyEffects(world, ctx, [eff], [next]);
+      }
     }
   }
 
   reg('death_sentry.summon', (world, p, ab, rank, { tx, ty }) => {
     if (!E.walkable(world.floor, tx, ty)) return;
     const durK = 1 + (BD.sim.stats.statsOf(world, p).sentry_dur_pct || 0) / 100;
-    A.deploy(world, { kind: 'death_sentry', x: tx, y: ty, lifeMs: ab.lifeMs * durK, timer: ab.intervalMs * 0.5, rank, corpses: ab.corpses, vulnerable: !!ab.vulnerable });
+    A.deploy(world, {
+      kind: 'death_sentry', x: tx, y: ty, lifeMs: ab.lifeMs * durK, timer: ab.intervalMs * 0.5,
+      rank, corpses: ab.corpses, vulnerable: !!ab.vulnerable,
+    });
   });
   A.registerKind('death_sentry', {
     tick(world, d, dt) {
@@ -198,7 +236,10 @@
       const p = world.player, ab = BD.sim.abilities.resolved(BD.data.skills.death_sentry, d.rank, p);
       d.timer += ab.intervalMs;
       const f = world.floor;
-      const corpses = f.corpses.filter((c) => within(c.x, c.y, d.x, d.y, 5) && !c.revived).sort((a, b) => cheb(a.x, a.y, d.x, d.y) - cheb(b.x, b.y, d.x, d.y)).slice(0, d.corpses);
+      const corpses = f.corpses
+        .filter((c) => within(c.x, c.y, d.x, d.y, 5) && !c.revived)
+        .sort((a, b) => cheb(a.x, a.y, d.x, d.y) - cheb(b.x, b.y, d.x, d.y))
+        .slice(0, d.corpses);
       if (!corpses.length) {
         const t = sentryTarget(world, p, d, 7);
         if (t) sentryShoot(world, p, d, ab, t);
@@ -211,7 +252,11 @@
         world.events.push({ type: 'corpse.explode', x: c.x, y: c.y, id: c.id });
         const tiles = G.shapeOffsets('circle', 2).map(([dx, dy]) => [c.x + dx, c.y + dy]);
         for (const e of BD.sim.targeting.entitiesOnTiles(world, tiles, 'player')) {
-          BD.sim.damage.dealDamage(world, { srcId: p.id, tgtId: e.id, amounts: { fire: amount }, tags: ['aoe', 'trap'], canCrit: ks(p, 'clockwork_mind'), canDodge: false, canBlock: false, mult: 1, abilityId: 'death_sentry', noOnHit: !ks(p, 'clockwork_mind') });
+          BD.sim.damage.dealDamage(world, {
+            srcId: p.id, tgtId: e.id, amounts: { fire: amount }, tags: ['aoe', 'trap'],
+            canCrit: ks(p, 'clockwork_mind'), canDodge: false, canBlock: false, mult: 1,
+            abilityId: 'death_sentry', noOnHit: !ks(p, 'clockwork_mind'),
+          });
           if (d.vulnerable) BD.sim.status.apply(world, e, 'vulnerable', { durMs: 4000, sourceId: p.id });
         }
       }
@@ -224,19 +269,30 @@
   BD.sim.damage.onKillHooks.push((world, v, killer) => {
     if (!killer || killer.kind !== 'player' || !PW.has(killer, 'nightspur') || !killer.skills.shadowstep) return;
     const c = killer.charges && killer.charges.shadowstep;
-    if (c) { c.n = BD.sim.abilities.maxCharges(world, killer, BD.sim.abilities.resolved(BD.data.skills.shadowstep, BD.sim.abilities.rankOf(world, killer, 'shadowstep'), killer)); c.ms = 0; }
+    if (c) {
+      const rank = BD.sim.abilities.rankOf(world, killer, 'shadowstep');
+      c.n = BD.sim.abilities.maxCharges(world, killer, BD.sim.abilities.resolved(BD.data.skills.shadowstep, rank, killer));
+      c.ms = 0;
+    }
     killer.cooldowns.shadowstep = 0;
   });
 
   reg('smoke_bomb.impact', (world, p, ab) => {
     const veil = PW.has(p, 'veilweave');
     const tiles = G.shapeOffsets('circle', ab.smoke.radius).map(([dx, dy]) => [p.x + dx, p.y + dy]);
-    BD.sim.zones.ground(world, 'smoke', tiles, { durMs: ab.smoke.durMs + (veil ? 3000 : 0), faction: 'player', srcId: p.id, follow: ab.followSmoke || veil ? p.id : null, cx: p.x, cy: p.y });
+    BD.sim.zones.ground(world, 'smoke', tiles, {
+      durMs: ab.smoke.durMs + (veil ? 3000 : 0), faction: 'player', srcId: p.id,
+      follow: ab.followSmoke || veil ? p.id : null, cx: p.x, cy: p.y,
+    });
   });
 
   reg('shadow_master.summon', (world, p, ab, rank) => {
     for (const c of A.alliesOf(world, 'clone')) A.despawn(world, c);
-    A.spawnAlly(world, p, { kind: 'clone', x: p.x + 1, y: p.y, art: 'thief', pal: { H: '#3a3050', h: '#2a2238', x: '#1a1424', F: '#6a5a8a', f: '#4a3a6a', W: '#c0a0ff' }, lifeMs: ab.cloneMs, mult: BD.sim.abilities.scale({ mult: ab.cloneMult }, rank), decoy: 0.4, rank, lifePct: 0.6 });
+    A.spawnAlly(world, p, {
+      kind: 'clone', x: p.x + 1, y: p.y, art: 'thief',
+      pal: { H: '#3a3050', h: '#2a2238', x: '#1a1424', F: '#6a5a8a', f: '#4a3a6a', W: '#c0a0ff' },
+      lifeMs: ab.cloneMs, mult: BD.sim.abilities.scale({ mult: ab.cloneMult }, rank), decoy: 0.4, rank, lifePct: 0.6,
+    });
   });
   /** the clone copies your finishers (and Tiger Strike from rank 3) on its own target */
   PW.CLASS_AFTER.push((world, p, ab, rank, landed) => {
@@ -255,7 +311,9 @@
   });
 
   // ---------------- legendaries ----------------
-  PW.registerMod('wormtongue', (ab) => { if (ab.id === 'tiger_strike') ab.effects = ab.effects.concat([{ type: 'status', id: 'poisoned', needsHit: true }]); });
+  PW.registerMod('wormtongue', (ab) => {
+    if (ab.id === 'tiger_strike') ab.effects = ab.effects.concat([{ type: 'status', id: 'poisoned', needsHit: true }]);
+  });
   PW.CLASS_AFTER.push((world, p, ab, rank, landed) => {
     if (isAssassin(p) && PW.has(p, 'marrowfang') && ab.resource && ab.resource.combo === 'finish' && landed.length) R.addCombo(world, p, 1);
   });

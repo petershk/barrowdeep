@@ -39,8 +39,16 @@
   /** Carve an L corridor of the given width between two points (skips protected tiles). */
   function carveL(p, ax, ay, bx, by, width, horizFirst) {
     const off = -Math.floor((width - 1) / 2);
-    const hseg = (y, x0, x1) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let k = 0; k < width; k++) setFree(p, x, y + off + k, T.FLOOR); };
-    const vseg = (x, y0, y1) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let k = 0; k < width; k++) setFree(p, x + off + k, y, T.FLOOR); };
+    const hseg = (y, x0, x1) => {
+      for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+        for (let k = 0; k < width; k++) setFree(p, x, y + off + k, T.FLOOR);
+      }
+    };
+    const vseg = (x, y0, y1) => {
+      for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) {
+        for (let k = 0; k < width; k++) setFree(p, x + off + k, y, T.FLOOR);
+      }
+    };
     if (horizFirst) { hseg(ay, ax, bx); vseg(bx, ay, by); }
     else { vseg(ax, ay, by); hseg(by, ax, bx); }
   }
@@ -200,5 +208,8 @@
   }
 
   BD.sim.gen = BD.sim.gen || {};
-  BD.sim.gen.carve = { newPlan, idx, get, set, setFree, fillRect, rectFree, walkFn, reach, carveL, regions, tunnel, connectAll, reachableFloor, roomsFromOpenAreas, roomTiles };
+  BD.sim.gen.carve = {
+    newPlan, idx, get, set, setFree, fillRect, rectFree, walkFn, reach,
+    carveL, regions, tunnel, connectAll, reachableFloor, roomsFromOpenAreas, roomTiles,
+  };
 })(globalThis.BD);

@@ -1,7 +1,7 @@
 // @ts-check
 // Bosses (04 §5). Each boss is a monster def (rank 'boss') with an authored kit. HP = 35 × the act
 // roster's mean base HP (rank.hp), DMG = the roster's mean damage (rank.dmg 1.6). Move multipliers
-// are relative to the boss's DMG (05 §3). Moves are implemented once in sim/boss_moves.js.
+// are relative to the boss's DMG (05 §3). Moves are implemented once in sim/bosses/.
 (function (BD) {
   'use strict';
 
@@ -56,7 +56,7 @@
       { move: 'venom_spit', weight: 3, minRange: 2, maxRange: 9, cdMs: 6000, mult: 3, armMs: 1000, count: 3 },
       { move: 'web_spray', weight: 3, minRange: 1, maxRange: 4, cdMs: 6000, armMs: 700, length: 4 },
       { move: 'burrow_strike', weight: 3, minRange: 3, maxRange: 99, cdMs: 11000, mult: 6, armMs: 800, exposedMs: 1400 },
-      { move: 'brood', weight: 2, minRange: 0, maxRange: 99, cdMs: 16000 },
+      { move: 'brood', weight: 2, minRange: 0, maxRange: 99, cdMs: 16000, from: 'egg_clutch', add: 'cave_spider', perClutch: 2 },
     ],
     opener: 'brood',
     phases: [{ atPct: 50, speedMult: 1.2, name: 'Frenzied', onEnter: 'web_edges', mods: { burrow_strike: { cdMult: 0.5 } } }],

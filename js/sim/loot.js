@@ -118,7 +118,8 @@
       const rest = pool.filter((l) => l.cls !== cls);
       L = rng.chance(0.5) && mine.length ? rng.pick(mine) : rng.pick(rest.length ? rest : pool);
     }
-    const item = BD.sim.items.make(world, L.base, ilvl, 'legendary', L.affixes.map((id) => ({ id, roll: Math.round(rng.next() * 1000) / 1000 })), { legendary: L.id, name: L.name });
+    const affixes = L.affixes.map((id) => ({ id, roll: Math.round(rng.next() * 1000) / 1000 }));
+    const item = BD.sim.items.make(world, L.base, ilvl, 'legendary', affixes, { legendary: L.id, name: L.name });
     return item;
   }
 
@@ -162,7 +163,10 @@
     const spot = E.nearestFree(f, x, y, 4, (tx, ty) => !used.has(ty * f.w + tx)) || E.nearestFree(f, x, y, 4) || { x, y };
     const gi = Object.assign({ uid: g.item ? g.item.uid : BD.sim.items.newUid(world), x: spot.x, y: spot.y }, g);
     f.items.push(gi);
-    world.events.push({ type: 'loot.drop', uid: gi.uid, kind: gi.kind, rarity: gi.item ? gi.item.rarity : null, x: gi.x, y: gi.y, fromX: x, fromY: y, name: gi.item ? BD.sim.items.derive(gi.item).name : null });
+    world.events.push({
+      type: 'loot.drop', uid: gi.uid, kind: gi.kind, rarity: gi.item ? gi.item.rarity : null,
+      x: gi.x, y: gi.y, fromX: x, fromY: y, name: gi.item ? BD.sim.items.derive(gi.item).name : null,
+    });
     return gi;
   }
 
@@ -182,12 +186,16 @@
       if (rng.chance(0.30 * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
       if (rng.chance(0.05)) dropAt(world, e.x, e.y, { kind: 'scroll', scroll: rng.chance(0.75) ? 'portal' : 'reveal' });
     } else if (rank === 'champion') {
-      for (let i = 0; i < dropCount(rng, loreMult); i++) dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: 'magic' }) });
+      for (let i = 0; i < dropCount(rng, loreMult); i++) {
+        dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: 'magic' }) });
+      }
       dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, 2) });
       if (rng.chance(0.5 * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
     } else if (elite) {
       const n = dropCount(rng, 2 * loreMult);
-      for (let i = 0; i < n; i++) dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: i === 0 ? 'rare' : 'magic' }) });
+      for (let i = 0; i < n; i++) {
+        dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: i === 0 ? 'rare' : 'magic' }) });
+      }
       dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, 6) });
       dropAt(world, e.x, e.y, { kind: 'orb' });
     }
@@ -215,12 +223,17 @@
     const rng = world.lootRng, al = world.floor.al;
     const n = rng.int(1, 2);
     const rareIdx = rng.chance(0.15) ? 0 : -1;
-    for (let i = 0; i < n; i++) dropAt(world, o.x, o.y, { kind: 'item', item: rollItem(world, rng, { ilvl: al, min: i === rareIdx ? 'rare' : null }) });
+    for (let i = 0; i < n; i++) {
+      dropAt(world, o.x, o.y, { kind: 'item', item: rollItem(world, rng, { ilvl: al, min: i === rareIdx ? 'rare' : null }) });
+    }
     if (rng.chance(0.6)) dropAt(world, o.x, o.y, { kind: 'gold', amount: goldOf(world, al, 4) });
     if (rng.chance(0.3)) dropAt(world, o.x, o.y, { kind: 'orb' });
   }
 
-  BD.sim.damage.onKillHooks.push((world, e) => { if (!(e.rank === 'boss' || e.rank === 'malgoth')) onKill(world, e); });
+  BD.sim.damage.onKillHooks.push((world, e) => { if (!BD.sim.entities.isBoss(e)) onKill(world, e); });
 
-  BD.sim.loot = { slotTags, usableBy, classesFor, rollRarity, smartP, pickBase, rollAffixes, rollItem, makeLegendary, legendaryPool, dropAt, onKill, bossDrop, chestDrop, goldOf, mfOf, magicName };
+  BD.sim.loot = {
+    slotTags, usableBy, classesFor, rollRarity, smartP, pickBase, rollAffixes, rollItem, makeLegendary, legendaryPool,
+    dropAt, onKill, bossDrop, chestDrop, goldOf, mfOf, magicName,
+  };
 })(globalThis.BD);

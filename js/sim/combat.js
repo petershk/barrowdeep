@@ -30,7 +30,10 @@
     // swing at the air toward the tile
     const w = BD.sim.stats.statsOf(world, p).weapon;
     const near = BD.sim.targeting.nearestEnemy(world, x, y, 1.5, 'player', null);
-    if (near && (w.projectile || BD.core.util.cheb(p.x, p.y, near.x, near.y) <= 1)) { AB().tryCast(world, p, 'attack', { entityId: near.id }); return; }
+    if (near && (w.projectile || BD.core.util.cheb(p.x, p.y, near.x, near.y) <= 1)) {
+      AB().tryCast(world, p, 'attack', { entityId: near.id });
+      return;
+    }
     p.dir = BD.core.util.dirOf(x - p.x, y - p.y);
     world.events.push({ type: 'miss', srcId: p.id, tgtId: null, reason: 'whiff', tags: ['melee'], x, y });
   }
@@ -72,14 +75,23 @@
   // ---- corpses: sim objects with a lifetime (revives, ghouls, Death Sentry, Pyre) ----
   BD.sim.damage.onKillHooks.push((world, e) => {
     const d = BD.sim.monsters.defOf(e);
-    if (!d || d.spawner || e.def === 'hellimp') return;
+    if (!d || d.spawner || d.role === 'bomber') return;   // bombers blow themselves up
     const max = BD.sim.stats.statsOf(world, e).maxLife;
-    world.floor.corpses.push({ id: e.id, def: e.def, x: e.x, y: e.y, packId: e.packId, rank: e.rank, maxLife: max, ms: B.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null });
+    world.floor.corpses.push({
+      id: e.id, def: e.def, x: e.x, y: e.y, packId: e.packId, rank: e.rank, maxLife: max,
+      ms: B.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null,
+    });
     world.events.push({ type: 'corpse', id: e.id, def: e.def, x: e.x, y: e.y });
   });
   function corpseSystem(world, dt) {
     const c = world.floor.corpses;
-    for (let i = 0; i < c.length; i++) { c[i].ms -= dt; if (c[i].ms <= 0) { world.events.push({ type: 'corpse.end', id: c[i].id }); c.splice(i--, 1); } }
+    for (let i = 0; i < c.length; i++) {
+      c[i].ms -= dt;
+      if (c[i].ms <= 0) {
+        world.events.push({ type: 'corpse.end', id: c[i].id });
+        c.splice(i--, 1);
+      }
+    }
   }
 
   BD.sim.combat = { basicRange, playerBasicAttack, forceAttack, drinkFlask, queueSystem, corpseSystem };

@@ -1,7 +1,10 @@
 // @ts-check
 // Commands: the only way input devices, UI and the bot change the world (06 §10).
-// Queued commands are applied at the start of the next step; UI commands may be applied
-// immediately through the same handlers while the world is paused.
+// Two doors in:
+//   issue(world, cmd)  queue any command; it runs at the start of the next step (moving, fighting).
+//   apply(world, cmd)  run a menu command right now, also while the world is paused (equip, buy,
+//                      spend points). Only commands registered with { ui: true } pass this door.
+// A dead hero can only use commands registered with { whileDead: true } (the Bargain, Harvest).
 (function (BD) {
   'use strict';
 
@@ -9,29 +12,41 @@
 
   /** @type {Record<string, (world:any, cmd:any)=>any>} */
   const handlers = {};
-  /** UI commands allowed while paused. */
+  /** menu commands: may run immediately through apply() */
   const UI_CMDS = new Set();
+  /** commands a dead hero may still use */
+  const DEAD_CMDS = new Set();
 
+  /** @param {{ui?: boolean, whileDead?: boolean}} [opts] */
   function register(type, fn, opts) {
     handlers[type] = fn;
     if (opts && opts.ui) UI_CMDS.add(type);
+    if (opts && opts.whileDead) DEAD_CMDS.add(type);
   }
 
   function issue(world, cmd) { world.commandQueue.push(cmd); }
 
-  /** Apply immediately (UI panels while paused). Returns the handler's result. */
-  function apply(world, cmd) {
+  function run(world, cmd) {
     const fn = handlers[cmd.type];
     if (!fn) { BD.core.util.warnOnce('unknown command ' + cmd.type); return null; }
-    if (world.player && world.player.dead && cmd.type !== 'Bargain' && cmd.type !== 'Harvest') return null;
+    if (world.player && world.player.dead && !DEAD_CMDS.has(cmd.type)) return null;
     return fn(world, cmd);
+  }
+
+  /** Run a menu command now (panels, also while paused). Returns the handler's result. */
+  function apply(world, cmd) {
+    if (!UI_CMDS.has(cmd.type)) {
+      BD.core.util.warnOnce('not a menu command (use issue): ' + cmd.type);
+      return null;
+    }
+    return run(world, cmd);
   }
 
   function applyQueue(world) {
     const q = world.commandQueue;
     if (!q.length) return;
     world.commandQueue = [];
-    for (const cmd of q) apply(world, cmd);
+    for (const cmd of q) run(world, cmd);
   }
 
   // ---- movement & basic interaction ----

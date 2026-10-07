@@ -37,7 +37,12 @@
       if (rank < bp.rank) continue;
       if (bp.add) out.effects = out.effects.concat(bp.add);
       if (bp.addSelf) out.selfEffects = out.selfEffects.concat(bp.addSelf);
-      if (bp.set) for (const k in bp.set) out[k] = typeof bp.set[k] === 'object' && !Array.isArray(bp.set[k]) ? Object.assign({}, out[k], bp.set[k]) : bp.set[k];
+      if (bp.set) {
+        for (const k in bp.set) {
+          const v = bp.set[k];
+          out[k] = typeof v === 'object' && !Array.isArray(v) ? Object.assign({}, out[k], v) : v;
+        }
+      }
     }
     if (BD.sim.powers && p) BD.sim.powers.modifyAbility(out, rank, p);
     return out;
@@ -155,7 +160,8 @@
       }
       if (t.requiresVisible) {
         const f = world.floor;
-        if (!f.explored[tgt.y * f.w + tgt.x] || (t.mode === 'point' && !f.visible[tgt.y * f.w + tgt.x])) return reject(world, p, ab, 'out_of_range');
+        const ti = tgt.y * f.w + tgt.x;
+        if (!f.explored[ti] || (t.mode === 'point' && !f.visible[ti])) return reject(world, p, ab, 'out_of_range');
       }
     }
     if (BD.sim.effects.precheck) { const pr = BD.sim.effects.precheck(world, p, ab, rank, tgt); if (pr) return reject(world, p, ab, pr); }
@@ -182,7 +188,10 @@
     const v = validate(world, p, ab, rank, tgt);
     if (v.reject) return 'reject';
     if (v.approach) {
-      p.intent = { kind: 'approachThenCast', abilityId, targetId: tgt.entity ? tgt.entity.id : null, x: tgt.x, y: tgt.y, range: ab.targeting.range, hold: !!(opts && opts.hold) };
+      p.intent = {
+        kind: 'approachThenCast', abilityId, targetId: tgt.entity ? tgt.entity.id : null,
+        x: tgt.x, y: tgt.y, range: ab.targeting.range, hold: !!(opts && opts.hold),
+      };
       if (!tgt.entity) p.intent.kind = 'approachPoint';
       return 'approach';
     }
@@ -204,17 +213,25 @@
     const tm = timing(world, p, ab);
     const comboHeld = R().combo(p);
     p.attack = {
-      abilityId: ab.id, rank, phase: ab.channel ? 'channel' : 'windup', remaining: ab.channel ? ab.channel.tickMs : tm.windup, recover: tm.recover,
+      abilityId: ab.id, rank, phase: ab.channel ? 'channel' : 'windup',
+      remaining: ab.channel ? ab.channel.tickMs : tm.windup, recover: tm.recover,
       tx: tgt.x, ty: tgt.y, targetId: tgt.entity ? tgt.entity.id : null, spentType: res.type, spent, cdSet: cd, comboHeld,
-      focusHeld: p.resources.focus ? p.resources.focus.n + (res.type === 'focus' ? spent : 0) : 0, heldMs: 0, cancellable: !!ab.cancelOnMove,
+      focusHeld: p.resources.focus ? p.resources.focus.n + (res.type === 'focus' ? spent : 0) : 0,
+      heldMs: 0, cancellable: !!ab.cancelOnMove,
       telegraph: !!ab.selfTelegraph,
     };
     p.lastActMs = world.time;
     if (ab.isSpell && res.cost && res.type === 'mana') p.lastCastMs = world.time;
-    world.events.push({ type: 'ability.cast', id: p.id, abilityId: ab.id, x: p.x, y: p.y, tx: tgt.x, ty: tgt.y, windupMs: tm.windup, weapon: ST().statsOf(world, p).weapon.fx });
+    world.events.push({
+      type: 'ability.cast', id: p.id, abilityId: ab.id, x: p.x, y: p.y, tx: tgt.x, ty: tgt.y,
+      windupMs: tm.windup, weapon: ST().statsOf(world, p).weapon.fx,
+    });
     if (ab.selfTelegraph) {
       const tiles = BD.sim.targeting.areaTiles(ab.area, p.x, p.y, p.x, p.y, p.dir);
-      const z = BD.sim.zones.create(world, { tiles, cx: p.x, cy: p.y, armMs: tm.windup, telegraph: true, faction: 'player', srcId: p.id, resolve: null, kind: 'self_tele' });
+      const z = BD.sim.zones.create(world, {
+        tiles, cx: p.x, cy: p.y, armMs: tm.windup, telegraph: true,
+        faction: 'player', srcId: p.id, resolve: null, kind: 'self_tele',
+      });
       p.attack.teleZone = z.id;
     }
     if (ab.onCommit) BD.sim.effects.special(world, p, ab, rank, 'commit', p.attack);
@@ -225,7 +242,13 @@
   function cancel(world, p, why) {
     const a = p.attack;
     if (!a) return;
-    if (a.teleZone) { const zs = world.floor.zones, zi = zs.findIndex((z) => z.id === a.teleZone); if (zi >= 0) { zs.splice(zi, 1); world.events.push({ type: 'telegraph.end', zoneId: a.teleZone }); } }
+    if (a.teleZone) {
+      const zs = world.floor.zones, zi = zs.findIndex((z) => z.id === a.teleZone);
+      if (zi >= 0) {
+        zs.splice(zi, 1);
+        world.events.push({ type: 'telegraph.end', zoneId: a.teleZone });
+      }
+    }
     if (a.phase === 'windup') {
       const ab = def(a.abilityId);
       if (a.spent) R().refund(world, p, a.spentType, a.spent);
@@ -275,10 +298,15 @@
       const mc = maxCharges(world, p, ab);
       if (c.n >= mc) { c.ms = 0; c.n = mc; continue; }
       c.ms -= dt;
-      if (c.ms <= 0) { c.n++; c.ms = c.n < mc ? cdTime(world, p, ab) : 0; world.events.push({ type: 'ability.ready', id: p.id, abilityId: id }); }
+      if (c.ms <= 0) {
+        c.n++;
+        c.ms = c.n < mc ? cdTime(world, p, ab) : 0;
+        world.events.push({ type: 'ability.ready', id: p.id, abilityId: id });
+      }
     }
     for (const id in p.cooldowns) {
-      if (p.cooldowns[id] > 0 && p.cooldowns[id] - dt <= 0 && id !== 'evade') world.events.push({ type: 'ability.ready', id: p.id, abilityId: id });
+      const cd = p.cooldowns[id];
+      if (cd > 0 && cd - dt <= 0 && id !== 'evade') world.events.push({ type: 'ability.ready', id: p.id, abilityId: id });
     }
   }
 
@@ -304,6 +332,9 @@
     if (BD.sim.powers) BD.sim.powers.statMods(world, p, add);
   }
 
-  BD.sim.abilities = { def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing, tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods };
+  BD.sim.abilities = {
+    def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing,
+    tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods,
+  };
   BD.sim.world.addSystem('abilities', system, 8);
 })(globalThis.BD);

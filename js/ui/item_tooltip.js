@@ -15,7 +15,8 @@
     const tag = P().RARITY_TAG[item.rarity];
     const unveil = item.rarity === 'legendary' && !seen.has(item.uid);
     if (unveil) seen.add(item.uid);
-    c.appendChild(h('div.it-name.r-' + item.rarity + (unveil ? '.unveil' : ''), (tag ? tag + ' ' : '') + v.name + (v.enhance ? ' +' + v.enhance : '')));
+    const title = (tag ? tag + ' ' : '') + v.name + (v.enhance ? ' +' + v.enhance : '');
+    c.appendChild(h('div.it-name.r-' + item.rarity + (unveil ? '.unveil' : ''), title));
     c.appendChild(h('div.tt-sub', v.type + ' · item level ' + v.ilvl));
     for (const b of v.base) c.appendChild(h('div.it-base', b));
     for (const l of v.lines) c.appendChild(h('div.it-line.k-' + l.kind, l.text));
@@ -26,15 +27,18 @@
     else c.appendChild(h('div.it-value.muted', 'Sells for ' + Math.round(v.value / 5) + ' gold'));
     if (opts && opts.compare === false) return;
     const cmp = BD.sim.itemsDescribe.compare(world, p, item);
+    /** a ▲ / ▼ comparison row */
+    const delta = (n, label) => h('div.' + (n > 0 ? 'up' : 'down'), (n > 0 ? '▲ +' : '▼ ') + n + ' ' + label);
     for (const cm of cmp) {
       if (cm.equipped && cm.equipped.uid === item.uid) continue;
-      const head = cm.equipped ? 'Compared with ' + BD.sim.items.derive(cm.equipped).name + (cmp.length > 1 ? ' (' + (cm.slot === 'ring1' ? 'left' : 'right') + ' ring)' : '') : 'Slot empty';
+      const ring = cmp.length > 1 ? ' (' + (cm.slot === 'ring1' ? 'left' : 'right') + ' ring)' : '';
+      const head = cm.equipped ? 'Compared with ' + BD.sim.items.derive(cm.equipped).name + ring : 'Slot empty';
       const box = h('div.it-cmp', [h('div.it-cmp-head', head)]);
       const dps = Math.round(cm.dps * 10) / 10;
-      if (Math.abs(dps) >= 0.1) box.appendChild(h('div.' + (dps > 0 ? 'up' : 'down'), (dps > 0 ? '▲ +' : '▼ ') + dps + ' damage per second'));
+      if (Math.abs(dps) >= 0.1) box.appendChild(delta(dps, 'damage per second'));
       const eh = Math.round(cm.ehp);
-      if (Math.abs(eh) >= 1) box.appendChild(h('div.' + (eh > 0 ? 'up' : 'down'), (eh > 0 ? '▲ +' : '▼ ') + eh + ' effective life'));
-      for (const r of cm.rows.slice(0, 8)) box.appendChild(h('div.' + (r.delta > 0 ? 'up' : 'down'), (r.delta > 0 ? '▲ +' : '▼ ') + r.delta + ' ' + r.label));
+      if (Math.abs(eh) >= 1) box.appendChild(delta(eh, 'effective life'));
+      for (const r of cm.rows.slice(0, 8)) box.appendChild(delta(r.delta, r.label));
       c.appendChild(box);
     }
   }

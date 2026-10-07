@@ -42,11 +42,13 @@
       ai.lastSeenMs = world.time;
       if (wasDormant) BD.sim.stats.bump(e);
       world.events.push({ type: 'monster.alert', id: e.id, x: e.x, y: e.y, rank: e.rank, keeper: e.keeper });
-      if ((e.rank === 'boss' || e.rank === 'malgoth') && BD.sim.bosses) BD.sim.bosses.onWake(world, e);
+      if (BD.sim.entities.isBoss(e) && BD.sim.bosses) BD.sim.bosses.onWake(world, e);
       if (e.keeper && BD.sim.floors) BD.sim.floors.keeperSeen(world, e);
       // the pack wakes with it (Unseen's hidden first hit doesn't alert the rest)
       if (e.packId != null && !(src && src.kind === 'player' && src._silentHit)) {
-        for (const o of world.floor.entities.values()) if (o !== e && o.packId === e.packId && o.ai && o.ai.state === 'idle') alert(world, o, src, false);
+        for (const o of world.floor.entities.values()) {
+          if (o !== e && o.packId === e.packId && o.ai && o.ai.state === 'idle') alert(world, o, src, false);
+        }
       }
     } else if (src && src.faction === 'player') ai.lastSeenMs = world.time;
   }
@@ -135,7 +137,17 @@
   function cancelWindup(world, e) {
     e.ai.state = 'chase'; e.ai.action = null; e.attack = null;
     world.events.push({ type: 'monster.cancel', id: e.id });
-    if (e.ai.zoneIds) { for (const zid of e.ai.zoneIds) { const z = world.floor.zones.find((q) => q.id === zid); if (z) { z.cancelled = true; world.floor.zones.splice(world.floor.zones.indexOf(z), 1); world.events.push({ type: 'telegraph.end', zoneId: zid }); } } e.ai.zoneIds = null; }
+    if (e.ai.zoneIds) {
+      for (const zid of e.ai.zoneIds) {
+        const z = world.floor.zones.find((q) => q.id === zid);
+        if (z) {
+          z.cancelled = true;
+          world.floor.zones.splice(world.floor.zones.indexOf(z), 1);
+          world.events.push({ type: 'telegraph.end', zoneId: zid });
+        }
+      }
+      e.ai.zoneIds = null;
+    }
   }
 
   function resolveAction(world, e) {
@@ -157,8 +169,8 @@
     e.ai.state = 'exposed';
     e.ai.timer = dur;
     BD.sim.status.apply(world, e, 'exposed', { durMs: dur, sourceId: e.id });
-    world.events.push({ type: 'exposed', id: e.id, x: e.x, y: e.y, ms: dur, boss: e.rank === 'boss' || e.rank === 'malgoth' });
-    if (e.rank === 'boss' || e.rank === 'malgoth') world.events.push({ type: 'boss.exposed', id: e.id });
+    world.events.push({ type: 'exposed', id: e.id, x: e.x, y: e.y, ms: dur, boss: BD.sim.entities.isBoss(e) });
+    if (BD.sim.entities.isBoss(e)) world.events.push({ type: 'boss.exposed', id: e.id });
   }
 
   function decide(world, e) {
@@ -174,10 +186,11 @@
     // leash: home if too far and the player hasn't been seen for 4 s
     const leash = (d.aggro && d.aggro.leash) || B.monsters.leash;
     if (ctx.hasLos() && ctx.dist <= 12) ai.lastSeenMs = world.time;
-    if (!e.keeper && e.rank !== 'boss' && cheb(e.x, e.y, e.home.x, e.home.y) > leash && world.time - ai.lastSeenMs > B.monsters.leashLostMs) {
+    const lostSight = world.time - ai.lastSeenMs > B.monsters.leashLostMs;
+    if (!e.keeper && e.rank !== 'boss' && cheb(e.x, e.y, e.home.x, e.home.y) > leash && lostSight) {
       ai.timer = goHome(world, e); return;
     }
-    if (e.rank === 'boss' || e.rank === 'malgoth' || e.signature) {
+    if (BD.sim.entities.isBoss(e) || e.signature) {
       if (BD.sim.bosses) { const c = BD.sim.bosses.decide(world, e, ctx); if (c != null) { ai.timer = c; return; } }
     }
     for (const b of d.behaviours || []) {
@@ -229,7 +242,12 @@
   }
   function goHome(world, e) {
     const path = BD.sim.pathing.path(world, e.x, e.y, e.home.x, e.home.y);
-    if (!path || !path.length || cheb(e.x, e.y, e.home.x, e.home.y) <= 1) { e.ai.state = 'idle'; e.ai.timer = 500; const max = BD.sim.stats.statsOf(world, e).maxLife; e.hp = max; return 500; }
+    if (!path || !path.length || cheb(e.x, e.y, e.home.x, e.home.y) <= 1) {
+      e.ai.state = 'idle';
+      e.ai.timer = 500;
+      e.hp = BD.sim.stats.statsOf(world, e).maxLife;
+      return 500;
+    }
     const ms = moveCost(world, e);
     return BD.sim.movement.startStep(world, e, path[0][0], path[0][1], ms) ? ms : 400;
   }
@@ -249,7 +267,10 @@
     if (src && src.kind === 'monster' && !pk.isDot) {
       const d = MON.defOf(src);
       for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onDealt) BEH[b.id].onDealt(world, src, b, tgt, res, pk);
-      for (const oh of (d && d.onHit) || []) if (world.rng.chance(oh.chance)) BD.sim.status.apply(world, tgt, oh.status, { durMs: oh.durMs, magnitude: oh.mag, sourceId: src.id, hit: res.total });
+      for (const oh of (d && d.onHit) || []) {
+        if (!world.rng.chance(oh.chance)) continue;
+        BD.sim.status.apply(world, tgt, oh.status, { durMs: oh.durMs, magnitude: oh.mag, sourceId: src.id, hit: res.total });
+      }
     }
   });
   BD.sim.damage.onKillHooks.push((world, victim, killer, info) => {
@@ -257,6 +278,9 @@
     for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onDeath) BEH[b.id].onDeath(world, victim, b, killer, info);
   });
 
-  BD.sim.ai = { BEH, registerBehaviour, alert, isAwake, isDormantOrBusy, playerInCombat, windup, decide, resolveAction, cancelWindup, makeExposed, stepAlong, chase, flee, moveCost, targetOf, step, system };
+  BD.sim.ai = {
+    BEH, registerBehaviour, alert, isAwake, isDormantOrBusy, playerInCombat, windup, decide, resolveAction,
+    cancelWindup, makeExposed, stepAlong, chase, flee, moveCost, targetOf, step, system,
+  };
   BD.sim.world.addSystem('ai', system, 15);
 })(globalThis.BD);

@@ -9,7 +9,14 @@
 
   const ilvlScale = (i) => 1 + 0.09 * (i - 1);
   /** deterministic 0..1 from a uid (base armour roll without storing it) */
-  function uidFrac(uid) { let h = 2166136261; for (let i = 0; i < uid.length; i++) { h ^= uid.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10007) / 10006; }
+  function uidFrac(uid) {
+    let h = 2166136261;
+    for (let i = 0; i < uid.length; i++) {
+      h ^= uid.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 10007) / 10006;
+  }
 
   /** affix value for roll r at ilvl i (03 §4) */
   function affixValue(affix, roll, ilvl, enhance) {
@@ -33,7 +40,8 @@
     const enh = item.enhance || 0, ek = 1 + 0.1 * enh;
     const sc = ilvlScale(item.ilvl);
     d = {
-      uid: item.uid, base: b.id, baseName: b.name, slot: b.slot, category: b.category, perm: b.perm, hands: b.hands || 0, weight: b.weight || null,
+      uid: item.uid, base: b.id, baseName: b.name, slot: b.slot, category: b.category, perm: b.perm,
+      hands: b.hands || 0, weight: b.weight || null,
       wieldStat: b.wield || null, speedMs: b.speedMs || 0, range: b.range || 1, projectile: b.projectile || null, pierce: b.pierce || 0,
       knockback: b.knockback || 0, reachLine: b.reachLine || 0, fx: b.fx || null, rarity: item.rarity, ilvl: item.ilvl, enhance: enh,
       dmg: null, armor: 0, block: b.block || 0, mods: {}, lines: [], power: null, legendary: item.legendary || null,
@@ -41,12 +49,20 @@
     };
     if (b.dmg) d.dmg = [Math.max(1, Math.round(b.dmg[0] * sc * ek)), Math.max(1, Math.round(b.dmg[1] * sc * ek))];
     if (b.armor && b.armor[1] > 0) d.armor = Math.round((b.armor[0] + uidFrac(item.uid) * (b.armor[1] - b.armor[0])) * sc * ek);
-    for (const k in b.implicit) { d.mods[k] = (d.mods[k] || 0) + b.implicit[k]; d.lines.push({ key: k, value: b.implicit[k], implicit: true }); }
+    for (const k in b.implicit) {
+      d.mods[k] = (d.mods[k] || 0) + b.implicit[k];
+      d.lines.push({ key: k, value: b.implicit[k], implicit: true });
+    }
     const AF = BD.data.affixes;
     for (const a of item.affixes || []) {
       const af = AF && AF[a.id];
       if (!af) continue;
-      if (af.stat === 'skill_plus' || af.special) { d.lines.push({ affix: a.id, special: af.special || 'skill_plus', value: a.skill ? (a.n || 1) : 0, skill: a.skill, band: af.band }); if (a.skill) addMod(d, 'skill_plus_' + a.skill, a.n || 1); continue; }
+      if (af.stat === 'skill_plus' || af.special) {
+        const value = a.skill ? (a.n || 1) : 0;
+        d.lines.push({ affix: a.id, special: af.special || 'skill_plus', value, skill: a.skill, band: af.band });
+        if (a.skill) addMod(d, 'skill_plus_' + a.skill, a.n || 1);
+        continue;
+      }
       if (af.proc) { d.lines.push({ affix: a.id, proc: af.proc, band: af.band }); d.proc = af.proc; continue; }
       const v = af.fixed != null ? af.fixed : affixValue(af, a.roll, item.ilvl, enh);
       if (af.stat === 'all_attr') { addMod(d, 'all_attr', v); }
@@ -78,7 +94,10 @@
   }
   /** plain item record (no rolls) */
   function make(world, base, ilvl, rarity, affixes, extra) {
-    return Object.assign({ uid: newUid(world), base, ilvl: Math.max(1, ilvl || 1), rarity: rarity || 'common', affixes: affixes || [], legendary: null, enhance: 0, name: null }, extra || {});
+    return Object.assign({
+      uid: newUid(world), base, ilvl: Math.max(1, ilvl || 1), rarity: rarity || 'common', affixes: affixes || [],
+      legendary: null, enhance: 0, name: null,
+    }, extra || {});
   }
 
   BD.sim.items = { derive, newUid, make, affixValue, ilvlScale, uidFrac, invalidate, onEvade, evadeHooks };

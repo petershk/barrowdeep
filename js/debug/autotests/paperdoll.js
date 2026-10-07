@@ -1,7 +1,8 @@
 // A sheet of each class sprite with every weapon category and offhand composited (paper-doll lite).
 BD.debug.autotests.paperdoll = (D) => {
   D.newRun({ cls: 'fighter' });
-  const combos = ['', 'blade|-', 'blade2|-', 'axe|shield', 'mace|tower', 'dagger|buckler', 'claw|-', 'staff|-', 'wand|orb', 'bow|quiver', 'crossbow|-', 'javelin|buckler'];
+  const combos = ['', 'blade|-', 'blade2|-', 'axe|shield', 'mace|tower', 'dagger|buckler', 'claw|-',
+    'staff|-', 'wand|orb', 'bow|quiver', 'crossbow|-', 'javelin|buckler'];
   const arts = ['fighter', 'thief', 'magician', 'valkyrie'];
   const K = 5, CW = 22 * K, CH = 24 * K;
   const cv = document.createElement('canvas'); cv.width = combos.length * CW + 20; cv.height = arts.length * CH + 40;

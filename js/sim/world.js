@@ -41,7 +41,10 @@
     }
     f._packMods = null;
     for (const e of f.entities.values()) BD.sim.stats.bump(e);
-    for (const o of plan.objects) if (o.kind === 'corpse_prop') f.corpses.push({ id: world.nextId++, def: o.def, x: o.x, y: o.y, packId: null, rank: 'normal', maxLife: 20, ms: 1e9, prop: true });
+    for (const o of plan.objects) {
+      if (o.kind !== 'corpse_prop') continue;
+      f.corpses.push({ id: world.nextId++, def: o.def, x: o.x, y: o.y, packId: null, rank: 'normal', maxLife: 20, ms: 1e9, prop: true });
+    }
     return f;
   }
 
@@ -73,7 +76,12 @@
     let plan;
     if (key === 'town') plan = BD.sim.gen.town.generate({ seed: world.run.seed });
     else if (typeof key === 'string' && key[0] === 'a') plan = BD.sim.gen.arena.generate({ n: Number(key.slice(1)), seed: world.run.seed });
-    else plan = BD.sim.gen.generateFloor({ n: key, seed: world.run.seed, difficulty: world.run.difficulty, ascension: world.run.ascension || 0, unlocks: { champion_lore: !!world.run.flags.championLore } });
+    else {
+      plan = BD.sim.gen.generateFloor({
+        n: key, seed: world.run.seed, difficulty: world.run.difficulty, ascension: world.run.ascension || 0,
+        unlocks: { champion_lore: !!world.run.flags.championLore },
+      });
+    }
     const f = instantiateFloor(world, plan, key);
     world.floor = f;
     if (BD.sim.floors) BD.sim.floors.restore(world, f);
@@ -112,7 +120,10 @@
     const U = BD.core.util;
     const f = world.floor;
     const ents = [];
-    for (const e of f.entities.values()) ents.push([e.id, e.def, e.x, e.y, Math.round(e.hp * 100), e.statuses.map((s) => s.id + ':' + Math.round(s.remainingMs)).join(','), e.ai ? e.ai.state : '']);
+    for (const e of f.entities.values()) {
+      const statuses = e.statuses.map((s) => s.id + ':' + Math.round(s.remainingMs)).join(',');
+      ents.push([e.id, e.def, e.x, e.y, Math.round(e.hp * 100), statuses, e.ai ? e.ai.state : '']);
+    }
     const p = world.player;
     return U.hashOf({
       t: world.time, rng: world.rng.state(), loot: world.lootRng.state(), run: world.run,

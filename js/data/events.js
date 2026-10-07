@@ -6,7 +6,7 @@
   BD.data.floorEvents = {
     cursed_chest: { name: 'Cursed Chest', weight: 3, waves: 3, waveMs: 13000, line: 'The chest snaps shut on a curse. The doors bar themselves.' },
     shrine: { name: 'Shrine', weight: 3, line: 'An old shrine still hums with power.' },
-    hoarder: { name: 'Hoarder', weight: 2, escapeMs: 15000, line: 'Something small and greedy rattles in the dark.' },
+    hoarder: { name: 'Hoarder', weight: 2, escapeMs: 15000, monster: 'hoarder', line: 'Something small and greedy rattles in the dark.' },
     trapped_vault: { name: 'Trapped Vault', weight: 2, line: 'A vault, and the floor before it is not to be trusted.' },
     blood_altar: { name: 'Blood Altar', weight: 2, lifePct: 0.2, line: 'An altar thirsts. Blood buys a gift.' },
     restless_dead: { name: 'Restless Dead', weight: 2, surviveMs: 30000, waveMs: 6000, line: 'The graves here do not stay closed.' },

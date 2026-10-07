@@ -15,7 +15,7 @@
   // ---------- zones ----------
   function drawZones(ctx, world, alpha, t) {
     const f = world.floor;
-    const cb = BD.ui.options && BD.ui.options.get('colorblind');
+    const cb = BD.view.host.prefs.colorblind;
     for (const z of f.zones) {
       if (z.cancelled) continue;
       const vis = z.tiles.some(([x, y]) => x >= 0 && y >= 0 && x < f.w && y < f.h && f.explored[y * f.w + x]);
@@ -48,9 +48,14 @@
         OV().diamondPath(ctx, x, y, 0.92);
         ctx.fillStyle = P.rgba(sch.mid, 0.22 * fade * fl); ctx.fill();
         ctx.strokeStyle = P.rgba(sch.edge, 0.35 * fade); ctx.lineWidth = iso.view.dpr; ctx.stroke();
-        if (Math.random() < 0.02 * fade && BD.view.fx) BD.view.fx.spark(x + Math.random() - 0.5, y + Math.random() - 0.5, { vz: 0.03, g: -0.00003, life: 500, size: 2, color: sch.mid, z: 2, ambient: true });
+        if (Math.random() < 0.02 * fade && BD.view.fx) {
+          const sx = x + Math.random() - 0.5, sy = y + Math.random() - 0.5;
+          BD.view.fx.spark(sx, sy, { vz: 0.03, g: -0.00003, life: 500, size: 2, color: sch.mid, z: 2, ambient: true });
+        }
       }
-      if (z.school === 'fire' || z.school === 'lava' || z.school === 'storm') BD.view.lighting.add(z.cx, z.cy, 2.5, sch.mid, 0.4 * fade, 0.3);
+      if (z.school === 'fire' || z.school === 'lava' || z.school === 'storm') {
+        BD.view.lighting.add(z.cx, z.cy, 2.5, sch.mid, 0.4 * fade, 0.3);
+      }
     }
   }
 
@@ -73,19 +78,29 @@
     const d = BD.data.monsters[c.def];
     if (!d) return;
     const fade = c.prop ? 0.8 : Math.min(1, c.ms / 2000);
-    R.drawArt(d.sprite, 'corpse', 0, c.x, c.y, { pal: d.pal || null, palKey: c.def + 'c', flip: c.dir >= 2 && c.dir <= 5, alpha: fade, dy: 4 * iso.view.S });
+    R.drawArt(d.sprite, 'corpse', 0, c.x, c.y, {
+      pal: d.pal || null, palKey: c.def + 'c', flip: c.dir >= 2 && c.dir <= 5, alpha: fade, dy: 4 * iso.view.S,
+    });
   }
   function drawGhost(g) {
     const fi = Math.min(2, Math.floor(g.t / 110));
-    R.drawArt(g.art, 'death', fi, g.x, g.y, { pal: g.pal, palKey: g.palKey, flip: g.flip, scale: g.scale, alpha: 1 - Math.max(0, g.t - 300) / 100 });
+    R.drawArt(g.art, 'death', fi, g.x, g.y, {
+      pal: g.pal, palKey: g.palKey, flip: g.flip, scale: g.scale, alpha: 1 - Math.max(0, g.t - 300) / 100,
+    });
   }
   function drawObject(world, o) {
-    const map = { chest: o.opened ? 'prop_chest_open' : 'prop_chest', pile: 'prop_pile', shrine: 'prop_shrine', lever: 'prop_lever', altar: 'prop_altar' };
+    const map = {
+      chest: o.opened ? 'prop_chest_open' : 'prop_chest',
+      pile: 'prop_pile', shrine: 'prop_shrine', lever: 'prop_lever', altar: 'prop_altar',
+    };
     if (o.kind === 'trap') { if (o.visible && !o.disarmed) drawTrap(o); return; }
     if (o.kind === 'pile' && o.used) return;
     if (o.kind === 'npc') {
       const n = Object.values(BD.data.town.npcs).find((q) => q.role === o.role);
-      if (n) { R.shadow(o.x, o.y, 1); R.drawArt(n.art, 'idle', 0, o.x, o.y, { pal: n.pal, palKey: 'npc_' + o.role, flip: o.x > world.player.x }); }
+      if (n) {
+        R.shadow(o.x, o.y, 1);
+        R.drawArt(n.art, 'idle', 0, o.x, o.y, { pal: n.pal, palKey: 'npc_' + o.role, flip: o.x > world.player.x });
+      }
       return;
     }
     if (o.kind === 'portal' || o.kind === 'exit_portal') { drawPortal(o, world); return; }
@@ -110,7 +125,10 @@
     ctx.beginPath(); ctx.ellipse(tmp.x, tmp.y - 22 * zk, 7 * zk, 17 * zk, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     BD.view.lighting.add(o.x, o.y, 3, col, 0.9, 0.15);
-    if (Math.random() < 0.3) BD.view.fx.spark(o.x + (Math.random() - 0.5) * 0.5, o.y + (Math.random() - 0.5) * 0.5, { z: 10 + Math.random() * 30, vz: 0.02, g: -0.00003, life: 700, size: 2, color: col, ambient: true });
+    if (Math.random() < 0.3) {
+      const sx = o.x + (Math.random() - 0.5) * 0.5, sy = o.y + (Math.random() - 0.5) * 0.5;
+      BD.view.fx.spark(sx, sy, { z: 10 + Math.random() * 30, vz: 0.02, g: -0.00003, life: 700, size: 2, color: col, ambient: true });
+    }
   }
 
   function drawTrap(o) {
@@ -150,7 +168,10 @@
         ctx.strokeStyle = sch.mid; ctx.lineWidth = (kd.sprite === 'spear' ? 3 : 2) * zk;
         ctx.beginPath(); ctx.moveTo(tmp.x - ux * len, sy - uy * len); ctx.lineTo(tmp.x, sy); ctx.stroke();
         ctx.strokeStyle = sch.core; ctx.lineWidth = zk;
-        ctx.beginPath(); ctx.moveTo(tmp.x - ux * len * 0.5, sy - uy * len * 0.5); ctx.lineTo(tmp.x + ux * 2 * zk, sy + uy * 2 * zk); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(tmp.x - ux * len * 0.5, sy - uy * len * 0.5);
+        ctx.lineTo(tmp.x + ux * 2 * zk, sy + uy * 2 * zk);
+        ctx.stroke();
       } else {
         const r = (kd.sprite === 'orb_big' ? 11 : kd.sprite === 'spark' ? 6 : 8) * zk;
         ctx.drawImage(BD.view.fx.glow(sch.mid), tmp.x - r * 1.6, sy - r * 1.6, r * 3.2, r * 3.2);
@@ -170,7 +191,15 @@
       const col = e.mods && e.mods.length ? P.MOD_AURA[e.mods[0]] || '#ffffff' : '#ffd23a';
       const pulse = 0.55 + 0.25 * Math.sin((t / 1600) * Math.PI * 2);
       OV().ring(ctx, ep.x, ep.y, e.rank === 'minion' ? 0.38 : 0.48, col, (e.rank === 'minion' ? 1 : 2) * (iso.view.dpr), pulse);
-      if (e.rank !== 'minion') { iso.toScreen(ep.x, ep.y, tmp); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.25 * pulse; const r = 18 * zk; ctx.drawImage(BD.view.fx.glow(col), tmp.x - r, tmp.y - 22 * zk - r, r * 2, r * 2); ctx.restore(); }
+      if (e.rank !== 'minion') {
+        iso.toScreen(ep.x, ep.y, tmp);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.25 * pulse;
+        const r = 18 * zk;
+        ctx.drawImage(BD.view.fx.glow(col), tmp.x - r, tmp.y - 22 * zk - r, r * 2, r * 2);
+        ctx.restore();
+      }
     }
     if (e.ai && e.ai.state === 'exposed') OV().ring(ctx, ep.x, ep.y, 0.6, '#ffd23a', 3 * iso.view.dpr, 0.6 + 0.4 * Math.sin(t / 95));
     if (world.player.lockId === e.id) OV().ring(ctx, ep.x, ep.y, 0.55, '#fff3c0', 1.5 * iso.view.dpr, 0.8);
@@ -178,9 +207,9 @@
 
   // ---------- health bars & nameplates (overlay) ----------
   function bars(ctx, world) {
-    const f = world.floor, app = BD.app;
-    const always = app.showBars || (BD.ui.options && BD.ui.options.get('alwaysBars'));
-    const hover = BD.input.mouse.hoverEntity;
+    const f = world.floor;
+    const always = BD.view.host.showBars || BD.view.host.prefs.alwaysBars;
+    const hover = BD.view.host.pointer.hoverEntity;
     const zk = iso.view.Z * iso.view.dpr;
     for (const e of f.entities.values()) {
       if (e.dead || e.untargetable || !f.visible[e.y * f.w + e.x] || e.faction === 'player' && e.kind !== 'ally') continue;

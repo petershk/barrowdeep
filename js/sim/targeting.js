@@ -8,7 +8,9 @@
   const { SEE } = BD.data.tiles;
   const { DIRS, within, dirOf } = BD.core.util;
 
-  function clearFn(f) { return (x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && SEE[f.tiles[y * f.w + x]] === 1 && !f.block[y * f.w + x]; }
+  function clearFn(f) {
+    return (x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && SEE[f.tiles[y * f.w + x]] === 1 && !f.block[y * f.w + x];
+  }
   function hasLOS(world, x0, y0, x1, y1) { return G.los(x0, y0, x1, y1, clearFn(world.floor)); }
 
   /** within ±60° of e.dir */
@@ -91,8 +93,11 @@
    */
   function autoAim(world, p, range) {
     const lock = p.lockId ? E.get(world, p.lockId) : null;
-    if (lock && lock.hp > 0 && !lock.dead && within(p.x, p.y, lock.x, lock.y, range + 2)) return { entityId: lock.id, x: lock.x, y: lock.y };
-    const e = nearestEnemy(world, p.x, p.y, Math.max(range, 6), 'player', { front: p }) || nearestEnemy(world, p.x, p.y, Math.max(range, 3), 'player', null);
+    if (lock && lock.hp > 0 && !lock.dead && within(p.x, p.y, lock.x, lock.y, range + 2)) {
+      return { entityId: lock.id, x: lock.x, y: lock.y };
+    }
+    const e = nearestEnemy(world, p.x, p.y, Math.max(range, 6), 'player', { front: p })
+      || nearestEnemy(world, p.x, p.y, Math.max(range, 3), 'player', null);
     if (e) return { entityId: e.id, x: e.x, y: e.y };
     const d = DIRS[p.dir];
     return { x: p.x + d[0] * Math.max(1, Math.min(range, 4)), y: p.y + d[1] * Math.max(1, Math.min(range, 4)) };

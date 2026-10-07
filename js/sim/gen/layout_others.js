@@ -16,8 +16,15 @@
       const canH = w >= params.minLeaf * 2 + 1, canV = h >= params.minLeaf * 2 + 1;
       if ((!canH && !canV) || depth > 6 || (depth > 2 && rng.chance(0.15))) { leaves.push({ x, y, w, h }); return; }
       const horiz = canH && (!canV || (w > h ? rng.chance(0.75) : rng.chance(0.3)));
-      if (horiz) { const s = rng.int(params.minLeaf, w - params.minLeaf); split(x, y, s, h, depth + 1); split(x + s, y, w - s, h, depth + 1); }
-      else { const s = rng.int(params.minLeaf, h - params.minLeaf); split(x, y, w, s, depth + 1); split(x, y + s, w, h - s, depth + 1); }
+      if (horiz) {
+        const s = rng.int(params.minLeaf, w - params.minLeaf);
+        split(x, y, s, h, depth + 1);
+        split(x + s, y, w - s, h, depth + 1);
+      } else {
+        const s = rng.int(params.minLeaf, h - params.minLeaf);
+        split(x, y, w, s, depth + 1);
+        split(x, y + s, w, h - s, depth + 1);
+      }
     };
     split(1, 1, p.w - 2, p.h - 2, 0);
     for (const L of rng.shuffle(leaves)) {
@@ -59,14 +66,24 @@
   function caves(p, rng, params) {
     const W = p.w, H = p.h;
     let g = new Uint8Array(W * H);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) g[y * W + x] = x < 2 || y < 2 || x >= W - 2 || y >= H - 2 || rng.chance(params.fill) ? 1 : 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const border = x < 2 || y < 2 || x >= W - 2 || y >= H - 2;
+        g[y * W + x] = border || rng.chance(params.fill) ? 1 : 0;
+      }
+    }
     for (let it = 0; it < params.iters; it++) {
       const n = new Uint8Array(W * H);
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) { n[y * W + x] = 1; continue; }
         let c = 0, c2 = 0;
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && g[(y + dy) * W + x + dx]) c++;
-        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const yy = y + dy, xx = x + dx; if (yy < 0 || xx < 0 || yy >= H || xx >= W || g[yy * W + xx]) c2++; }
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const yy = y + dy, xx = x + dx;
+            if (yy < 0 || xx < 0 || yy >= H || xx >= W || g[yy * W + xx]) c2++;
+          }
+        }
         n[y * W + x] = c >= 5 || (it < 2 && c2 <= 1) ? 1 : 0;
       }
       g = n;
@@ -76,7 +93,10 @@
     const { labels, sizes } = C.regions(p);
     let main = 0; for (let r = 1; r < sizes.length; r++) if (sizes[r] > sizes[main]) main = r;
     for (let i = 0; i < labels.length; i++) if (labels[i] >= 0 && labels[i] !== main && sizes[labels[i]] <= 40) p.tiles[i] = T.WALL;
-    const anchor = (() => { for (let i = 0; i < labels.length; i++) if (labels[i] === main) return [i % W, (i / W) | 0]; return [W >> 1, H >> 1]; })();
+    const anchor = (() => {
+      for (let i = 0; i < labels.length; i++) if (labels[i] === main) return [i % W, (i / W) | 0];
+      return [W >> 1, H >> 1];
+    })();
     C.connectAll(p, anchor, 41);
     BD.sim.gen.setpieces.place(p, rng, rng.int(1, 3), 'overlay');
     // underground water pools
@@ -99,7 +119,8 @@
     const hub = params.hub, hx = (p.w >> 1) - (hub >> 1), hy = (p.h >> 1) - (hub >> 1);
     C.fillRect(p, hx, hy, hub, hub, T.FLOOR);
     p.rooms.push({ x: hx, y: hy, w: hub, h: hub, cx: hx + (hub >> 1), cy: hy + (hub >> 1), hub: true });
-    for (const [px, py] of [[hx + 2, hy + 2], [hx + hub - 3, hy + 2], [hx + 2, hy + hub - 3], [hx + hub - 3, hy + hub - 3]]) C.set(p, px, py, T.PILLAR);
+    const pillars = [[hx + 2, hy + 2], [hx + hub - 3, hy + 2], [hx + 2, hy + hub - 3], [hx + hub - 3, hy + hub - 3]];
+    for (const [px, py] of pillars) C.set(p, px, py, T.PILLAR);
     const n = rng.int(params.platforms[0], params.platforms[1]);
     for (let k = 0, tries = 0; k < n && tries < 200; tries++) {
       const w = rng.int(6, 10), h = rng.int(6, 10), x = rng.int(3, p.w - w - 3), y = rng.int(3, p.h - h - 3);
@@ -119,7 +140,13 @@
     const inTree = [0], edges = [];
     while (inTree.length < R.length) {
       let best = null, bd = Infinity;
-      for (const a of inTree) for (let b = 0; b < R.length; b++) { if (inTree.includes(b)) continue; const d = Math.abs(R[a].cx - R[b].cx) + Math.abs(R[a].cy - R[b].cy); if (d < bd) { bd = d; best = [a, b]; } }
+      for (const a of inTree) {
+        for (let b = 0; b < R.length; b++) {
+          if (inTree.includes(b)) continue;
+          const d = Math.abs(R[a].cx - R[b].cx) + Math.abs(R[a].cy - R[b].cy);
+          if (d < bd) { bd = d; best = [a, b]; }
+        }
+      }
       if (!best) break;
       inTree.push(best[1]); edges.push(best);
     }
@@ -136,8 +163,16 @@
   function bridge(p, ax, ay, bx, by, width, horizFirst) {
     const off = -Math.floor((width - 1) / 2);
     const put = (x, y) => { const t = C.get(p, x, y); if (t === T.LAVA || t === T.WALL) C.setFree(p, x, y, T.BRIDGE); };
-    const hseg = (y, x0, x1) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let k = 0; k < width; k++) put(x, y + off + k); };
-    const vseg = (x, y0, y1) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let k = 0; k < width; k++) put(x + off + k, y); };
+    const hseg = (y, x0, x1) => {
+      for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+        for (let k = 0; k < width; k++) put(x, y + off + k);
+      }
+    };
+    const vseg = (x, y0, y1) => {
+      for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) {
+        for (let k = 0; k < width; k++) put(x + off + k, y);
+      }
+    };
     if (horizFirst) { hseg(ay, ax, bx); vseg(bx, ay, by); } else { vseg(ax, ay, by); hseg(by, ax, bx); }
   }
 
@@ -146,7 +181,8 @@
     const kinds = BD.data.decorKinds[p.biome];
     for (const r of p.rooms) {
       if (r.setpiece || !rng.chance(chance * 2)) continue;
-      const tiles = C.roomTiles(p, r).filter(([x, y]) => C.get(p, x, y) === T.FLOOR && !p.protect[C.idx(p, x, y)] && LH().wallAdjacent(p, x, y));
+      const tiles = C.roomTiles(p, r)
+        .filter(([x, y]) => C.get(p, x, y) === T.FLOOR && !p.protect[C.idx(p, x, y)] && LH().wallAdjacent(p, x, y));
       for (let k = 0; k < Math.min(2, tiles.length); k++) {
         const [x, y] = rng.pick(tiles);
         if (C.get(p, x, y) !== T.FLOOR) continue;

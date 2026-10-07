@@ -30,7 +30,10 @@
       world.events.push({ type: 'dash', id: e.id, fromX: e.x, fromY: e.y, x: last[0], y: last[1] });
     }
     if (victim) {
-      BD.sim.damage.dealDamage(world, { srcId: e.id, tgtId: victim.id, amounts: MON.hitAmounts(world, e, mult), tags: ['melee', 'charge', 'heavy'], canCrit: false, canDodge: false, canBlock: true, mult: 1 });
+      BD.sim.damage.dealDamage(world, {
+        srcId: e.id, tgtId: victim.id, amounts: MON.hitAmounts(world, e, mult), tags: ['melee', 'charge', 'heavy'],
+        canCrit: false, canDodge: false, canBlock: true, mult: 1,
+      });
       BD.sim.hits.knockback(world, victim, e.x, e.y, 1);
     }
     if (hitWall) {
@@ -48,7 +51,10 @@
     return BD.sim.zones.create(world, {
       tiles, cx: o.cx != null ? o.cx : tiles[0][0], cy: o.cy != null ? o.cy : tiles[0][1], armMs, faction: 'monster', srcId: e.id,
       school: o.school || 'blood', heavy: mult >= 1.5, kind: o.kind || 'strike', label: o.label || null,
-      resolve: { type: 'packet', amounts, statuses: o.statuses || [], knockback: o.knockback || 0, linger: o.linger || null, spawn: o.spawn || null, tags: o.tags || [] },
+      resolve: {
+        type: 'packet', amounts, statuses: o.statuses || [], knockback: o.knockback || 0,
+        linger: o.linger || null, spawn: o.spawn || null, tags: o.tags || [],
+      },
     });
   }
 

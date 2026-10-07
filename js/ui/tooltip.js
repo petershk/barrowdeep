@@ -44,10 +44,14 @@
   /** skill tooltip body (shared by bar, panel, creation) */
   function skillBody(world, p, id, shift, rank) {
     const d = BD.sim.describe.describe(world, p, id, rank);
-    const kids = [h('div.tt-title', d.name), h('div.tt-sub', [d.keystone ? 'Keystone' : 'Tier ' + d.tier + (d.rank ? ' · Rank ' + d.rank : ''), d.cost ? ' · ' + d.cost : '', d.cooldown ? ' · Cooldown ' + d.cooldown : ''])];
+    const kids = [h('div.tt-title', d.name), h('div.tt-sub', [
+      d.keystone ? 'Keystone' : 'Tier ' + d.tier + (d.rank ? ' · Rank ' + d.rank : ''),
+      d.cost ? ' · ' + d.cost : '',
+      d.cooldown ? ' · Cooldown ' + d.cooldown : '',
+    ])];
     kids.push(h('div.tt-desc', d.desc));
     for (const l of d.lines) kids.push(h('div.tt-line' + (l.kind === 'damage' ? '.dmg' : ''), l.text));
-    if (d.breakpoints.length) for (const b of d.breakpoints) kids.push(h('div.tt-bp' + (b.active ? '.on' : ''), 'Rank ' + b.rank + ': ' + b.text));
+    for (const b of d.breakpoints) kids.push(h('div.tt-bp' + (b.active ? '.on' : ''), 'Rank ' + b.rank + ': ' + b.text));
     if (shift && !d.keystone && d.rank < 5) {
       const n = BD.sim.describe.describe(world, p, id, d.rank + 1);
       kids.push(h('div.tt-next', 'Next rank:'));

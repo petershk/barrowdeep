@@ -1,0 +1,6 @@
+# Normalise text files to LF in the repo and working tree (the line-length rule counts a stray CR).
+* text=auto eol=lf
+*.png binary
+*.ogg binary
+*.mp3 binary
+*.wav binary

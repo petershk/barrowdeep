@@ -55,7 +55,11 @@
   const dropFloorEvents = (world) => cancel(world, (e) => scopeOf(e.kind) === 'floor');
   const pendingFloorEvents = (world) => world.scheduled.some((e) => scopeOf(e.kind) === 'floor');
   /** The run-scoped events, as save data. */
-  const runEvents = (world) => world.scheduled.filter((e) => scopeOf(e.kind) === 'run').map((e) => ({ at: e.at, kind: e.kind, payload: e.payload, seq: e.seq }));
+  const runEvents = (world) => world.scheduled
+    .filter((e) => scopeOf(e.kind) === 'run')
+    .map((e) => ({ at: e.at, kind: e.kind, payload: e.payload, seq: e.seq }));
 
-  BD.core.scheduler = { STEP_MS, register, schedule, after, runDue, cancel, dropFloorEvents, pendingFloorEvents, runEvents, scopeOf, handlers };
+  BD.core.scheduler = {
+    STEP_MS, register, schedule, after, runDue, cancel, dropFloorEvents, pendingFloorEvents, runEvents, scopeOf, handlers,
+  };
 })(globalThis.BD);

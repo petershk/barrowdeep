@@ -133,9 +133,15 @@
     let p = prismCache.get(key);
     if (p) return p;
     let pal = BD.data.biomes[biome].pal;
-    const H = kind === 'pillar' ? iso.WALL_H + 7 : kind === 'stub' ? 5 : kind === 'building' || kind === 'door' ? iso.WALL_H + 12 : iso.WALL_H;
+    const townWall = kind === 'building' || kind === 'door';
+    let H = iso.WALL_H;
+    if (kind === 'pillar') H = iso.WALL_H + 7;
+    else if (kind === 'stub') H = 5;
+    else if (townWall) H = iso.WALL_H + 12;
     const hw = kind === 'pillar' ? 10 : 16, hh = hw / 2;
-    if (kind === 'building' || kind === 'door') pal = Object.assign({}, pal, { wallTop: kind === 'door' ? '#6a3a2a' : '#7a3e2a', wallFace: '#8a7458', wallSide: '#6a5840' });
+    if (townWall) {
+      pal = Object.assign({}, pal, { wallTop: kind === 'door' ? '#6a3a2a' : '#7a3e2a', wallFace: '#8a7458', wallSide: '#6a5840' });
+    }
     const c = mk(32, 16 + H + 1);
     const g = c.getContext('2d');
     const x0 = 16 - hw;
@@ -146,7 +152,7 @@
       g.fillRect(x, Math.round(yEdge), 1, H);
       // mortar courses
       g.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let k = 6; k < H - 1; k += 6) g.fillRect(x, Math.round(yEdge) + k + ((x >> 3) & 1 ? 0 : 0), 1, 1);
+      for (let k = 6; k < H - 1; k += 6) g.fillRect(x, Math.round(yEdge) + k, 1, 1);
       if (((x - x0) % 8) === 0) { g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(x, Math.round(yEdge), 1, H); }
     }
     // top diamond with a dark rim

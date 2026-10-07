@@ -7,13 +7,17 @@
 
   function buildMain(el) {
     BD.app.state = 'menu';
-    el.appendChild(h('div.title', [h('div.title-main', 'BARROWDEEP'), h('div.title-sub', 'Beneath the church of Brennor, the dead do not rest.')]));
+    el.appendChild(h('div.title', [
+      h('div.title-main', 'BARROWDEEP'),
+      h('div.title-sub', 'Beneath the church of Brennor, the dead do not rest.'),
+    ]));
     const has = BD.ui.saves ? BD.ui.saves.list().some((c) => c.alive) : false;
     const meta = BD.ui.meta ? BD.ui.meta.get() : null;
     const btns = [
       h('button.btn.primary.big', { data: { action: 'new' } }, 'New Character'),
       h('button.btn.big', { data: { action: 'load' }, disabled: !has }, 'Continue'),
-      h('button.btn.big', { data: { action: 'shrine' }, disabled: !BD.ui.panels.defs.shrine }, 'Soul Shrine' + (meta ? ' (' + meta.souls + ' souls)' : '')),
+      h('button.btn.big', { data: { action: 'shrine' }, disabled: !BD.ui.panels.defs.shrine },
+        'Soul Shrine' + (meta ? ' (' + meta.souls + ' souls)' : '')),
       h('button.btn.big', { data: { action: 'options' } }, 'Options'),
       h('button.btn.big', { data: { action: 'controls' } }, 'Controls'),
       h('button.btn.big', { data: { action: 'credits' } }, 'Credits'),

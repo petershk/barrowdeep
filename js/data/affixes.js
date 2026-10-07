@@ -68,7 +68,13 @@
 
   /** rare names (03 §3) */
   BD.data.rareNames = {
-    PRE: ['Doom', 'Grim', 'Blood', 'Bone', 'Storm', 'Gloom', 'Wraith', 'Dread', 'Ash', 'Rune', 'Soul', 'Grave', 'Hate', 'Plague', 'Corpse', 'Shadow', 'Viper', 'Raven', 'Wolf', 'Iron'],
-    SUF: ['veil', 'bite', 'song', 'fang', 'mark', 'ward', 'spell', 'call', 'brand', 'shard', 'gnaw', 'wrack', 'mantle', 'coil', 'grasp', 'thirst', 'shroud', 'scar', 'knell', 'howl'],
+    PRE: [
+      'Doom', 'Grim', 'Blood', 'Bone', 'Storm', 'Gloom', 'Wraith', 'Dread', 'Ash', 'Rune',
+      'Soul', 'Grave', 'Hate', 'Plague', 'Corpse', 'Shadow', 'Viper', 'Raven', 'Wolf', 'Iron',
+    ],
+    SUF: [
+      'veil', 'bite', 'song', 'fang', 'mark', 'ward', 'spell', 'call', 'brand', 'shard',
+      'gnaw', 'wrack', 'mantle', 'coil', 'grasp', 'thirst', 'shroud', 'scar', 'knell', 'howl',
+    ],
   };
 })(globalThis.BD);

@@ -7,7 +7,7 @@
   const SD = BD.data.statuses;
   const B = BD.data.balance;
   const bump = (e) => BD.sim.stats.bump(e);
-  const isBoss = (e) => e.rank === 'boss' || e.rank === 'malgoth';
+  const isBoss = (e) => BD.sim.entities.isBoss(e);
 
   function has(e, id) { for (const s of e.statuses) if (s.id === id) return s; return null; }
   function stacks(e, id) { let n = 0; for (const s of e.statuses) if (s.id === id) n += s.stacks || 1; return n; }
@@ -26,7 +26,7 @@
     if (isBoss(e) && def.boss !== undefined) {
       if (def.boss === 'ignore') return null;
       if (typeof def.boss === 'number') durMs *= def.boss;
-      else { id = def.boss; mag = def.bossMag || (SD[id].mag || 0); durMs = id === 'chilled' ? 3000 : id === 'weakened' ? 4000 : durMs; def = SD[id]; }
+      else { id = def.boss; mag = def.bossMag || (SD[id].mag || 0); durMs = def.bossDurMs || durMs; def = SD[id]; }
     }
     // immunities
     if (e.kind === 'player') {
@@ -38,8 +38,19 @@
     const dot = def.dot && o.hit ? (o.hit * def.pct) / Math.max(1, durMs / B.combat.dotTickMs) : 0;
     if (def.stack === 'stack') {
       const list = e.statuses.filter((x) => x.id === id);
-      if (list.length >= (def.max || 5)) { s = list.sort((a, b) => a.remainingMs - b.remainingMs)[0]; s.remainingMs = durMs; s.dot = Math.max(s.dot || 0, dot); s.sourceId = o.sourceId; }
-      else { s = { id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId, tick: B.combat.dotTickMs, dot, element: def.dot || o.element || null }; e.statuses.push(s); }
+      if (list.length >= (def.max || 5)) {
+        // at the cap: refresh the stack closest to expiring
+        s = list.sort((a, b) => a.remainingMs - b.remainingMs)[0];
+        s.remainingMs = durMs;
+        s.dot = Math.max(s.dot || 0, dot);
+        s.sourceId = o.sourceId;
+      } else {
+        s = {
+          id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId,
+          tick: B.combat.dotTickMs, dot, element: def.dot || o.element || null,
+        };
+        e.statuses.push(s);
+      }
     } else {
       s = has(e, id);
       if (s) {
@@ -47,7 +58,10 @@
         s.magnitude = Math.max(s.magnitude || 0, mag);
         if (dot > (s.dot || 0)) { s.dot = dot; s.sourceId = o.sourceId; }
       } else {
-        s = { id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId, tick: B.combat.dotTickMs, dot, element: def.dot || null };
+        s = {
+          id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId,
+          tick: B.combat.dotTickMs, dot, element: def.dot || null,
+        };
         if (def.shield) s.pool = mag;
         e.statuses.push(s);
         world.events.push({ type: 'status.apply', id: e.id, status: id, durMs, x: e.x, y: e.y });
@@ -87,7 +101,10 @@
         if (s.tick <= 0) {
           s.tick += B.combat.dotTickMs;
           const amounts = {}; amounts[s.element || 'phys'] = s.dot;
-          BD.sim.damage.dealDamage(world, { srcId: s.sourceId, tgtId: e.id, amounts, tags: ['dot', s.id], canCrit: false, canDodge: false, canBlock: false, mult: 1, isDot: true });
+          BD.sim.damage.dealDamage(world, {
+            srcId: s.sourceId, tgtId: e.id, amounts, tags: ['dot', s.id],
+            canCrit: false, canDodge: false, canBlock: false, mult: 1, isDot: true,
+          });
           if (e.hp <= 0) return;
         }
       }
@@ -163,6 +180,9 @@
     }
   }
 
-  BD.sim.status = { has, stacks, apply, remove, cleanse, system, heal, clockMult, moveMult, takenMult, dealtMult, invulnerable, statMods, isBoss };
+  BD.sim.status = {
+    has, stacks, apply, remove, cleanse, system, heal,
+    clockMult, moveMult, takenMult, dealtMult, invulnerable, statMods, isBoss,
+  };
   BD.sim.world.addSystem('status', system, 30);
 })(globalThis.BD);

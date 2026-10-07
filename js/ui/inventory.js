@@ -7,7 +7,10 @@
 
   const { h } = BD.ui.dom;
   const CMD = () => BD.sim.commands;
-  const SLOTS = [['helm', 'Helm'], ['amulet', 'Amulet'], ['weapon', 'Weapon'], ['chest', 'Armour'], ['offhand', 'Offhand'], ['cloak', 'Cloak'], ['ring1', 'Ring'], ['ring2', 'Ring']];
+  const SLOTS = [
+    ['helm', 'Helm'], ['amulet', 'Amulet'], ['weapon', 'Weapon'], ['chest', 'Armour'],
+    ['offhand', 'Offhand'], ['cloak', 'Cloak'], ['ring1', 'Ring'], ['ring2', 'Ring'],
+  ];
   const ORDER = { legendary: 0, rare: 1, magic: 2, common: 3 };
   let sortBy = 'rarity', usableOnly = false, confirmUid = null;
 
@@ -19,7 +22,8 @@
   function itemCell(world, item, where, extra) {
     const d = BD.sim.items.derive(item);
     const ok = BD.sim.inventory.canEquip(world, world.player, item).ok;
-    const el = h('div.it-cell.r-' + item.rarity + (ok ? '' : '.unusable') + (item.locked ? '.locked' : ''), { data: Object.assign({ uid: item.uid, where }, extra || {}) }, [
+    const sel = 'div.it-cell.r-' + item.rarity + (ok ? '' : '.unusable') + (item.locked ? '.locked' : '');
+    const el = h(sel, { data: Object.assign({ uid: item.uid, where }, extra || {}) }, [
       iconEl(item), h('span.it-cell-name', d.name + (item.enhance ? ' +' + item.enhance : '')),
     ]);
     BD.ui.tooltip.bind(el, (c) => BD.ui.itemTooltip.body(c, world, item, { compare: where !== 'equip' }));
@@ -44,27 +48,45 @@
     const doll = h('div.doll');
     for (const [slot, label] of SLOTS) {
       const it = p.equip[slot];
-      doll.appendChild(h('div.doll-slot.slot-' + slot, [h('div.doll-label', label), it ? itemCell(w, it, 'equip', { slot }) : h('div.it-cell.empty', { data: { slot } }, '—')]));
+      const cell = it ? itemCell(w, it, 'equip', { slot }) : h('div.it-cell.empty', { data: { slot } }, '—');
+      doll.appendChild(h('div.doll-slot.slot-' + slot, [h('div.doll-label', label), cell]));
     }
+    const pouchText = '   Town Portal: ' + (p.pouch.portal || 0) + '   Revelation: ' + (p.pouch.reveal || 0);
     const left = h('div.col', [doll,
-      h('div.pouch-row', [h('span', 'Gold: '), h('b.gold', String(p.gold)), h('span.muted', '   Town Portal: ' + (p.pouch.portal || 0) + '   Revelation: ' + (p.pouch.reveal || 0))]),
-      h('div.row', [h('button.btn.tiny', { data: { action: 'read', kind: 'portal' }, disabled: !p.pouch.portal }, 'Read Town Portal (R)'), h('button.btn.tiny', { data: { action: 'read', kind: 'reveal' }, disabled: !p.pouch.reveal }, 'Read Revelation')]),
+      h('div.pouch-row', [h('span', 'Gold: '), h('b.gold', String(p.gold)), h('span.muted', pouchText)]),
+      h('div.row', [
+        h('button.btn.tiny', { data: { action: 'read', kind: 'portal' }, disabled: !p.pouch.portal }, 'Read Town Portal (R)'),
+        h('button.btn.tiny', { data: { action: 'read', kind: 'reveal' }, disabled: !p.pouch.reveal }, 'Read Revelation'),
+      ]),
     ]);
+    const sortBtn = (k) => h('button.btn.tiny' + (sortBy === k ? '.primary' : ''), { data: { action: 'sort', key: k } },
+      k === 'ilvl' ? 'level' : k);
     const tools = h('div.row.pack-tools', [
-      h('span.muted', 'Sort:'), ...['rarity', 'slot', 'value', 'ilvl'].map((k) => h('button.btn.tiny' + (sortBy === k ? '.primary' : ''), { data: { action: 'sort', key: k } }, k === 'ilvl' ? 'level' : k)),
+      h('span.muted', 'Sort:'), ...['rarity', 'slot', 'value', 'ilvl'].map(sortBtn),
       h('button.btn.tiny' + (usableOnly ? '.primary' : ''), { data: { action: 'usable' } }, 'Usable by me'),
     ]);
     const pack = h('div.pack-list');
     for (const it of sorted(w, p.pack)) pack.appendChild(itemCell(w, it, 'pack'));
     for (let i = p.pack.length; i < BD.sim.inventory.PACK; i++) pack.appendChild(h('div.it-cell.empty.ghost'));
-    const right = h('div.col', [h('div.pack-head', [h('b', 'Pack '), h('span.muted', p.pack.length + ' / ' + BD.sim.inventory.PACK)]), tools, pack,
-      h('div.muted.small', 'Right-click: equip. Shift-click: move to stash / sell. Ctrl-click: lock. Drop with the ✕ that appears on hover.')]);
+    const right = h('div.col', [
+      h('div.pack-head', [h('b', 'Pack '), h('span.muted', p.pack.length + ' / ' + BD.sim.inventory.PACK)]), tools, pack,
+      h('div.muted.small',
+        'Right-click: equip. Shift-click: move to stash / sell. Ctrl-click: lock. Drop with the ✕ that appears on hover.'),
+    ]);
     el.appendChild(h('div.inv-cols', [left, right]));
     if (confirmUid) {
       const it = p.pack.find((x) => x.uid === confirmUid);
-      if (it) el.appendChild(h('div.confirm', [h('span', 'Drop ' + BD.sim.items.derive(it).name + '?'), h('button.btn.tiny.danger', { data: { action: 'dropYes' } }, 'Drop'), h('button.btn.tiny', { data: { action: 'dropNo' } }, 'Keep')]));
+      if (it) {
+        el.appendChild(h('div.confirm', [
+          h('span', 'Drop ' + BD.sim.items.derive(it).name + '?'),
+          h('button.btn.tiny.danger', { data: { action: 'dropYes' } }, 'Drop'),
+          h('button.btn.tiny', { data: { action: 'dropNo' } }, 'Keep'),
+        ]));
+      }
     }
-    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [h('button.btn', { data: { action: 'close' } }, 'Close (I)')]));
+    el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:10px' }, [
+      h('button.btn', { data: { action: 'close' } }, 'Close (I)'),
+    ]));
 
     const refresh = () => BD.ui.panels.rebuild('inventory');
     el.addEventListener('contextmenu', (ev) => {

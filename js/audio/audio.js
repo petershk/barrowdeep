@@ -9,8 +9,7 @@
     master: null, sfx: null, music: null, amb: null, reverb: null, noiseBuf: null,
     ready: false,
   };
-  const OPT = () => BD.ui.options;
-  const lvl = (k) => { const v = OPT() ? OPT().get(k) : 80; return Math.max(0, Math.min(100, v == null ? 80 : v)) / 100; };
+  const lvl = (k) => { const v = BD.audio.host.volume(k); return Math.max(0, Math.min(100, v == null ? 80 : v)) / 100; };
   // perceptual curve: sliders feel linear when gain follows the square
   const curve = (v) => v * v;
 
@@ -32,10 +31,13 @@
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     // a 2.8 s decaying-noise chamber shared by ambience and big moments
     const rl = Math.floor(ctx.sampleRate * 2.8), ir = ctx.createBuffer(2, rl, ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) { const c = ir.getChannelData(ch); for (let i = 0; i < rl; i++) c[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6); }
+    for (let ch = 0; ch < 2; ch++) {
+      const c = ir.getChannelData(ch);
+      for (let i = 0; i < rl; i++) c[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6);
+    }
     A.reverb = ctx.createConvolver(); A.reverb.buffer = ir;
     const wet = ctx.createGain(); wet.gain.value = 0.8; A.reverb.connect(wet); wet.connect(A.amb);
-    if (OPT()) OPT().onChange((k) => { if (k === 'master' || k === 'effects' || k === 'music' || k === 'ambience') applyVolumes(); });
+    BD.audio.host.onVolumeChange(applyVolumes);
     applyVolumes();
     A.ready = true;
     return ctx;

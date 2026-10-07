@@ -70,7 +70,8 @@
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) taken.add((up.y + dy) * p.w + up.x + dx);
     if (p.spawnPos) taken.add(p.spawnPos.y * p.w + p.spawnPos.x);
     const keeperTiles = new Set(C.roomTiles(p, p.keeperRoom).map(([x, y]) => y * p.w + x));
-    const floorList = rng.shuffle(C.reachableFloor(p, dist).filter(([x, y]) => cheb(x, y, up.x, up.y) >= 10 && !keeperTiles.has(y * p.w + x)));
+    const awayFromStart = ([x, y]) => cheb(x, y, up.x, up.y) >= 10 && !keeperTiles.has(y * p.w + x);
+    const floorList = rng.shuffle(C.reachableFloor(p, dist).filter(awayFromStart));
     let packId = 0;
     const addPack = (members, o) => {
       const id = packId++;
@@ -80,7 +81,8 @@
     // ---- Keeper ----
     if (fl.keeper) {
       const kt = C.roomTiles(p, p.keeperRoom).filter(([x, y]) => p.tiles[y * p.w + x] === T.FLOOR && dist[y * p.w + x] >= 0);
-      const kc = kt.sort((a, b) => cheb(a[0], a[1], p.keeperRoom.cx, p.keeperRoom.cy) - cheb(b[0], b[1], p.keeperRoom.cx, p.keeperRoom.cy))[0];
+      const fromCentre = (t) => cheb(t[0], t[1], p.keeperRoom.cx, p.keeperRoom.cy);
+      const kc = kt.sort((a, b) => fromCentre(a) - fromCentre(b))[0];
       const species = rng.pick(actSpecies(act).filter((m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher'));
       const minionSp = rng.pick(actSpecies(act));
       const nMin = rng.int(2, 4);
@@ -88,13 +90,18 @@
       const sigs = rng.shuffle(['quake', 'grasp', 'bone_hurl', 'charge_line', 'rally']);
       const nSig = Math.max(BD.data.difficulties[spec.difficulty || 'penitent'].keeperMoves, (spec.ascension || 0) >= 3 ? 2 : 1);
       const members = spots.map(([x, y], i) => i === 0
-        ? { def: species.id, x, y, rank: 'keeper', keeper: true, name: eliteName(rng), mods: rollMods(rng, spec, eliteModCount(spec)), signature: sigs.slice(0, nSig), carries: fl.actEnd ? 'key' : 'seal' }
+        ? {
+          def: species.id, x, y, rank: 'keeper', keeper: true,
+          name: eliteName(rng), mods: rollMods(rng, spec, eliteModCount(spec)),
+          signature: sigs.slice(0, nSig), carries: fl.actEnd ? 'key' : 'seal',
+        }
         : { def: minionSp.id, x, y, rank: 'minion' });
       addPack(members, { kind: 'keeper' });
     }
     // ---- normal packs up to the budget ----
     const diff = BD.data.difficulties[spec.difficulty || 'penitent'];
-    let budget = Math.round(BD.core.util.lerp(B.gen.budgetMin, B.gen.budgetMax, (fl.n - 1) / 11) * diff.spawn * ((spec.ascension || 0) >= 6 ? 1.25 : 1));
+    const ascMult = (spec.ascension || 0) >= 6 ? 1.25 : 1;
+    let budget = Math.round(BD.core.util.lerp(B.gen.budgetMin, B.gen.budgetMax, (fl.n - 1) / 11) * diff.spawn * ascMult);
     // set-piece monster spots get packs first
     const mSpots = p.markers.filter((m) => m.ch === 'M');
     const anchors = [];
@@ -133,13 +140,17 @@
       }
       const { id, pk, members } = packDefsFor(act, inAct, rng, fl.n);
       const spots = cluster(p, dist, taken, a[0], a[1], members.length, pk.spread ? 6 : 3);
-      addPack(spots.map(([x, y], i) => ({ def: members[i], x, y, rank: 'normal' })), { kind: id, counted: true, leader: pk.leader || null });
+      const packMembers = spots.map(([x, y], i) => ({ def: members[i], x, y, rank: 'normal' }));
+      addPack(packMembers, { kind: id, counted: true, leader: pk.leader || null });
       budget -= spots.length;
       // corpse props: never stacked, never on another object's tile, and they don't block monster spots
       if (pk.corpses) {
         const busy = new Set(taken);
         for (const o of p.objects) busy.add(o.y * p.w + o.x);
-        for (let i = 0; i < pk.corpses; i++) { const t = cluster(p, dist, busy, a[0], a[1], 1, 4)[0]; if (t) p.objects.push({ kind: 'corpse_prop', x: t[0], y: t[1], def: 'skeleton' }); }
+        for (let i = 0; i < pk.corpses; i++) {
+          const t = cluster(p, dist, busy, a[0], a[1], 1, 4)[0];
+          if (t) p.objects.push({ kind: 'corpse_prop', x: t[0], y: t[1], def: 'skeleton' });
+        }
       }
     }
     // ---- unique elites (floors 3+: 0–1 besides the Keeper) ----
@@ -148,10 +159,14 @@
     for (let k = 0; k < elites; k++) {
       const a = eSpots.length ? [eSpots[0].x, eSpots[0].y] : nextAnchor();
       if (!a) break;
-      const sp = rng.pick(actSpecies(act).filter((m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher' || m.role === 'caster'));
+      const eliteRole = (m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher' || m.role === 'caster';
+      const sp = rng.pick(actSpecies(act).filter(eliteRole));
       const minSp = rng.pick(actSpecies(act));
       const spots = cluster(p, dist, taken, a[0], a[1], 1 + rng.int(2, 4), 4);
-      addPack(spots.map(([x, y], i) => (i === 0 ? { def: sp.id, x, y, rank: 'unique', name: eliteName(rng), mods: rollMods(rng, spec, eliteModCount(spec)) } : { def: minSp.id, x, y, rank: 'minion' })), { kind: 'unique' });
+      const members = spots.map(([x, y], i) => (i === 0
+        ? { def: sp.id, x, y, rank: 'unique', name: eliteName(rng), mods: rollMods(rng, spec, eliteModCount(spec)) }
+        : { def: minSp.id, x, y, rank: 'minion' }));
+      addPack(members, { kind: 'unique' });
     }
     // ---- set-piece objects ----
     for (const m of p.markers) {

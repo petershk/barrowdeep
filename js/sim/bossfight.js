@@ -27,7 +27,9 @@
     world.run.countdownShown = 4;
     // the boss waits; the player may position during the countdown
     for (const e of f.entities.values()) if (e.ai) { e.ai.state = 'idle'; e.ai.timer = COUNTDOWN + 100; e.ai.held = true; }
-    if (f.arena && f.arena.webs) for (const [x, y] of f.arena.webs) BD.sim.zones.ground(world, 'web', [[x, y]], { durMs: 1e9, faction: 'monster' });
+    if (f.arena && f.arena.webs) {
+      for (const [x, y] of f.arena.webs) BD.sim.zones.ground(world, 'web', [[x, y]], { durMs: 1e9, faction: 'monster' });
+    }
   }
 
   function system(world, dt) {
@@ -44,7 +46,12 @@
       r.countdownMs = 0;
       world.events.push({ type: 'announce', text: BD.data.strings.t('fight'), style: 'countdown' });
       world.events.push({ type: 'countdown', n: 0 });
-      for (const e of world.floor.entities.values()) if (e.ai && e.ai.held) { e.ai.held = false; BD.sim.ai.alert(world, e, world.player, true); }
+      for (const e of world.floor.entities.values()) {
+        if (e.ai && e.ai.held) {
+          e.ai.held = false;
+          BD.sim.ai.alert(world, e, world.player, true);
+        }
+      }
     }
   }
 
@@ -86,7 +93,7 @@
     const f = world.floor;
     if (!(typeof f.key === 'string' && f.key[0] === 'a') && f.n !== 13) return false;
     if (f.bossDead) return false;
-    for (const e of f.entities.values()) if ((e.rank === 'boss' || e.rank === 'malgoth') && !e.dead) return true;
+    for (const e of f.entities.values()) if (BD.sim.entities.isBoss(e) && !e.dead) return true;
     return false;
   }
   function allShadesDead(world, e) {

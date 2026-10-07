@@ -20,7 +20,11 @@
   // ---------------- Aimed Shot ----------------
   reg('aimed_shot.commit', (world, p, ab, rank, a) => {
     if (BD.sim.status.has(p, 'vault_ready')) { a.focusHeld = 5; BD.sim.status.remove(world, p, 'vault_ready'); }
-    if (a.focusHeld >= 5 && ks(p, 'deadeye')) { R.refund(world, p, 'focus', Math.min(2, a.spent)); a.spent = Math.max(0, a.spent - 2); a.deadeye = true; }
+    if (a.focusHeld >= 5 && ks(p, 'deadeye')) {
+      R.refund(world, p, 'focus', Math.min(2, a.spent));
+      a.spent = Math.max(0, a.spent - 2);
+      a.deadeye = true;
+    }
   });
   reg('aimed_shot.before', (world, p, ab, rank, { a, ctx }) => {
     if (a && a.deadeye) ctx.forceCrit = true;
@@ -81,7 +85,8 @@
     BD.sim.player.onStep(world, p);
     world.events.push({ type: 'leap', id: p.id, fromX: fx, fromY: fy, x: land.x, y: land.y, ms: 220, abilityId: 'vault' });
     const hit = H.computeHit(world, p, ab, { source: 'weapon', mult: 0.2 }, 1, { roll: 0.5 }).total;
-    BD.sim.zones.ground(world, 'caltrops', G.shapeOffsets('circle', 1).map(([x, y]) => [fx + x, fy + y]), { durMs: 3000, faction: 'player', srcId: p.id, amount: hit });
+    const caltrops = G.shapeOffsets('circle', 1).map(([x, y]) => [fx + x, fy + y]);
+    BD.sim.zones.ground(world, 'caltrops', caltrops, { durMs: 3000, faction: 'player', srcId: p.id, amount: hit });
     R.gain(world, p, 'focus', PW.has(p, 'galewing_mantle') ? 3 : 2);
     if (ab.primeAimed) BD.sim.status.apply(world, p, 'vault_ready', { durMs: 3000 });
     return false;
@@ -92,7 +97,9 @@
   // ---------------- Pinning Shot ----------------
   reg('pinning_shot.projectileHit', (world, p, ab, rank, { tgt, ctx, res }) => {
     if (!res || !res.length || !res[0].res) return;
-    for (const e of BD.sim.entities.enemiesOf(world, p.faction)) if (e !== tgt && within(e.x, e.y, tgt.x, tgt.y, 2)) BD.sim.status.apply(world, e, 'feared', { durMs: 1500, sourceId: p.id });
+    for (const e of E.enemiesOf(world, p.faction)) {
+      if (e !== tgt && within(e.x, e.y, tgt.x, tgt.y, 2)) BD.sim.status.apply(world, e, 'feared', { durMs: 1500, sourceId: p.id });
+    }
     if (ab.pinVuln) BD.sim.status.apply(world, tgt, 'vulnerable', { durMs: 2500, sourceId: p.id });
     let chains = (ab.pinChain || 0) + (PW.has(p, 'wingbreaker') ? 2 : 0);
     if (!chains || ctx.chained) return;
@@ -133,8 +140,12 @@
     for (const v of A.alliesOf(world, 'valkyrie')) A.despawn(world, v);
     const n = PW.has(p, 'oathspear') ? 2 : 1;
     for (let i = 0; i < n; i++) {
-      A.spawnAlly(world, p, { kind: 'valkyrie', x: p.x + (i ? -1 : 1), y: p.y, art: 'valkyrie', pal: { A: '#b0d8ff', a: '#6a98d0', H: '#f0f8ff', h: '#a0c0e0', B: '#8ab0e0', W: '#ffffff' },
-        lifeMs: ab.spiritMs, mult: BD.sim.abilities.scale({ mult: ab.spiritMult }, rank), decoy: 0.5, rank, throws: !!ab.spiritThrows, lifePct: 0.8 });
+      A.spawnAlly(world, p, {
+        kind: 'valkyrie', x: p.x + (i ? -1 : 1), y: p.y, art: 'valkyrie',
+        pal: { A: '#b0d8ff', a: '#6a98d0', H: '#f0f8ff', h: '#a0c0e0', B: '#8ab0e0', W: '#ffffff' },
+        lifeMs: ab.spiritMs, mult: BD.sim.abilities.scale({ mult: ab.spiritMult }, rank), decoy: 0.5, rank,
+        throws: !!ab.spiritThrows, lifePct: 0.8,
+      });
     }
   });
   reg('valkyries_call.cooldown', (world, p, ab, ms) => (ks(p, 'shieldmaidens_oath') ? 20000 : ms));
@@ -150,5 +161,4 @@
   PW.registerMod('skyrender', (ab) => { if (ab.id === 'rain_of_arrows') ab.follow = 'target'; });
   // featherfall, eagles_talon, wingbreaker, oathspear and galewing_mantle are handled above by name
 
-  void E;
 })(globalThis.BD);

@@ -17,7 +17,8 @@
       cls, name: opts.name || 'Wanderer', background: opts.background || 'wanderer', level: 1, xp: 0, attrs,
       unspent: { attr: 0, skill: 0 }, skills: {}, bar: { rmb: null, s1: null, s2: null, s3: null, s4: null },
       resources: {}, equip: { weapon: null, offhand: null, chest: null, helm: null, cloak: null, amulet: null, ring1: null, ring2: null },
-      pack: [], pouch: { portal: 1, reveal: 0 }, flask: { charges: B.player.flaskBase, max: B.player.flaskBase, permMax: B.player.flaskBase }, gold: 0,
+      pack: [], pouch: { portal: 1, reveal: 0 },
+      flask: { charges: B.player.flaskBase, max: B.player.flaskBase, permMax: B.player.flaskBase }, gold: 0,
       intent: { kind: 'idle' }, faction: 'player', lastHitMs: -1e9, lastDamagedMs: -1e9, lastCastMs: -1e9, attack: null,
     });
     p.hp = 1;
@@ -29,9 +30,13 @@
       const slot = BD.data.bases[k.base].slot;
       if (!p.equip[slot]) p.equip[slot] = it; else p.pack.push(it);
     }
-    if (opts.firstSkill && BD.data.skills && BD.data.skills[opts.firstSkill]) { p.skills[opts.firstSkill] = 1; p.bar.rmb = opts.firstSkill; }
+    if (opts.firstSkill && BD.data.skills && BD.data.skills[opts.firstSkill]) {
+      p.skills[opts.firstSkill] = 1;
+      p.bar.rmb = opts.firstSkill;
+    }
     const diff = BD.data.difficulties[opts.difficulty || 'penitent'];
-    p.flask.max = p.flask.charges = B.player.flaskBase + (diff ? diff.flaskBonus : 0) + (opts.background === 'acolyte' ? 1 : 0);
+    const bg = BD.data.backgrounds[opts.background] || {};
+    p.flask.max = p.flask.charges = B.player.flaskBase + (diff ? diff.flaskBonus : 0) + (bg.flaskBonus || 0);
     BD.sim.stats.bump(p);
     p.hp = BD.sim.stats.statsOf(world, p).maxLife;
     if (p.resources.mana) p.resources.mana.cur = BD.sim.stats.statsOf(world, p).maxMana;
@@ -56,7 +61,10 @@
     const walk = (x, y) => E.walkable(f, x, y) && (!E.occupant(f, x, y) || E.occupant(f, x, y) === p.id || cheb(x, y, p.x, p.y) > 1);
     let path = G.astar(f.w, f.h, p.x, p.y, gx, gy, walk, { allowGoalBlocked: adjacentOk, budget: f.w * f.h, partial: true });
     // stop beside the goal if it is occupied or can't be stood on (gates, doors, chests' tiles…)
-    if (path && adjacentOk && path.length && path[path.length - 1][0] === gx && path[path.length - 1][1] === gy && (E.occupant(f, gx, gy) || !E.walkable(f, gx, gy))) path.pop();
+    if (path && adjacentOk && path.length) {
+      const last = path[path.length - 1];
+      if (last[0] === gx && last[1] === gy && (E.occupant(f, gx, gy) || !E.walkable(f, gx, gy))) path.pop();
+    }
     return path;
   }
 
@@ -106,8 +114,14 @@
     const t = E.get(world, it.targetId);
     if (!t || t.hp <= 0 || t.dead) { p.intent = { kind: 'idle' }; return; }
     const reach = it.kind === 'engage' ? BD.sim.combat.basicRange(world, p) : it.range;
-    const inRange = reach <= 1.5 ? cheb(p.x, p.y, t.x, t.y) <= 1 && G.canStep(p.x, p.y, Math.sign(t.x - p.x), Math.sign(t.y - p.y), (x, y) => E.walkable(world.floor, x, y) || (x === t.x && y === t.y))
-      : within(p.x, p.y, t.x, t.y, reach) && BD.sim.targeting.hasLOS(world, p.x, p.y, t.x, t.y);
+    let inRange;
+    if (reach <= 1.5) {
+      // melee: adjacent, and the diagonal isn't cut by a wall corner
+      const passable = (x, y) => E.walkable(world.floor, x, y) || (x === t.x && y === t.y);
+      inRange = cheb(p.x, p.y, t.x, t.y) <= 1 && G.canStep(p.x, p.y, Math.sign(t.x - p.x), Math.sign(t.y - p.y), passable);
+    } else {
+      inRange = within(p.x, p.y, t.x, t.y, reach) && BD.sim.targeting.hasLOS(world, p.x, p.y, t.x, t.y);
+    }
     if (inRange) {
       if (p.attack) return;                   // recovering from the last swing
       if (it.kind === 'engage') { BD.sim.combat.playerBasicAttack(world, p, t); if (!it.hold) p.intent = { kind: 'idle' }; }
@@ -129,7 +143,10 @@
     const g = world.floor.items.find((x) => x.uid === it.uid);
     if (!g) { p.intent = { kind: 'idle' }; return; }
     if (cheb(p.x, p.y, g.x, g.y) <= 1) { p.intent = { kind: 'idle' }; BD.sim.inventory.pickup(world, it.uid); return; }
-    if (!it.path || !it.path.length) { it.path = pathTo(world, p, g.x, g.y, true) || []; if (!it.path.length) { p.intent = { kind: 'idle' }; return; } }
+    if (!it.path || !it.path.length) {
+      it.path = pathTo(world, p, g.x, g.y, true) || [];
+      if (!it.path.length) { p.intent = { kind: 'idle' }; return; }
+    }
     const [nx, ny] = it.path[0];
     if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); } else it.path = null;
   }
@@ -140,7 +157,10 @@
       if (!ok || !it.hold) p.intent = { kind: 'idle' };
       return;
     }
-    if (!it.path || !it.path.length) { it.path = pathTo(world, p, it.x, it.y, true) || []; if (!it.path.length) { p.intent = { kind: 'idle' }; return; } }
+    if (!it.path || !it.path.length) {
+      it.path = pathTo(world, p, it.x, it.y, true) || [];
+      if (!it.path.length) { p.intent = { kind: 'idle' }; return; }
+    }
     const [nx, ny] = it.path[0];
     if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); } else it.path = null;
   }

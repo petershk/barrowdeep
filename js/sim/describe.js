@@ -28,9 +28,22 @@
   function costText(ab) {
     const r = ab.resource || {};
     if (ab.channel) return ab.channel.costPerSec + ' ' + r.type + '/s' + (r.minStart ? ' (' + r.minStart + ' to start)' : '');
-    if (!r.type || r.type === 'none' || !r.cost) return r.gen ? 'Builds ' + r.gen + ' ' + r.type : r.combo === 'build' ? 'Builds 1 combo' : 'Free';
+    if (!r.type || r.type === 'none' || !r.cost) {
+      if (r.gen) return 'Builds ' + r.gen + ' ' + r.type;
+      return r.combo === 'build' ? 'Builds 1 combo' : 'Free';
+    }
     if (r.cost === 'all') return 'All ' + r.type;
     return r.cost + ' ' + r.type;
+  }
+
+  function cooldownText(world, p, ab) {
+    if (ab.charges) return ab.charges + ' charges, ' + sec(AB().cdTime(world, p, ab)) + ' each';
+    return ab.cooldownMs ? sec(AB().cdTime(world, p, ab)) : '';
+  }
+
+  /** a rank-scaled magnitude: per-rank effects scale themselves, others scale `base` as a mult */
+  function scaledBy(eff, base, rank) {
+    return eff.perRank ? AB().scale(eff, rank) : AB().scale({ mult: base }, rank);
   }
 
   function effectText(eff, rank) {
@@ -38,16 +51,22 @@
       case 'status': {
         const sd = BD.data.statuses[eff.id];
         const dur = eff.durMs != null ? eff.durMs : sd.durMs;
-        const chance = eff.chance != null ? Math.round(eff.chance * 100) + '% chance to apply ' : eff.onlyOnCrit ? 'Critical hits apply ' : 'Applies ';
+        let chance = 'Applies ';
+        if (eff.chance != null) chance = Math.round(eff.chance * 100) + '% chance to apply ';
+        else if (eff.onlyOnCrit) chance = 'Critical hits apply ';
         return chance + sd.name + (dur ? ' (' + sec(dur) + ')' : '');
       }
       case 'knockback': return 'Knocks back ' + eff.dist + ' tile' + (eff.dist > 1 ? 's' : '');
       case 'pull': return 'Pulls enemies inward';
-      case 'heal': return 'Heals ' + fmt(eff.perRank ? AB().scale(eff, rank) : AB().scale({ mult: eff.pctMaxLife }, rank)) + '% of maximum life' + (eff.overMs ? ' over ' + sec(eff.overMs) : '');
+      case 'heal': {
+        const over = eff.overMs ? ' over ' + sec(eff.overMs) : '';
+        return 'Heals ' + fmt(scaledBy(eff, eff.pctMaxLife, rank)) + '% of maximum life' + over;
+      }
       case 'cleanse': return 'Removes ' + eff.statuses.map((s) => BD.data.statuses[s].name).join(', ');
       case 'buff': {
         const sd = BD.data.statuses[eff.id];
-        const mag = eff.magnitude == null ? null : eff.fixed ? eff.magnitude : eff.perRank ? AB().scale(eff, rank) : AB().scale({ mult: eff.magnitude }, rank);
+        let mag = null;
+        if (eff.magnitude != null) mag = eff.fixed ? eff.magnitude : scaledBy(eff, eff.magnitude, rank);
         return sd.name + (mag != null ? ' ' + fmt(mag) + '%' : '') + ' for ' + sec(eff.durMs);
       }
       case 'resource': return 'Generates ' + eff.gen + ' ' + (eff.res || 'resource');
@@ -57,15 +76,17 @@
   }
 
   /**
-   * @returns {{ id, name, rank, maxRank, tier, branch, cost, cooldown, cast, range, desc, lines:any[], breakpoints:any[], keystone:boolean }}
+   * @returns {{ id, name, rank, maxRank, tier, branch, cost, cooldown, cast, range, desc,
+   *   lines:any[], breakpoints:any[], keystone:boolean }}
    */
   function describe(world, p, id, rankOverride) {
     const base = id === 'attack' ? AB().basicFor(world, p) : AB().def(id);
     const rank = rankOverride != null ? rankOverride : Math.max(1, AB().rankOf(world, p, id));
     const ab = AB().resolved(base, rank, p);
     const out = {
-      id, name: base.name, rank, hard: p.skills[id] || 0, maxRank: base.tier === 4 ? 1 : 5, tier: base.tier, branch: base.branch, keystone: !!base.keystone,
-      cost: base.keystone ? '' : costText(ab), cooldown: ab.charges ? ab.charges + ' charges, ' + sec(AB().cdTime(world, p, ab)) + ' each' : ab.cooldownMs ? sec(AB().cdTime(world, p, ab)) : '',
+      id, name: base.name, rank, hard: p.skills[id] || 0, maxRank: base.tier === 4 ? 1 : 5,
+      tier: base.tier, branch: base.branch, keystone: !!base.keystone,
+      cost: base.keystone ? '' : costText(ab), cooldown: cooldownText(world, p, ab),
       cast: '', range: ab.targeting && ab.targeting.range && ab.targeting.mode !== 'self' ? ab.targeting.range + ' tiles' : '',
       desc: base.desc, lines: [], breakpoints: [],
     };
@@ -81,7 +102,8 @@
       if (n.eff.perCombo) extra += ', +' + fmt(n.eff.perCombo * (1 + 0.2 * (rank - 1))) + '× per combo charge';
       if (n.eff.perFocus) extra += ', +' + fmt(n.eff.perFocus * (1 + 0.2 * (rank - 1))) + '× per focus';
       if (n.eff.missingLife) extra += ', up to +' + Math.round(n.eff.missingLife * 100) + '% vs wounded';
-      out.lines.push({ kind: 'damage', text: Math.round(n.lo) + '–' + Math.round(n.hi) + elTxt + ' damage' + src + extra, lo: n.lo, hi: n.hi });
+      const text = Math.round(n.lo) + '–' + Math.round(n.hi) + elTxt + ' damage' + src + extra;
+      out.lines.push({ kind: 'damage', text, lo: n.lo, hi: n.hi });
     }
     for (const eff of ab.effects.concat(ab.selfEffects || [])) {
       const t = effectText(eff, rank);

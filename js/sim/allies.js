@@ -54,7 +54,9 @@
     if (a.cd > 0) return;
     // pick the nearest enemy near the owner (the locked target first)
     let t = owner.lockId != null ? E.get(world, owner.lockId) : null;
-    if (!t || t.dead || t.hp <= 0 || !within(t.x, t.y, owner.x, owner.y, 9)) t = BD.sim.targeting.nearestEnemy(world, a.x, a.y, 8, 'player', null);
+    if (!t || t.dead || t.hp <= 0 || !within(t.x, t.y, owner.x, owner.y, 9)) {
+      t = BD.sim.targeting.nearestEnemy(world, a.x, a.y, 8, 'player', null);
+    }
     if (!t) {
       // follow the owner
       if (cheb(a.x, a.y, owner.x, owner.y) > 2) stepToward(world, a, owner.x, owner.y);
@@ -71,12 +73,13 @@
     }
     if (cheb(a.x, a.y, t.x, t.y) <= 1) {
       a.dir = dirOf(t.x - a.x, t.y - a.y);
-      const ab = BD.sim.abilities.basicFor(world, owner);
       const h = H().computeHit(world, owner, { tags: ['melee'] }, { source: 'weapon', mult: a.mult }, 1, { rng: world.rng });
-      BD.sim.damage.dealDamage(world, { srcId: a.id, tgtId: t.id, amounts: h.amounts, tags: ['melee', 'ally'], canCrit: true, canDodge: true, canBlock: true, mult: 1, abilityId: 'ally' });
+      BD.sim.damage.dealDamage(world, {
+        srcId: a.id, tgtId: t.id, amounts: h.amounts, tags: ['melee', 'ally'],
+        canCrit: true, canDodge: true, canBlock: true, mult: 1, abilityId: 'ally',
+      });
       world.events.push({ type: 'ability.impact', id: a.id, abilityId: 'ally', x: a.x, y: a.y, tx: t.x, ty: t.y, kind: 'melee' });
       a.cd = Math.max(450, BD.sim.stats.statsOf(world, owner).attackCycleMs);
-      void ab;
       return;
     }
     stepToward(world, a, t.x, t.y);
@@ -98,7 +101,10 @@
   }
   function alliesOf(world, kind) {
     const out = [];
-    for (const id of world.floor.allies || []) { const a = E.get(world, id); if (a && !a.dead && (!kind || a.allyKind === kind)) out.push(a); }
+    for (const id of world.floor.allies || []) {
+      const a = E.get(world, id);
+      if (a && !a.dead && (!kind || a.allyKind === kind)) out.push(a);
+    }
     return out;
   }
 
@@ -120,8 +126,18 @@
 
   function system(world, dt) {
     const f = world.floor;
-    if (f.allies && f.allies.length) for (const id of f.allies.slice()) { const a = E.get(world, id); if (a && !a.dead) allyStep(world, a, dt); }
-    if (f.deployables && f.deployables.length) for (const d of f.deployables.slice()) { const k = kinds[d.kind]; if (k) k.tick(world, d, dt); }
+    if (f.allies && f.allies.length) {
+      for (const id of f.allies.slice()) {
+        const a = E.get(world, id);
+        if (a && !a.dead) allyStep(world, a, dt);
+      }
+    }
+    if (f.deployables && f.deployables.length) {
+      for (const d of f.deployables.slice()) {
+        const k = kinds[d.kind];
+        if (k) k.tick(world, d, dt);
+      }
+    }
     // Shieldmaiden's Oath: a buff while a Valkyrie spirit fights beside you
     const p = world.player;
     if (p && p.skills && p.skills.shieldmaidens_oath) {

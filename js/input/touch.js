@@ -20,7 +20,12 @@
     const btn = (label, b, cls) => {
       const el = h('div.touch-btn' + (cls ? '.' + cls : ''), label);
       const set = (on) => { const v = G().virtual.buttons[b]; v.pressed = on; v.value = on ? 1 : 0; el.classList.toggle('down', on); };
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); BD.app.userGesture(); set(true); }, { passive: false });
+      el.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        BD.app.userGesture();
+        set(true);
+      }, { passive: false });
       el.addEventListener('touchend', (e) => { e.preventDefault(); set(false); }, { passive: false });
       el.addEventListener('touchcancel', () => set(false));
       return el;
@@ -28,15 +33,37 @@
     stick = h('div.touch-stick'); knob = h('div.touch-knob'); stick.appendChild(knob);
     ui = h('div.touch-ui', [
       stick,
-      h('div.touch-btns', [btn('Attack', B.A, 'big'), btn('RMB', B.RT), btn('1', B.X), btn('2', B.Y), btn('3', B.B), btn('4', B.RB), btn('Evade', B.LB), btn('Flask', B.LT), btn('Use', B.UP)]),
+      h('div.touch-btns', [
+        btn('Attack', B.A, 'big'), btn('RMB', B.RT), btn('1', B.X), btn('2', B.Y), btn('3', B.B), btn('4', B.RB),
+        btn('Evade', B.LB), btn('Flask', B.LT), btn('Use', B.UP),
+      ]),
       h('div.touch-top', [btn('Pause', B.BACK, 'small'), btn('Bag', B.START, 'small'), btn('Map', B.RS, 'small')]),
     ]);
     root().appendChild(ui);
     document.body.classList.add('touch');
     G().virtual.active = true;
-    stick.addEventListener('touchstart', (e) => { e.preventDefault(); BD.app.userGesture(); const t = e.changedTouches[0]; stickId = t.identifier; const r = stick.getBoundingClientRect(); origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 }; move(t); }, { passive: false });
-    window.addEventListener('touchmove', (e) => { for (const t of Array.from(e.changedTouches)) if (t.identifier === stickId) { e.preventDefault(); move(t); } }, { passive: false });
-    const end = (e) => { for (const t of Array.from(e.changedTouches)) if (t.identifier === stickId) { stickId = null; G().virtual.axes[0] = G().virtual.axes[1] = 0; knob.style.transform = ''; } };
+    stick.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      BD.app.userGesture();
+      const t = e.changedTouches[0];
+      stickId = t.identifier;
+      const r = stick.getBoundingClientRect();
+      origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      move(t);
+    }, { passive: false });
+    window.addEventListener('touchmove', (e) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier === stickId) { e.preventDefault(); move(t); }
+      }
+    }, { passive: false });
+    const end = (e) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier !== stickId) continue;
+        stickId = null;
+        G().virtual.axes[0] = G().virtual.axes[1] = 0;
+        knob.style.transform = '';
+      }
+    };
     window.addEventListener('touchend', end); window.addEventListener('touchcancel', end);
   }
   function move(t) {
@@ -58,7 +85,9 @@
       timer = setTimeout(() => {
         fired = true;
         const t = e.touches[0];
-        for (const type of ['mouseover', 'mouseenter']) el.dispatchEvent(new MouseEvent(type, { bubbles: type === 'mouseover', clientX: t.clientX, clientY: t.clientY }));
+        for (const type of ['mouseover', 'mouseenter']) {
+          el.dispatchEvent(new MouseEvent(type, { bubbles: type === 'mouseover', clientX: t.clientX, clientY: t.clientY }));
+        }
       }, 450);
     }, { passive: true });
     const cancel = () => clearTimeout(timer);

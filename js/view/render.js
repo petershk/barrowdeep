@@ -100,10 +100,15 @@
     const f = world.floor, p = world.player, v = iso.view;
     const biome = BD.data.biomes[f.biome];
     const pal = biome.pal;
-    if (cutKey !== f.key + f.seed) { cutKey = f.key + f.seed; cutFade = new Float32Array(f.w * f.h); V.clear(); BD.view.camera.cam.init = false; }
+    if (cutKey !== f.key + f.seed) {
+      cutKey = f.key + f.seed;
+      cutFade = new Float32Array(f.w * f.h);
+      V.clear();
+      BD.view.camera.cam.init = false;
+    }
     V.tick(realMs);
     const pp = V.pos(p, alpha, { x: 0, y: 0 });
-    const hover = BD.input && BD.input.mouse ? BD.input.mouse.hoverTile : null;
+    const hover = BD.view.host.pointer.hoverTile;
     BD.view.camera.update(pp.x, pp.y, realMs, v.w, v.h, null);
     const cam = BD.view.camera.cam;
     const baseOx = v.ox, baseOy = v.oy;
@@ -203,12 +208,17 @@
     const biome = f.biome;
     if (t === T.GATE) {
       // draw the 2×2 gate once, from its top-left tile
-      if (f.gatePos && x === f.gatePos.x + 1 && y === f.gatePos.y + 1) drawArt(f.gateOpen ? 'prop_gate_open' : 'prop_gate', 'idle', 0, x - 0.5, y - 0.5, { scale: 1 });
+      if (f.gatePos && x === f.gatePos.x + 1 && y === f.gatePos.y + 1) {
+        drawArt(f.gateOpen ? 'prop_gate_open' : 'prop_gate', 'idle', 0, x - 0.5, y - 0.5, { scale: 1 });
+      }
       return;
     }
     let kind = t === T.PILLAR ? 'pillar' : 'wall';
     if (f.town) {
-      if (!f._bset) { f._bset = new Set(); for (const k in f.town.buildings) for (const [bx, by] of f.town.buildings[k]) f._bset.add(by * f.w + bx); }
+      if (!f._bset) {
+        f._bset = new Set();
+        for (const k in f.town.buildings) for (const [bx, by] of f.town.buildings[k]) f._bset.add(by * f.w + bx);
+      }
       if (t === T.TOWN_DOOR) kind = 'door';
       else if (f._bset.has(i)) kind = 'building';
     }
@@ -257,23 +267,38 @@
     else if (e.move) { frame = 'walk'; fi = Math.floor((e.move.elapsed / e.move.dur) * 2) % 2; }
     let dx = 0, dy = 0;
     const px = iso.view.Z * iso.view.dpr;
-    if (s.recoil > 0) { const rf = s.recoil / 150, sv = screenDir(s.rx, s.ry); dx += sv.x * 6 * px * rf * rf; dy += sv.y * 6 * px * rf * rf; }
-    if (s.lunge > 0) { const lf = Math.sin((1 - s.lunge / 80) * Math.PI), sv = screenDir(s.lx, s.ly); dx += sv.x * 6 * px * lf; dy += sv.y * 6 * px * lf; }
+    if (s.recoil > 0) {
+      const rf = s.recoil / 150, sv = screenDir(s.rx, s.ry);
+      dx += sv.x * 6 * px * rf * rf; dy += sv.y * 6 * px * rf * rf;
+    }
+    if (s.lunge > 0) {
+      const lf = Math.sin((1 - s.lunge / 80) * Math.PI), sv = screenDir(s.lx, s.ly);
+      dx += sv.x * 6 * px * lf; dy += sv.y * 6 * px * lf;
+    }
     if (e.move && !e.move.kind) dy -= Math.abs(Math.sin((e.move.elapsed / e.move.dur) * Math.PI)) * S;
     if (e.airborne) dy -= e.airborne * S;
     const scale = V.scaleOf(e);
-    const opts = { flip, pal: V.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''), scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '' };
+    const opts = {
+      flip, pal: V.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''),
+      scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '',
+    };
     for (const fn of actorUnder) fn(ctx, world, e, ep, s, timeMs);
     if (!e.dead) shadow(ep.x, ep.y, scale);
     const box = drawArt(art, frame, fi, ep.x, ep.y, opts);
     if (box) {
-      if (s.flash > 0) { ctx.globalAlpha = (s.flash / 120) * (BD.ui && BD.ui.options ? BD.ui.options.get('flash') / 100 : 1); drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ffffff', palKey: 'white' })); ctx.globalAlpha = 1; }
+      if (s.flash > 0) {
+        const flashPref = BD.view.host.prefs.flash / 100;
+        ctx.globalAlpha = (s.flash / 120) * flashPref;
+        drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ffffff', palKey: 'white' }));
+        ctx.globalAlpha = 1;
+      }
       if (e.attack && e.attack.telegraph && e.attack.phase === 'windup') {
         const pulse = 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
         const late = e.attack.remaining < 250;
         const jx = late ? (Math.random() * 2 - 1) * 3.5 * iso.view.Z : 0, jy = late ? (Math.random() * 2 - 1) * 1.6 * iso.view.Z : 0;
         ctx.globalAlpha = pulse;
-        drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ff3020', palKey: 'red', dx: opts.dx + jx, dy: opts.dy + jy }));
+        const redOpts = Object.assign({}, opts, { tint: '#ff3020', palKey: 'red', dx: opts.dx + jx, dy: opts.dy + jy });
+        drawArt(art, frame, fi, ep.x, ep.y, redOpts);
         ctx.globalAlpha = 1;
       }
       e._box = box;
@@ -291,5 +316,9 @@
 
   function screenCanvas() { return canvas; }
 
-  BD.view.render = { init, resize, setZoom, draw, drawArt, shadow, hooks, actorUnder, actorOver, screenCanvas, get ctx() { return ctx; }, get timeMs() { return timeMs; } };
+  BD.view.render = {
+    init, resize, setZoom, draw, drawArt, shadow, hooks, actorUnder, actorOver, screenCanvas,
+    get ctx() { return ctx; },
+    get timeMs() { return timeMs; },
+  };
 })(globalThis.BD);

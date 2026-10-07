@@ -41,7 +41,8 @@
 
   function baseCtx(world, caster, ab, rank, a) {
     return {
-      caster, srcId: a && a.srcId != null ? a.srcId : caster.id, ab, rank, combo: a ? a.comboHeld || 0 : 0, focus: a ? a.focusHeld || 0 : 0,
+      caster, srcId: a && a.srcId != null ? a.srcId : caster.id, ab, rank,
+      combo: a ? a.comboHeld || 0 : 0, focus: a ? a.focusHeld || 0 : 0,
       cx: caster.x, cy: caster.y, tags: ab.tags, forceCrit: false, critAdd: 0, packetMult: 1, centerId: a ? a.targetId : null,
     };
   }
@@ -55,7 +56,11 @@
     const target = a.targetId != null ? E.get(world, a.targetId) : null;
     let tx = a.tx, ty = a.ty;
     if (target && target.hp > 0 && !target.dead && ab.targeting && ab.targeting.mode === 'unit') { tx = target.x; ty = target.y; }
-    world.events.push({ type: 'ability.impact', id: caster.id, abilityId: ab.id, x: caster.x, y: caster.y, tx, ty, rank, kind: d.kind, area: ab.area || null, weapon: caster.kind === 'player' ? BD.sim.stats.statsOf(world, caster).weapon.fx : null });
+    world.events.push({
+      type: 'ability.impact', id: caster.id, abilityId: ab.id, x: caster.x, y: caster.y, tx, ty, rank,
+      kind: d.kind, area: ab.area || null,
+      weapon: caster.kind === 'player' ? BD.sim.stats.statsOf(world, caster).weapon.fx : null,
+    });
     let results = [];
     switch (d.kind) {
       case 'melee': results = melee(world, ctx, ab, tx, ty, target); break;
@@ -63,7 +68,11 @@
       case 'projectile': BD.sim.projectiles.fireAbility(world, caster, ab, rank, a, tx, ty, ctx); break;
       case 'lob': BD.sim.zones.lob(world, caster, ab, rank, a, tx, ty, ctx); break;
       case 'zone': BD.sim.zones.fromAbility(world, caster, ab, rank, a, tx, ty, ctx); break;
-      case 'chain': results = chain(world, ctx, ab, target || TG.nearestEnemy(world, tx, ty, 1.5, caster.faction, null), d.jumps || 4, d.jumpRange || 3); break;
+      case 'chain': {
+        const first = target || TG.nearestEnemy(world, tx, ty, 1.5, caster.faction, null);
+        results = chain(world, ctx, ab, first, d.jumps || 4, d.jumpRange || 3);
+        break;
+      }
       case 'dash': results = dash(world, ctx, ab, target, tx, ty); break;
       case 'leap': leap(world, ctx, ab, tx, ty); break;
       case 'blink': blink(world, ctx, ab, tx, ty, target); break;
@@ -95,7 +104,10 @@
       // unit melee: the target must still be in reach, else the swing whiffs
       const reach = Math.max(1, Math.round((ab.targeting && ab.targeting.range) || 1));
       if (!target || target.dead || target.hp <= 0 || cheb(caster.x, caster.y, target.x, target.y) > reach) {
-        world.events.push({ type: 'miss', srcId: caster.id, tgtId: target ? target.id : null, reason: 'whiff', tags: ab.tags, abilityId: ab.id, x: tx, y: ty });
+        world.events.push({
+          type: 'miss', srcId: caster.id, tgtId: target ? target.id : null, reason: 'whiff',
+          tags: ab.tags, abilityId: ab.id, x: tx, y: ty,
+        });
         return [];
       }
       caster.dir = dirOf(target.x - caster.x, target.y - caster.y) ;
@@ -109,7 +121,9 @@
     const front = BD.core.util.DIRS[caster.dir];
     const cid = world.floor.occ[(caster.y + front[1]) * world.floor.w + caster.x + front[0]];
     ctx.centerId = target && targets.includes(target) ? target.id : cid || null;
-    if (!targets.length) world.events.push({ type: 'miss', srcId: caster.id, tgtId: null, reason: 'whiff', tags: ab.tags, abilityId: ab.id, x: tx, y: ty });
+    if (!targets.length) {
+      world.events.push({ type: 'miss', srcId: caster.id, tgtId: null, reason: 'whiff', tags: ab.tags, abilityId: ab.id, x: tx, y: ty });
+    }
     return H.applyEffects(world, ctx, ab.effects, targets);
   }
 
@@ -149,7 +163,10 @@
     const path = BD.sim.player.pathTo(world, caster, target.x, target.y, true) || [];
     let land = path.length ? path[path.length - 1] : null;
     if (land && !E.isFree(f, land[0], land[1])) land = null;
-    if (!land) { const n = E.nearestFree(f, target.x, target.y, 2, (x, y) => cheb(x, y, target.x, target.y) === 1); land = n ? [n.x, n.y] : null; }
+    if (!land) {
+      const n = E.nearestFree(f, target.x, target.y, 2, (x, y) => cheb(x, y, target.x, target.y) === 1);
+      land = n ? [n.x, n.y] : null;
+    }
     if (!land) return [];
     const fromX = caster.x, fromY = caster.y;
     const tiles = Math.max(1, cheb(fromX, fromY, land[0], land[1]));

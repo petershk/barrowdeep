@@ -76,7 +76,8 @@
       if (!hold.keys[slot]) continue;
       const p = w.player;
       const channeling = p.attack && p.attack.phase === 'channel' && p.attack.abilityId === p.bar[slot];
-      if (channeling || (!p.attack && !p.move && m.hoverTile && (!p.intent || p.intent.kind === 'idle'))) skill(slot, m.hoverTile, m.screen, true);
+      const idle = !p.attack && !p.move && m.hoverTile && (!p.intent || p.intent.kind === 'idle');
+      if (channeling || idle) skill(slot, m.hoverTile, m.screen, true);
     }
   }
 

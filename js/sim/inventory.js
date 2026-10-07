@@ -43,18 +43,26 @@
     const b = BD.data.bases[item.base];
     // two-handed weapons lock the offhand; an offhand displaces a two-hander
     if (slot === 'weapon' && b.hands === 2 && p.equip.offhand) { out.push(p.equip.offhand); p.equip.offhand = null; }
-    if (slot === 'offhand' && p.equip.weapon && BD.data.bases[p.equip.weapon.base].hands === 2) { out.push(p.equip.weapon); p.equip.weapon = null; }
+    if (slot === 'offhand' && p.equip.weapon && BD.data.bases[p.equip.weapon.base].hands === 2) {
+      out.push(p.equip.weapon);
+      p.equip.weapon = null;
+    }
     for (const o of out) p.pack.splice(i, 0, o);
     BD.sim.stats.bump(p);
     clampResources(world, p);
     world.events.push({ type: 'item.equip', uid, slot, material: material(b) });
     return true;
   }
+  /** pack is full: tell the player why the action failed */
+  function rejectPackFull(world, p, abilityId) {
+    world.events.push({ type: 'ability.reject', id: p.id, abilityId, reason: BD.data.strings.t('pack_full') });
+    return false;
+  }
   function unequip(world, slot) {
     const p = world.player;
     const it = p.equip[slot];
     if (!it) return false;
-    if (p.pack.length >= PACK) { world.events.push({ type: 'ability.reject', id: p.id, abilityId: 'unequip', reason: BD.data.strings.t('pack_full') }); return false; }
+    if (p.pack.length >= PACK) return rejectPackFull(world, p, 'unequip');
     p.equip[slot] = null;
     p.pack.push(it);
     BD.sim.stats.bump(p);
@@ -84,12 +92,15 @@
     const g = f.items[i];
     if (cheb(p.x, p.y, g.x, g.y) > 1) return false;
     if (g.kind === 'item') {
-      if (p.pack.length >= PACK) { world.events.push({ type: 'ability.reject', id: p.id, abilityId: 'pickup', reason: BD.data.strings.t('pack_full') }); return false; }
+      if (p.pack.length >= PACK) return rejectPackFull(world, p, 'pickup');
       p.pack.push(g.item);
     } else if (g.kind === 'scroll') p.pouch[g.scroll] = (p.pouch[g.scroll] || 0) + 1;
     else return false;
     f.items.splice(i, 1);
-    world.events.push({ type: 'loot.pickup', uid, kind: g.kind, rarity: g.item ? g.item.rarity : null, x: g.x, y: g.y, scroll: g.scroll || null });
+    world.events.push({
+      type: 'loot.pickup', uid, kind: g.kind, rarity: g.item ? g.item.rarity : null,
+      x: g.x, y: g.y, scroll: g.scroll || null,
+    });
     return true;
   }
 
@@ -97,7 +108,6 @@
   function system(world) {
     const p = world.player, f = world.floor;
     if (!p || p.dead || !f.items.length) return;
-    const s = BD.sim.stats.statsOf(world, p);
     for (let i = 0; i < f.items.length; i++) {
       const g = f.items[i];
       const d = cheb(p.x, p.y, g.x, g.y);
@@ -118,7 +128,6 @@
         world.events.push({ type: 'loot.pickup', uid: g.uid, kind: 'scroll', scroll: g.scroll, x: g.x, y: g.y });
       }
     }
-    void s;
   }
 
   // ---- commands ----
@@ -140,8 +149,12 @@
     BD.sim.loot.dropAt(world, p.x, p.y, { kind: 'item', item: it });
     return true;
   }, { ui: true });
-  CMD.register('Lock', (world, c) => { const it = world.player.pack.find((x) => x.uid === c.uid); if (it) it.locked = !it.locked; return true; }, { ui: true });
-  CMD.register('ReadScroll', (world, c) => { if (BD.sim.portal) return BD.sim.portal.read(world, c.kind); return false; });
+  CMD.register('Lock', (world, c) => {
+    const it = world.player.pack.find((x) => x.uid === c.uid);
+    if (it) it.locked = !it.locked;
+    return true;
+  }, { ui: true });
+  CMD.register('ReadScroll', (world, c) => (BD.sim.portal ? BD.sim.portal.read(world, c.kind) : false), { ui: true });
 
   BD.sim.inventory = { PACK, canEquip, slotFor, equip, unequip, pickup, system, material, clampResources };
   BD.sim.world.addSystem('pickups', system, 12);

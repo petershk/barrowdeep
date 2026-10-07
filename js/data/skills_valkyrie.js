@@ -3,7 +3,10 @@
 (function (BD) {
   'use strict';
   const S = (BD.data.skills = BD.data.skills || {});
-  const sk = (o) => { S[o.id] = Object.assign({ cls: 'valkyrie', tags: [], effects: [], breakpoints: [], cues: { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' } }, o); };
+  const sk = (o) => {
+    const cues = { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' };
+    S[o.id] = Object.assign({ cls: 'valkyrie', tags: [], effects: [], breakpoints: [], cues }, o);
+  };
   const arrow = (o) => Object.assign({ kind: 'projectile', projectile: 'arrow' }, o);
 
   // ---------------- Marksman ----------------
@@ -32,7 +35,8 @@
   sk({
     id: 'rain_of_arrows', branch: 'marksman', tier: 3, name: 'Rain of Arrows', icon: 'rain_of_arrows', school: 'steel',
     tags: ['aoe', 'zone', 'physical'], resource: { type: 'focus', cost: 'all' }, cooldownMs: 8000,
-    targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'zone', tickMs: 500, durMs: 2500 }, area: { shape: 'circle', radius: 2 },
+    targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' },
+    delivery: { kind: 'zone', tickMs: 500, durMs: 2500 }, area: { shape: 'circle', radius: 2 },
     effects: [{ type: 'damage', source: 'weapon', mult: 0.5, perFocusPct: 0.1, canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
@@ -76,7 +80,8 @@
     ],
     desc: 'A 2.0× arrow that Roots for 2.5 s (bosses are Slowed 40%). Enemies within 2 of the target are Feared for 1.5 s.',
   });
-  sk({ id: 'wind_dancer', branch: 'skirmish', tier: 4, name: 'Wind Dancer', icon: 'wind_dancer', keystone: true, passive: (r, add) => add('evade_cd_ms', 1000, 'Wind Dancer'), school: 'storm',
+  sk({ id: 'wind_dancer', branch: 'skirmish', tier: 4, name: 'Wind Dancer', icon: 'wind_dancer', keystone: true,
+    passive: (r, add) => add('evade_cd_ms', 1000, 'Wind Dancer'), school: 'storm',
     desc: 'Evade grants 3 focus and resets Vault. Evade cooldown −1 s.' });
 
   // ---------------- Valor ----------------
@@ -105,7 +110,10 @@
     id: 'sky_spear', branch: 'valor', tier: 3, name: 'Sky Spear', icon: 'sky_spear', school: 'storm',
     tags: ['aoe', 'lightning', 'spender'], resource: { type: 'focus', cost: 'all' }, cooldownMs: 10000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'zone', delayMs: 600 }, area: { shape: 'circle', radius: 1 },
-    effects: [{ type: 'damage', source: 'weapon', mult: 4.0, perFocusPct: 0.15, convert: { light: 0.5 }, canCrit: true, canDodge: false }, { type: 'status', id: 'stunned', durMs: 1000, needsHit: true }],
+    effects: [
+      { type: 'damage', source: 'weapon', mult: 4.0, perFocusPct: 0.15, convert: { light: 0.5 }, canCrit: true, canDodge: false },
+      { type: 'status', id: 'stunned', durMs: 1000, needsHit: true },
+    ],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 2 } }, text: 'Radius 2.' },
       { rank: 5, set: { spears: 3 }, text: 'Three spears fall in a line.' },

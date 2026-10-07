@@ -12,10 +12,18 @@
     if (key === 'momentum_thresh') return n;
     return (v > 0 ? '+' : '') + n + (d.fmt === 'pct' ? '%' : d.fmt === 'ms' ? ' ms' : '');
   };
-  const CAT = { blade: 'Blade', axe: 'Axe', mace: 'Mace', dagger: 'Dagger', claw: 'Claw', staff: 'Staff', wand: 'Wand', bow: 'Bow', crossbow: 'Crossbow', javelin: 'Javelin', shield: 'Shield', orb: 'Orb', quiver: 'Quiver', armour: 'Body armour', helm: 'Helm', cloak: 'Cloak', amulet: 'Amulet', ring: 'Ring' };
+  const CAT = {
+    blade: 'Blade', axe: 'Axe', mace: 'Mace', dagger: 'Dagger', claw: 'Claw', staff: 'Staff', wand: 'Wand',
+    bow: 'Bow', crossbow: 'Crossbow', javelin: 'Javelin',
+    shield: 'Shield', orb: 'Orb', quiver: 'Quiver',
+    armour: 'Body armour', helm: 'Helm', cloak: 'Cloak', amulet: 'Amulet', ring: 'Ring',
+  };
 
   function lineFor(l) {
-    if (l.special === 'skill_plus') { const ab = BD.data.skills[l.skill]; return { text: '+' + (l.value || 1) + ' to ' + (ab ? ab.name : l.skill), kind: 'hook' }; }
+    if (l.special === 'skill_plus') {
+      const ab = BD.data.skills[l.skill];
+      return { text: '+' + (l.value || 1) + ' to ' + (ab ? ab.name : l.skill), kind: 'hook' };
+    }
     if (l.proc) return { text: BD.data.affixes[l.affix].text, kind: 'proc' };
     const af = l.affix ? BD.data.affixes[l.affix] : null;
     const label = af && af.band === 'hook' ? af.text : REG[l.key] ? REG[l.key].label : l.key;
@@ -27,9 +35,18 @@
   function view(world, p, item) {
     const d = BD.sim.items.derive(item);
     const b = BD.data.bases[item.base];
-    const v = { name: d.name, rarity: item.rarity, type: '', base: [], lines: [], power: d.powerText || null, req: null, perm: null, value: d.value, ilvl: item.ilvl, enhance: item.enhance || 0 };
-    v.type = (CAT[d.category] || b.slot) + (b.slot === 'weapon' ? (b.hands === 2 ? ', two-handed' : ', one-handed') + ' · ' + REG[b.wield].label : b.weight ? ' · ' + b.weight : '');
-    if (d.dmg) v.base.push(d.dmg[0] + '–' + d.dmg[1] + ' damage · ' + (1000 / d.speedMs).toFixed(2) + ' attacks/s' + (d.range > 1 ? ' · range ' + d.range : ''));
+    const v = {
+      name: d.name, rarity: item.rarity, type: '', base: [], lines: [], power: d.powerText || null, req: null, perm: null,
+      value: d.value, ilvl: item.ilvl, enhance: item.enhance || 0,
+    };
+    let typeSuffix = '';
+    if (b.slot === 'weapon') typeSuffix = (b.hands === 2 ? ', two-handed' : ', one-handed') + ' · ' + REG[b.wield].label;
+    else if (b.weight) typeSuffix = ' · ' + b.weight;
+    v.type = (CAT[d.category] || b.slot) + typeSuffix;
+    if (d.dmg) {
+      const rangeText = d.range > 1 ? ' · range ' + d.range : '';
+      v.base.push(d.dmg[0] + '–' + d.dmg[1] + ' damage · ' + (1000 / d.speedMs).toFixed(2) + ' attacks/s' + rangeText);
+    }
     if (d.armor) v.base.push(d.armor + ' armour');
     if (d.block) v.base.push(d.block + '% block');
     for (const l of d.lines) v.lines.push(lineFor(l));
@@ -53,7 +70,8 @@
   }
   function dps(s) {
     const w = s.weapon;
-    const avg = ((w.dmg[0] + w.dmg[1]) / 2) * (1 + 0.03 * s.wieldValue) * (1 + s.dmg_pct / 100) + s.fire_add + s.cold_add + s.light_add + s.pois_add;
+    const physAvg = ((w.dmg[0] + w.dmg[1]) / 2) * (1 + 0.03 * s.wieldValue) * (1 + s.dmg_pct / 100);
+    const avg = physAvg + s.fire_add + s.cold_add + s.light_add + s.pois_add;
     return (avg * (1 + (s.critChance / 100) * (s.critMult - 1)) * 1000) / s.attackCycleMs;
   }
   function ehp(world, s) {
@@ -64,7 +82,10 @@
     return s.maxLife / (1 - (mit * 0.6 + Math.max(0, res) * 0.4));
   }
 
-  const COMPARE_KEYS = ['life', 'armorTotal', 'dmg_pct', 'crit', 'ias', 'res_fire', 'res_cold', 'res_light', 'res_pois', 'str', 'dex', 'mag', 'vit', 'move_pct', 'magic_find', 'gold_find', 'spell_pct', 'maxMana', 'blockChance', 'evasionTotal'];
+  const COMPARE_KEYS = [
+    'life', 'armorTotal', 'dmg_pct', 'crit', 'ias', 'res_fire', 'res_cold', 'res_light', 'res_pois',
+    'str', 'dex', 'mag', 'vit', 'move_pct', 'magic_find', 'gold_find', 'spell_pct', 'maxMana', 'blockChance', 'evasionTotal',
+  ];
   const LABELS = { armorTotal: 'Armour', maxMana: 'Mana', blockChance: 'Block chance', evasionTotal: 'Evasion' };
   /**
    * Compare against what's equipped in the target slot (both rings for rings).
@@ -79,7 +100,8 @@
       const s = wearing(world, p, item, slot);
       const rows = [];
       for (const k of COMPARE_KEYS) {
-        const a = k === 'res_fire' || k === 'res_cold' || k === 'res_light' || k === 'res_pois' ? s.res[k.slice(4)] - cur.res[k.slice(4)] : (s[k] || 0) - (cur[k] || 0);
+        const isRes = k === 'res_fire' || k === 'res_cold' || k === 'res_light' || k === 'res_pois';
+        const a = isRes ? s.res[k.slice(4)] - cur.res[k.slice(4)] : (s[k] || 0) - (cur[k] || 0);
         if (Math.abs(a) >= 0.05) rows.push({ label: LABELS[k] || (REG[k] ? REG[k].label : k), delta: Math.round(a * 10) / 10 });
       }
       if (s.maxLife !== cur.maxLife) rows.unshift({ label: 'Maximum life', delta: s.maxLife - cur.maxLife });

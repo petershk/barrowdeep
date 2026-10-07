@@ -27,7 +27,9 @@
     const f = world.floor, p = world.player;
     const key = (p.y * f.w + p.x) + ':' + min + ':' + max + ':' + (f.blockVer || 0);
     f.losFields = f.losFields || {};
-    if (f.losFieldKey !== (p.y * f.w + p.x) + ':' + (f.blockVer || 0)) { f.losFields = {}; f.losFieldKey = (p.y * f.w + p.x) + ':' + (f.blockVer || 0); }
+    // cached fields are only valid for one player tile + blocker version
+    const fieldsKey = (p.y * f.w + p.x) + ':' + (f.blockVer || 0);
+    if (f.losFieldKey !== fieldsKey) { f.losFields = {}; f.losFieldKey = fieldsKey; }
     if (f.losFields[key]) return f.losFields[key];
     const src = [];
     const clear = BD.sim.targeting.clearFn(f);
@@ -84,7 +86,8 @@
   /** Path for allies/burrowers (A*, budget = map area). */
   function path(world, sx, sy, gx, gy) {
     const f = world.floor;
-    return G.astar(f.w, f.h, sx, sy, gx, gy, (x, y) => E.walkable(f, x, y) && (!E.occupant(f, x, y) || (x === gx && y === gy)), { allowGoalBlocked: true, partial: true });
+    const passable = (x, y) => E.walkable(f, x, y) && (!E.occupant(f, x, y) || (x === gx && y === gy));
+    return G.astar(f.w, f.h, sx, sy, gx, gy, passable, { allowGoalBlocked: true, partial: true });
   }
 
   BD.sim.pathing = { chaseField, losField, stepOnField, phaseStep, path };

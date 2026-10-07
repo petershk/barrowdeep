@@ -3,7 +3,7 @@
 (function (BD) {
   'use strict';
 
-  const { T, WALK } = BD.data.tiles;
+  const { WALK } = BD.data.tiles;
   const C = BD.sim.gen.carve;
 
   function validate(p) {
@@ -46,5 +46,4 @@
   }
 
   BD.sim.gen.validate = validate;
-  void T;
 })(globalThis.BD);

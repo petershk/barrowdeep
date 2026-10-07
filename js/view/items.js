@@ -50,13 +50,11 @@
     }
     iso.toScreen(x, y, tmp);
     // ground glow
-    if (g.kind !== 'gold' || true) {
-      const r = (9 + 7 * tier) * zk;
-      ctx.save(); ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.14 + 0.09 * tier + (tier >= 2 ? 0.05 * Math.sin(R.timeMs / 600) : 0);
-      ctx.drawImage(BD.view.fx.glow(col), tmp.x - r, tmp.y - r * 0.55, r * 2, r * 1.1);
-      ctx.restore();
-    }
+    const r = (9 + 7 * tier) * zk;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.14 + 0.09 * tier + (tier >= 2 ? 0.05 * Math.sin(R.timeMs / 600) : 0);
+    ctx.drawImage(BD.view.fx.glow(col), tmp.x - r, tmp.y - r * 0.55, r * 2, r * 1.1);
+    ctx.restore();
     R.drawArt(artOf(g), 'idle', 0, x, y, { dy: -hop - 2 * S });
     if (tier >= 3 && g.kind === 'item') BD.view.lighting.add(g.x, g.y, 3, col, 0.8, 0.1);
     if (g.kind === 'seal' || g.kind === 'key') BD.view.lighting.add(g.x, g.y, 4, '#ff4030', 1, 0.2);
@@ -93,7 +91,8 @@
       let a = (moteAcc.get(g.uid) || 0) + (rate * ms) / 1000;
       while (a >= 1) {
         a -= 1;
-        BD.view.fx.spark(g.x + (Math.random() - 0.5) * 0.6, g.y + (Math.random() - 0.5) * 0.6, { z: 2, vz: 0.04, g: -0.00004, life: 900, size: 1.6 + tier * 0.4, color: colorOf(g), ambient: true });
+        const mx = g.x + (Math.random() - 0.5) * 0.6, my = g.y + (Math.random() - 0.5) * 0.6;
+        BD.view.fx.spark(mx, my, { z: 2, vz: 0.04, g: -0.00004, life: 900, size: 1.6 + tier * 0.4, color: colorOf(g), ambient: true });
       }
       moteAcc.set(g.uid, a);
     }
@@ -102,8 +101,8 @@
 
   /** labels: Alt shows all; hovering a tile shows that one */
   function labels(ctx, world) {
-    const f = world.floor, m = BD.input.mouse;
-    const all = BD.app.showLabels;
+    const f = world.floor, m = BD.view.host.pointer;
+    const all = BD.view.host.showLabels;
     const dpr = iso.view.dpr;
     ctx.save();
     ctx.font = Math.round(12 * dpr) + 'px Georgia, serif';
@@ -113,8 +112,9 @@
       if (!f.explored[g.y * f.w + g.x]) continue;
       const hov = m.hoverTile && m.hoverTile.x === g.x && m.hoverTile.y === g.y;
       if (!all && !hov) continue;
-      const name = g.kind === 'scroll' ? (g.scroll === 'portal' ? 'Town Portal Scroll' : 'Scroll of Revelation') : BD.sim.items.derive(g.item).name;
-      const tag = g.kind === 'item' && BD.ui.options && BD.ui.options.get('colorblind') ? P.RARITY_TAG[g.item.rarity] + ' ' : '';
+      const scrollName = g.scroll === 'portal' ? 'Town Portal Scroll' : 'Scroll of Revelation';
+      const name = g.kind === 'scroll' ? scrollName : BD.sim.items.derive(g.item).name;
+      const tag = g.kind === 'item' && BD.view.host.prefs.colorblind ? P.RARITY_TAG[g.item.rarity] + ' ' : '';
       iso.toScreen(g.x, g.y, tmp);
       const txt = tag + name, w = ctx.measureText(txt).width + 10 * dpr;
       const y = tmp.y - 22 * iso.view.Z * dpr;
@@ -129,6 +129,6 @@
   function onDrop(ev) { if (ev.fromX !== ev.x || ev.fromY !== ev.y) drops.set(ev.uid, { t: 0, fromX: ev.fromX, fromY: ev.fromY }); }
 
   BD.view.items = { bucket, drawItem, shafts, motes, labels, onDrop, artOf };
-  R.hooks.fx.push((ctx, world, alpha, t, realMs) => { shafts(ctx, world); motes(world, BD.app.paused() ? 0 : realMs); });
+  R.hooks.fx.push((ctx, world, alpha, t, realMs) => { shafts(ctx, world); motes(world, BD.view.host.paused() ? 0 : realMs); });
   R.hooks.top.push((ctx, world) => labels(ctx, world));
 })(globalThis.BD);

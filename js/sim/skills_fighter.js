@@ -54,7 +54,9 @@
     if (BD.sim.powers) BD.sim.powers.onWarCry(world, p, results);
   });
   reg('war_cry.cooldown', (world, p, ab, ms) => (ks(p, 'warlord') ? 8000 : ms));
-  BD.core.scheduler.register('rage.tick', (world, pl) => { if (!world.player.dead) R.gain(world, world.player, 'rage', pl.n, true); }, { scope: 'run' });
+  BD.core.scheduler.register('rage.tick', (world, pl) => {
+    if (!world.player.dead) R.gain(world, world.player, 'rage', pl.n, true);
+  }, { scope: 'run' });
 
   // ---- Earthshaker: knockback-immune wind-up, r5 aftershock ----
   reg('earthshaker.commit', (world, p) => { BD.sim.status.apply(world, p, 'knockback_immune', { durMs: 320 }); });
@@ -68,7 +70,10 @@
     const ab = BD.sim.abilities.resolved(BD.data.skills.earthshaker, pl.rank, p);
     const ctx = FX.baseCtx(world, p, ab, pl.rank, null);
     ctx.packetMult = pl.mult / ab.effects[0].mult;
-    world.events.push({ type: 'ability.impact', id: p.id, abilityId: 'earthshaker', x: pl.x, y: pl.y, tx: pl.x, ty: pl.y, kind: 'aftershock', area: ab.area });
+    world.events.push({
+      type: 'ability.impact', id: p.id, abilityId: 'earthshaker',
+      x: pl.x, y: pl.y, tx: pl.x, ty: pl.y, kind: 'aftershock', area: ab.area,
+    });
     FX.areaAt(world, ctx, ab, pl.x, pl.y, ab.area, [ab.effects[0]]);
   });
 
@@ -90,6 +95,9 @@
     const rank = BD.sim.abilities.rankOf(world, tgt, 'brace');
     if (rank < 5) return;
     if (!(res.blocked || BD.sim.status.has(tgt, 'braced'))) return;
-    BD.sim.damage.dealDamage(world, { srcId: tgt.id, tgtId: src.id, amounts: { phys: res.total * 0.5 }, tags: ['reflect'], canCrit: false, canDodge: false, canBlock: false, mult: 1, noOnHit: true, reflected: true });
+    BD.sim.damage.dealDamage(world, {
+      srcId: tgt.id, tgtId: src.id, amounts: { phys: res.total * 0.5 }, tags: ['reflect'],
+      canCrit: false, canDodge: false, canBlock: false, mult: 1, noOnHit: true, reflected: true,
+    });
   });
 })(globalThis.BD);

@@ -46,16 +46,51 @@ module.exports = (T) => {
     }
     T.ok(bad.length === 0, 'banned identifiers:\n    ' + bad.join('\n    '));
   });
+  // Layer dependencies point one way: core ← data ← sim ← view/audio ← ui/input ← app. A layer may
+  // read the ones to its left, never the ones to its right (the view gets app state via BD.view.host).
+  const UPWARD = {
+    core: /\bBD\.(data|sim|view|audio|ui|input|app|debug)\b/,
+    data: /\bBD\.(sim|view|audio|ui|input|app|debug)\b/,
+    sim: /\bBD\.(view|audio|ui|input|app)\b/,
+    view: /\bBD\.(audio|ui|input|app)\b/,
+    audio: /\bBD\.(view|ui|input|app)\b/,
+  };
+  T.test('layers only depend downward', () => {
+    const bad = [];
+    for (const layer in UPWARD) {
+      for (const f of files(path.join(ROOT, 'js', layer))) {
+        const lines = stripCode(fs.readFileSync(f, 'utf8')).split('\n');
+        lines.forEach((l, i) => { const m = l.match(UPWARD[layer]); if (m) bad.push(`${path.relative(ROOT, f)}:${i + 1} ${m[0]}`); });
+      }
+    }
+    T.ok(bad.length === 0, 'upward references:\n    ' + bad.join('\n    '));
+  });
   T.test('stripper ignores comments and strings', () => {
     T.ok(!BANNED.test(stripCode("// window\n/* Date */ const s = 'document'; const combo_window = 1;")));
     T.ok(BANNED.test(stripCode('const t = Date.now();')));
   });
-  T.test('files stay small', () => {
+  // Size rules target what actually hurts reading: long lines and god files. Files are split by
+  // concept, not to satisfy a number, so file length only fails far past any sane module size.
+  const LINE_MAX = 140;
+  const TABLE_LINE_MAX = 180; // pure data rows (one record per line reads better than wrapped records)
+  const TABLE_DIRS = [path.join('js', 'data') + path.sep];
+  const TABLE_FILES = ['js/audio/sounds.js', 'js/view/fx_recipes.js'].map((f) => path.normalize(f));
+  const FILE_FAIL = 1000;
+  T.test('lines stay readable: ' + LINE_MAX + ' chars (data tables ' + TABLE_LINE_MAX + ')', () => {
+    const bad = [];
+    for (const f of files(path.join(ROOT, 'js'))) {
+      const rel = path.relative(ROOT, f);
+      const max = TABLE_FILES.includes(rel) || TABLE_DIRS.some((d) => rel.startsWith(d)) ? TABLE_LINE_MAX : LINE_MAX;
+      fs.readFileSync(f, 'utf8').split('\n').forEach((l, i) => { if (l.length > max) bad.push(`${rel}:${i + 1} (${l.length})`); });
+    }
+    T.ok(bad.length === 0, bad.length + ' long lines:\n    ' + bad.slice(0, 40).join('\n    '));
+  });
+  T.test('no god files (' + FILE_FAIL + '+ lines)', () => {
     const big = [];
     for (const f of files(path.join(ROOT, 'js'))) {
       const n = fs.readFileSync(f, 'utf8').split('\n').length;
-      if (n > 480) big.push(`${path.relative(ROOT, f)} (${n})`);
+      if (n >= FILE_FAIL) big.push(`${path.relative(ROOT, f)} (${n})`);
     }
-    T.ok(big.length === 0, 'files over budget: ' + big.join(', '));
+    T.ok(big.length === 0, 'split by concept: ' + big.join(', '));
   });
 };

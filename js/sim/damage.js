@@ -23,7 +23,10 @@
    */
 
   function emitMiss(world, p, src, tgt, reason) {
-    world.events.push({ type: reason === 'dodge' ? 'dodge' : 'miss', srcId: p.srcId, tgtId: p.tgtId, reason, tags: p.tags, abilityId: p.abilityId, x: tgt.x, y: tgt.y });
+    world.events.push({
+      type: reason === 'dodge' ? 'dodge' : 'miss', srcId: p.srcId, tgtId: p.tgtId, reason,
+      tags: p.tags, abilityId: p.abilityId, x: tgt.x, y: tgt.y,
+    });
     if (reason !== 'immune') wake(world, tgt, src);
     return null;
   }
@@ -62,7 +65,8 @@
     if (p.forceCrit) return true;
     if (!src) return false;
     const s = ST().statsOf(world, src);
-    const ch = (s.critChance || 0) + (p.critChanceAdd || 0) + (src.kind === 'player' && BD.sim.resources ? BD.sim.resources.critBonus(world, src) : 0);
+    const resourceBonus = src.kind === 'player' && BD.sim.resources ? BD.sim.resources.critBonus(world, src) : 0;
+    const ch = (s.critChance || 0) + (p.critChanceAdd || 0) + resourceBonus;
     return ch > 0 && world.rng.chance(Math.min(B.combat.critCap + 40, ch) / 100);
   }
 
@@ -134,7 +138,11 @@
     tgt.hp -= total;
     if (tgt.kind === 'player') tgt.lastDamagedMs = world.time;
     if (src && src.kind === 'player') src.lastHitMs = world.time;
-    const ev = { type: 'damage', srcId: p.srcId, tgtId: tgt.id, total, parts, crit, blocked, tags: p.tags, abilityId: p.abilityId, isDot: !!p.isDot, x: tgt.x, y: tgt.y, lethal: tgt.hp <= 0, maxPart: maxPart(parts) };
+    const ev = {
+      type: 'damage', srcId: p.srcId, tgtId: tgt.id, total, parts, crit, blocked,
+      tags: p.tags, abilityId: p.abilityId, isDot: !!p.isDot,
+      x: tgt.x, y: tgt.y, lethal: tgt.hp <= 0, maxPart: maxPart(parts),
+    };
     world.events.push(ev);
     if (blocked) world.events.push({ type: 'block', id: tgt.id, srcId: p.srcId, x: tgt.x, y: tgt.y });
     if (crit) world.events.push({ type: 'crit', srcId: p.srcId, tgtId: tgt.id });
@@ -157,7 +165,10 @@
     tgt.hp = 0;
     tgt.dying = true;
     world.pendingDeaths = world.pendingDeaths || [];
-    world.pendingDeaths.push({ id: tgt.id, killerId: src ? src.id : null, abilityId: p ? p.abilityId : null, tags: p ? p.tags : [], overkill: p ? p.amounts : null, element: p ? maxPart(p.amounts) : 'phys' });
+    world.pendingDeaths.push({
+      id: tgt.id, killerId: src ? src.id : null, abilityId: p ? p.abilityId : null, tags: p ? p.tags : [],
+      overkill: p ? p.amounts : null, element: p ? maxPart(p.amounts) : 'phys',
+    });
   }
 
   /** End-of-step death processing (registered last). */
@@ -180,7 +191,10 @@
       E.vacate(f, e);
       f.entities.delete(e.id);
       if (e.kind === 'ally') { world.events.push({ type: 'death', id: e.id, kind: 'ally', x: e.x, y: e.y }); continue; }
-      world.events.push({ type: 'death', id: e.id, kind: e.kind, def: e.def, rank: e.rank, family: BD.sim.monsters ? BD.sim.monsters.family(e) : '', killerId: d.killerId, x: e.x, y: e.y, element: d.element });
+      world.events.push({
+        type: 'death', id: e.id, kind: e.kind, def: e.def, rank: e.rank, family: BD.sim.monsters ? BD.sim.monsters.family(e) : '',
+        killerId: d.killerId, x: e.x, y: e.y, element: d.element,
+      });
       for (let i = 0; i < onKillHooks.length; i++) onKillHooks[i](world, e, killer, d);
     }
   }

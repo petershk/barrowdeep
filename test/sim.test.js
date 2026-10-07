@@ -95,6 +95,31 @@ module.exports = (T) => {
     T.eq(m.statuses.filter((s) => s.id === 'burning').length, 1);
   });
 
+  T.test('every boss move in every kit starts and resolves without throwing', () => {
+    const BS = BD.sim.bosses;
+    for (const [n, key] of [[3, 'a3'], [6, 'a6'], [9, 'a9'], [12, 'a12'], [13, 13]]) {
+      const w = newWorld('kit' + n, 'fighter', 1);
+      w.run.flags['key' + n] = true;
+      BD.sim.run.travel(w, key, 'spawn');
+      const boss = [...w.floor.entities.values()].find((e) => BD.sim.entities.isBoss(e));
+      T.ok(boss, 'boss on ' + key);
+      const d = BD.sim.monsters.defOf(boss);
+      BD.sim.run.placePlayer(w, { x: boss.x + 2, y: boss.y });
+      const kit = d.kit.concat(d.crushing ? [Object.assign({ move: 'crushing_blow' }, d.crushing)] : []);
+      for (const m of kit) {
+        const impl = BS.moves[m.move];
+        T.ok(impl, 'move implemented: ' + m.move);
+        BS.bossState(w, boss);
+        try {
+          impl.start(w, boss, m, { tgt: w.player, dist: 2 });
+          if (impl.resolve && boss.ai.action) impl.resolve(w, boss, boss.ai.action);
+          drive(w, 30);
+        } catch (err) { throw new Error(d.id + ' ' + m.move + ': ' + err.message); }
+        w.player.hp = 1e9;
+      }
+    }
+  });
+
   T.test('bosses take reduced CC (freeze → chill, stun ×0.3)', () => {
     const w = newWorld('boss');
     const m = firstMonster(w);

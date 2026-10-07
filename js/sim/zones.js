@@ -20,7 +20,10 @@
     zone.armTotal = zone.armMs;
     world.floor.zones.push(zone);
     if (zone.armMs > 0 && zone.telegraph) {
-      world.events.push({ type: 'telegraph.start', zoneId: zone.id, srcId: zone.srcId, tiles: zone.tiles, ms: zone.armMs, friendly: zone.faction === 'player', school: zone.school || null, heavy: !!zone.heavy });
+      world.events.push({
+        type: 'telegraph.start', zoneId: zone.id, srcId: zone.srcId, tiles: zone.tiles, ms: zone.armMs,
+        friendly: zone.faction === 'player', school: zone.school || null, heavy: !!zone.heavy,
+      });
     }
     return zone;
   }
@@ -46,14 +49,18 @@
     z.resolved = true;
     if (z.telegraph) world.events.push({ type: 'telegraph.end', zoneId: z.id });
     const p = z.resolve;
-    world.events.push({ type: 'zone.resolve', zoneId: z.id, tiles: z.tiles, cx: z.cx, cy: z.cy, school: z.school || null, kind: z.kind, heavy: !!z.heavy, srcId: z.srcId, label: z.label || null });
+    world.events.push({
+      type: 'zone.resolve', zoneId: z.id, tiles: z.tiles, cx: z.cx, cy: z.cy,
+      school: z.school || null, kind: z.kind, heavy: !!z.heavy, srcId: z.srcId, label: z.label || null,
+    });
     if (!p) return;
     if (p.type === 'ability') {
       const caster = E.get(world, p.casterId);
       if (!caster || caster.dead) return;
       const ab = AB().resolved(AB().def(p.abilityId), p.rank, caster);
       const ctx = BD.sim.effects.baseCtx(world, caster, ab, p.rank, null);
-      ctx.srcId = p.srcId != null ? p.srcId : caster.id; ctx.combo = p.combo || 0; ctx.focus = p.focus || 0; ctx.packetMult = p.mult || 1; ctx.aoe = true;
+      ctx.srcId = p.srcId != null ? p.srcId : caster.id;
+      ctx.combo = p.combo || 0; ctx.focus = p.focus || 0; ctx.packetMult = p.mult || 1; ctx.aoe = true;
       ctx.cx = z.cx; ctx.cy = z.cy; ctx.centerId = null;
       const targets = victims(world, z);
       const res = BD.sim.hits.applyEffects(world, ctx, p.effects || ab.effects, targets);
@@ -65,9 +72,14 @@
     if (p.type === 'packet') {
       let sum = 0; for (const k in p.amounts) sum += p.amounts[k];
       if (sum > 0.01 || (p.statuses && p.statuses.length)) for (const e of victims(world, z)) {
-        const r = sum <= 0.01 ? { total: 0 } : BD.sim.damage.dealDamage(world, { srcId: z.srcId, tgtId: e.id, amounts: p.amounts, tags: ['zone', 'aoe'].concat(p.tags || []), canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: p.abilityId || null, noFaction: !!z.noFaction });
+        const r = sum <= 0.01 ? { total: 0 } : BD.sim.damage.dealDamage(world, {
+          srcId: z.srcId, tgtId: e.id, amounts: p.amounts, tags: ['zone', 'aoe'].concat(p.tags || []),
+          canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: p.abilityId || null, noFaction: !!z.noFaction,
+        });
         if (r) {
-          for (const st of p.statuses || []) BD.sim.status.apply(world, e, st.id, { durMs: st.durMs, magnitude: st.mag, sourceId: z.srcId, hit: r.total });
+          for (const st of p.statuses || []) {
+            BD.sim.status.apply(world, e, st.id, { durMs: st.durMs, magnitude: st.mag, sourceId: z.srcId, hit: r.total });
+          }
           if (p.knockback) BD.sim.hits.knockback(world, e, z.cx, z.cy, p.knockback);
         }
       }
@@ -79,14 +91,29 @@
   function startLinger(world, z, L, res) {
     const def = ZD()[L.kind];
     let amount = L.amount || 0;
-    if (!amount && def && def.dmgPct && res) { let tot = 0, n = 0; for (const r of res) if (r.res) { tot += r.res.total; n++; } amount = n ? (tot / n) * def.dmgPct : 0; }
-    create(world, { kind: L.kind, tiles: (L.tiles || z.tiles).slice(), cx: z.cx, cy: z.cy, faction: z.faction, srcId: z.srcId, armMs: 0, durMs: L.durMs, tickMs: def ? def.tickMs : 500, tickLeft: 0, amount, school: def ? def.school : null, noFaction: def && def.noFaction, follow: L.follow || null, ownerId: z.ownerId, spread: L.spread || 0 });
+    if (!amount && def && def.dmgPct && res) {
+      // linger damage = a share of the average hit the resolve dealt
+      let tot = 0, n = 0;
+      for (const r of res) {
+        if (r.res) { tot += r.res.total; n++; }
+      }
+      amount = n ? (tot / n) * def.dmgPct : 0;
+    }
+    create(world, {
+      kind: L.kind, tiles: (L.tiles || z.tiles).slice(), cx: z.cx, cy: z.cy, faction: z.faction, srcId: z.srcId,
+      armMs: 0, durMs: L.durMs, tickMs: def ? def.tickMs : 500, tickLeft: 0,
+      amount, school: def ? def.school : null, noFaction: def && def.noFaction,
+      follow: L.follow || null, ownerId: z.ownerId, spread: L.spread || 0,
+    });
   }
 
   /** Ground effect zone (burning ground, poison pool, caltrops, web…) directly. */
   function ground(world, kind, tiles, o) {
     const def = ZD()[kind];
-    return create(world, Object.assign({ kind, tiles, armMs: 0, durMs: 3000, tickMs: def.tickMs, tickLeft: 0, amount: 0, school: def.school, noFaction: !!def.noFaction }, o || {}));
+    const base = {
+      kind, tiles, armMs: 0, durMs: 3000, tickMs: def.tickMs, tickLeft: 0, amount: 0, school: def.school, noFaction: !!def.noFaction,
+    };
+    return create(world, Object.assign(base, o || {}));
   }
 
   function tick(world, z) {
@@ -96,7 +123,8 @@
       if (!caster || caster.dead) return;
       const ab = AB().resolved(AB().def(z.tickPayload.abilityId), z.tickPayload.rank, caster);
       const ctx = BD.sim.effects.baseCtx(world, caster, ab, z.tickPayload.rank, null);
-      ctx.srcId = z.srcId; ctx.packetMult = z.tickPayload.mult || 1; ctx.aoe = true; ctx.cx = z.cx; ctx.cy = z.cy; ctx.focus = z.tickPayload.focus || 0;
+      ctx.srcId = z.srcId; ctx.packetMult = z.tickPayload.mult || 1; ctx.aoe = true;
+      ctx.cx = z.cx; ctx.cy = z.cy; ctx.focus = z.tickPayload.focus || 0;
       world.events.push({ type: 'zone.tick', zoneId: z.id, kind: z.kind, tiles: z.tiles, cx: z.cx, cy: z.cy, abilityId: ab.id });
       const res = BD.sim.hits.applyEffects(world, ctx, ab.tickEffects || ab.effects, victims(world, z));
       BD.sim.effects.special(world, caster, ab, z.tickPayload.rank, 'zoneTick', { z, ctx, res });
@@ -112,9 +140,14 @@
       if (def.element && (z.amount > 0 || def.maxLifePct)) {
         const amt = def.maxLifePct ? BD.sim.stats.statsOf(world, e).maxLife * def.maxLifePct : z.amount;
         const am = {}; am[def.element] = amt;
-        BD.sim.damage.dealDamage(world, { srcId: z.srcId, tgtId: e.id, amounts: am, tags: ['zone', 'dot', z.kind], canCrit: false, canDodge: false, canBlock: false, mult: 1, isDot: true, noFaction: !!z.noFaction });
+        BD.sim.damage.dealDamage(world, {
+          srcId: z.srcId, tgtId: e.id, amounts: am, tags: ['zone', 'dot', z.kind],
+          canCrit: false, canDodge: false, canBlock: false, mult: 1, isDot: true, noFaction: !!z.noFaction,
+        });
       }
-      if (def.status && (!def.statusChance || world.rng.chance(def.statusChance))) BD.sim.status.apply(world, e, def.status, { durMs: def.statusMs, magnitude: def.statusMag, sourceId: z.srcId });
+      if (def.status && (!def.statusChance || world.rng.chance(def.statusChance))) {
+        BD.sim.status.apply(world, e, def.status, { durMs: def.statusMs, magnitude: def.statusMag, sourceId: z.srcId });
+      }
       if (def.extra) BD.sim.status.apply(world, e, def.extra, { durMs: 1000, sourceId: z.srcId });
       if (def.bleedOnce && z.hitIds.indexOf(e.id) < 0) {
         z.hitIds.push(e.id);
@@ -129,7 +162,13 @@
       const z = list[i];
       if (z.follow != null) {
         const t = E.get(world, z.follow);
-        if (t && !t.dead) { const dx = t.x - z.cx, dy = t.y - z.cy; if (dx || dy) { z.tiles = z.tiles.map(([x, y]) => [x + dx, y + dy]); z.cx = t.x; z.cy = t.y; } }
+        if (t && !t.dead) {
+          const dx = t.x - z.cx, dy = t.y - z.cy;
+          if (dx || dy) {
+            z.tiles = z.tiles.map(([x, y]) => [x + dx, y + dy]);
+            z.cx = t.x; z.cy = t.y;
+          }
+        }
       }
       if (!z.resolved) {
         z.armMs -= dt;
@@ -140,7 +179,11 @@
       z.tickLeft -= dt;
       if (z.spread) {
         z.spreadAcc = (z.spreadAcc || 0) + dt;
-        if (z.spreadAcc >= 1000 && (z.spreadN || 0) < z.spread) { z.spreadAcc -= 1000; z.spreadN = (z.spreadN || 0) + 1; growZone(world, z); }
+        if (z.spreadAcc >= 1000 && (z.spreadN || 0) < z.spread) {
+          z.spreadAcc -= 1000;
+          z.spreadN = (z.spreadN || 0) + 1;
+          growZone(world, z);
+        }
       }
       if (z.tickLeft <= 0) { z.tickLeft += z.tickMs; tick(world, z); }
       if (z.durMs <= 0) { list.splice(i--, 1); world.events.push({ type: 'zone.end', zoneId: z.id }); }
@@ -154,10 +197,15 @@
     const area = ab.area || { shape: 'circle', radius: 1 };
     const centres = BD.sim.effects.special(world, caster, ab, rank, 'lobTargets', { tx, ty }) || [[tx, ty]];
     for (const [cx, cy, k, extraMs] of centres) {
-      world.events.push({ type: 'lob', srcId: caster.id, fromX: caster.x, fromY: caster.y, x: cx, y: cy, ms: flight + (extraMs || 0), abilityId: ab.id });
+      const landMs = flight + (extraMs || 0);
+      world.events.push({ type: 'lob', srcId: caster.id, fromX: caster.x, fromY: caster.y, x: cx, y: cy, ms: landMs, abilityId: ab.id });
       create(world, {
-        tiles: BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir), cx, cy, armMs: flight + (extraMs || 0), telegraph: false, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school,
-        resolve: { type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus, mult: ctx.packetMult * (k || 1), linger: ab.linger || null, noAfter: k != null && k !== 1 },
+        tiles: BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir), cx, cy, armMs: landMs, telegraph: false,
+        faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school,
+        resolve: {
+          type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus,
+          mult: ctx.packetMult * (k || 1), linger: ab.linger || null, noAfter: k != null && k !== 1,
+        },
         kind: 'lob',
       });
     }
@@ -172,18 +220,31 @@
       const tiles = BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir);
       const base = { tiles, cx, cy, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school, kind: ab.id };
       if (d.tickMs) {
-        create(world, Object.assign(base, { armMs: d.delayMs || 0, telegraph: !!d.delayMs, durMs: d.durMs, tickMs: d.tickMs, tickLeft: 0, resolve: null,
-          tickPayload: { abilityId: ab.id, rank, casterId: caster.id, mult: (k || 1) * ctx.packetMult, focus: ctx.focus }, follow: ab.follow ? (ab.follow === 'self' ? caster.id : (a && a.targetId) || caster.lockId || null) : null, friendly: true }));
+        let follow = null;
+        if (ab.follow === 'self') follow = caster.id;
+        else if (ab.follow) follow = (a && a.targetId) || caster.lockId || null;
+        create(world, Object.assign(base, {
+          armMs: d.delayMs || 0, telegraph: !!d.delayMs, durMs: d.durMs, tickMs: d.tickMs, tickLeft: 0, resolve: null,
+          tickPayload: { abilityId: ab.id, rank, casterId: caster.id, mult: (k || 1) * ctx.packetMult, focus: ctx.focus },
+          follow, friendly: true,
+        }));
       } else {
-        create(world, Object.assign(base, { armMs: d.delayMs || 0, telegraph: true,
-          resolve: { type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus, mult: (k || 1) * ctx.packetMult, linger: ab.linger || null, noAfter: centres.length > 1 && k !== 1 } }));
+        create(world, Object.assign(base, {
+          armMs: d.delayMs || 0, telegraph: true,
+          resolve: {
+            type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus,
+            mult: (k || 1) * ctx.packetMult, linger: ab.linger || null, noAfter: centres.length > 1 && k !== 1,
+          },
+        }));
       }
     }
   }
 
   /** is (x,y) inside a player-made smoke cloud? */
   function inSmoke(world, x, y) {
-    for (const z of world.floor.zones) if (z.kind === 'smoke' && z.resolved !== false && z.tiles.some(([a, b]) => a === x && b === y)) return true;
+    for (const z of world.floor.zones) {
+      if (z.kind === 'smoke' && z.resolved !== false && z.tiles.some(([a, b]) => a === x && b === y)) return true;
+    }
     return false;
   }
 

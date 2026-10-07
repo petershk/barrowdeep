@@ -40,10 +40,15 @@
       // life follows AL^hpExp (fit to measured on-curve player power, 05 §4); hpGrowth is kept for tools
       hpExp: 0.6, hpGrowth: 1.10, dmgGrowth: 1.055, xpGrowth: 1.12, goldGrowth: 1.10,
       defaultWindupMs: 500, reactionMs: 300, leashLostMs: 4000, notice: 6, leash: 14,
+      // rank traits: boss (boss AI, CC rules, fight reset, own loot), fearless, steady (no knockback)
       ranks: {
-        normal: { hp: 1, dmg: 1, xp: 1 }, minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
-        champion: { hp: 3.2, dmg: 1.2, xp: 3 }, unique: { hp: 11, dmg: 1.4, xp: 7 }, keeper: { hp: 11, dmg: 1.4, xp: 7 },
-        boss: { hp: 35, dmg: 1.8, xp: 40 }, malgoth: { hp: 160, dmg: 1.0, xp: 0 },
+        normal: { hp: 1, dmg: 1, xp: 1 },
+        minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
+        champion: { hp: 3.2, dmg: 1.2, xp: 3 },
+        unique: { hp: 11, dmg: 1.4, xp: 7 },
+        keeper: { hp: 11, dmg: 1.4, xp: 7, fearless: true, steady: true },
+        boss: { hp: 35, dmg: 1.8, xp: 40, boss: true, fearless: true, steady: true },
+        malgoth: { hp: 160, dmg: 1.0, xp: 0, boss: true, fearless: true, steady: true },
       },
       projectileSpeed: 6, flowRadius: 30,
       actDmg: { 1: 0.92, 2: 1.0, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
@@ -73,12 +78,14 @@
     penitent: { id: 'penitent', name: 'Penitent', hp: 1.0, dmg: 1.0, xp: 1.0, mf: 0, resistPenalty: 0, flaskBonus: 0, souls: 1.0, eliteMods: 1, keeperMoves: 1, spawn: 1.0,
       desc: 'The descent as it is meant to be walked.' },
     martyr: { id: 'martyr', name: 'Martyr', hp: 1.6, dmg: 1.4, xp: 1.25, mf: 50, resistPenalty: -20, flaskBonus: 0, souls: 1.5, eliteMods: 2, keeperMoves: 2, spawn: 1.15,
-      desc: 'Monsters have 60% more life and deal 40% more damage. Your resistances suffer −20. Elites carry two powers; Keepers two signature moves. +50% magic find, +25% experience.' },
+      desc: 'Monsters have 60% more life and deal 40% more damage. Your resistances suffer −20. ' +
+        'Elites carry two powers; Keepers two signature moves. +50% magic find, +25% experience.' },
   };
   BD.data.backgrounds = {
     wanderer: { id: 'wanderer', name: 'Wanderer', desc: 'No advantage. No burden.', free: true },
-    soldier: { id: 'soldier', name: 'Soldier', desc: 'Begins with a magic shield or armour piece.', perk: 'bg_soldier' },
-    acolyte: { id: 'acolyte', name: 'Acolyte', desc: '+1 flask charge for this run.', perk: 'bg_acolyte' },
-    poacher: { id: 'poacher', name: 'Poacher', desc: '+15% gold find for this run.', perk: 'bg_poacher' },
+    soldier: { id: 'soldier', name: 'Soldier', desc: 'Begins with a magic shield or armour piece.', perk: 'bg_soldier',
+      startItem: { rarity: 'magic', slots: ['offhand', 'chest'] } },
+    acolyte: { id: 'acolyte', name: 'Acolyte', desc: '+1 flask charge for this run.', perk: 'bg_acolyte', flaskBonus: 1 },
+    poacher: { id: 'poacher', name: 'Poacher', desc: '+15% gold find for this run.', perk: 'bg_poacher', mods: { gold_find: 15 } },
   };
 })(globalThis.BD);

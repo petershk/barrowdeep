@@ -12,7 +12,10 @@
     o.opened = true; o.used = true;
     world.events.push({ type: 'chest.open', x: o.x, y: o.y, cursed: !!o.cursed });
     if (o.cursed && BD.sim.events) { BD.sim.events.cursedChest(world, o); return; }
-    if (o.vault) { BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'item', item: BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al, min: 'rare' }) }); }
+    if (o.vault) {
+      const item = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al, min: 'rare' });
+      BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'item', item });
+    }
     BD.sim.loot.chestDrop(world, o);
   });
   reg('pile', (world, o) => {

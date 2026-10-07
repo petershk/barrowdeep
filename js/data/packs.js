@@ -7,7 +7,10 @@
   BD.data.packs = {
     // Act I
     warren: { act: 1, name: 'Warren', members: [{ def: 'gutterkin_bonecaller', n: [1, 1] }, { def: 'gutterkin', n: [4, 6] }], weight: [3, 3, 3], leader: 'gutterkin_bonecaller' },
-    bone_patrol: { act: 1, name: 'Bone Patrol', members: [{ def: 'skeleton', n: [3, 3] }, { def: 'skeleton_archer', n: [1, 1] }], weight: [3, 3, 3], floor1: [{ def: 'skeleton', n: [4, 4] }] },
+    bone_patrol: {
+      act: 1, name: 'Bone Patrol', members: [{ def: 'skeleton', n: [3, 3] }, { def: 'skeleton_archer', n: [1, 1] }],
+      weight: [3, 3, 3], floor1: [{ def: 'skeleton', n: [4, 4] }],
+    },
     shamblers: { act: 1, name: 'Shamblers', members: [{ def: 'rotting_zombie', n: [3, 4] }], weight: [2, 2, 3] },
     quill_nest: { act: 1, name: 'Quill Nest', members: [{ def: 'spinehog', n: [2, 3] }, { def: 'gutterkin', n: [2, 2] }], weight: [1, 2, 3] },
     // Act II

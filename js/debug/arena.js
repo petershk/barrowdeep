@@ -37,7 +37,11 @@
     if (st.god && !p.dead) {
       const s = BD.sim.stats.statsOf(w, p);
       p.hp = s.maxLife;
-      for (const k in p.resources) { const r = p.resources[k]; if (r && r.cur != null && k !== 'rage') r.cur = r.max != null ? r.max : s['max' + k[0].toUpperCase() + k.slice(1)] || r.cur; }
+      for (const k in p.resources) {
+        const r = p.resources[k];
+        if (!r || r.cur == null || k === 'rage') continue;
+        r.cur = r.max != null ? r.max : s['max' + k[0].toUpperCase() + k.slice(1)] || r.cur;
+      }
       if (p.flask) p.flask.charges = Math.max(p.flask.charges, 1);
     }
     const d = st.dummy;
@@ -49,7 +53,13 @@
   };
   BD.app.bus.on('damage', (ev) => { if (st.dummy && ev.tgtId === st.dummy.id) st.dps.push([W().time, ev.total]); });
   BD.app.bus.on('app.world', () => { st.dummy = null; st.bot = null; BD.app.timeScale = 1; });
-  function dps() { const w = W(); const from = w.time - 10000; st.dps = st.dps.filter((d) => d[0] >= from); const span = st.dps.length ? Math.max(1000, w.time - st.dps[0][0]) : 1; return st.dps.reduce((a, d) => a + d[1], 0) / (span / 1000); }
+  function dps() {
+    const w = W();
+    const from = w.time - 10000;
+    st.dps = st.dps.filter((d) => d[0] >= from);
+    const span = st.dps.length ? Math.max(1000, w.time - st.dps[0][0]) : 1;
+    return st.dps.reduce((a, d) => a + d[1], 0) / (span / 1000);
+  }
 
   // ---------------- actions ----------------
   function ahead(n) { const p = W().player; return { x: p.x + n, y: p.y }; }
@@ -57,7 +67,8 @@
     const w = W(), at = ahead(4);
     const mods = rank === 'champion' ? w.rng.shuffle(Object.keys(BD.data.championMods)).slice(0, 2) : [];
     for (let i = 0; i < count; i++) {
-      const e = BD.sim.monsters.spawn(w, def, at.x + (i % 3), at.y + Math.floor(i / 3), { rank, al: al || w.floor.al, mods, name: rank === 'boss' && BD.data.bosses[def] ? BD.data.bosses[def].name : null });
+      const name = rank === 'boss' && BD.data.bosses[def] ? BD.data.bosses[def].name : null;
+      const e = BD.sim.monsters.spawn(w, def, at.x + (i % 3), at.y + Math.floor(i / 3), { rank, al: al || w.floor.al, mods, name });
       if (e && rank === 'boss' && BD.sim.bosses && BD.sim.bosses.onWake) BD.sim.bosses.onWake(w, e);
     }
   }
@@ -83,7 +94,10 @@
   function travel(n) { const w = W(); BD.sim.run.travel(w, n, 'spawn'); }
   function reveal() { const f = W().floor; f.explored.fill(1); BD.view.tiles.invalidate(); }
   function saveScenario(slot) { localStorage.setItem('bd_scenario_' + slot, JSON.stringify(BD.sim.save.serialize(W()))); }
-  function loadScenario(slot) { const s = localStorage.getItem('bd_scenario_' + slot); if (s) BD.app.setWorld(BD.sim.save.deserialize(JSON.parse(s))); }
+  function loadScenario(slot) {
+    const s = localStorage.getItem('bd_scenario_' + slot);
+    if (s) BD.app.setWorld(BD.sim.save.deserialize(JSON.parse(s)));
+  }
   function bot(on, speed) {
     st.speed = speed;
     BD.app.timeScale = on ? speed : 1;
@@ -91,25 +105,37 @@
   }
 
   // ---------------- panel ----------------
-  const sel = (name, opts, v) => h('select', { name }, opts.map((o) => { const e = h('option', { value: o }, o); if (o === v) e.selected = true; return e; }));
+  const sel = (name, opts, v) => h('select', { name }, opts.map((o) => {
+    const e = h('option', { value: o }, o);
+    if (o === v) e.selected = true;
+    return e;
+  }));
   const num = (name, v, w) => h('input', { name, type: 'number', value: String(v), style: 'width:' + (w || 56) + 'px' });
   const btn = (action, label) => h('button.btn.tiny', { data: { action } }, label);
+  const FORGE_SLOTS = ['', 'weapon', 'offhand', 'helm', 'armor', 'gloves', 'boots', 'belt', 'cloak', 'amulet', 'ring'];
+  const LAB_TABLES = ['monsters', 'skills', 'bases', 'affixes', 'legendaries', 'bosses', 'balance'];
   function build(el) {
     const w = W(), f = w.floor;
     const mons = Object.keys(BD.data.monsters).filter((k) => !BD.data.bosses[k]).sort();
     el.appendChild(h('h2', 'Debug Arena'));
     el.appendChild(h('div.dbg-grid', [
-      h('div', [h('h3', 'Spawn'), sel('mon', mons, 'skeleton'), sel('rank', ['normal', 'champion', 'keeper', 'unique'], 'normal'), ' AL ', num('al', f.al || 1), ' × ', num('count', 3, 44), ' ', btn('spawn', 'Spawn')]),
+      h('div', [h('h3', 'Spawn'), sel('mon', mons, 'skeleton'), sel('rank', ['normal', 'champion', 'keeper', 'unique'], 'normal'),
+        ' AL ', num('al', f.al || 1), ' × ', num('count', 3, 44), ' ', btn('spawn', 'Spawn')]),
       h('div', [h('h3', 'Boss'), sel('boss', Object.keys(BD.data.bosses)), ' ', btn('boss', 'Summon')]),
-      h('div', [h('h3', 'Forge'), sel('slot', ['', 'weapon', 'offhand', 'helm', 'armor', 'gloves', 'boots', 'belt', 'cloak', 'amulet', 'ring']), sel('rarity', ['magic', 'rare', 'legendary', 'common'], 'rare'), ' ilvl ', num('ilvl', f.al || 1), ' ', btn('forge', 'Forge')]),
-      h('div', [h('h3', 'Hero'), 'Level ', num('level', w.player.level), ' ', btn('level', 'Set'), ' ', btn('heal', 'Heal'), ' ', btn('reveal', 'Reveal map'),
+      h('div', [h('h3', 'Forge'), sel('slot', FORGE_SLOTS), sel('rarity', ['magic', 'rare', 'legendary', 'common'], 'rare'),
+        ' ilvl ', num('ilvl', f.al || 1), ' ', btn('forge', 'Forge')]),
+      h('div', [h('h3', 'Hero'), 'Level ', num('level', w.player.level), ' ', btn('level', 'Set'), ' ', btn('heal', 'Heal'),
+        ' ', btn('reveal', 'Reveal map'),
         h('label', [h('input', { type: 'checkbox', name: 'god', checked: st.god }), ' Godmode'])]),
       h('div', [h('h3', 'Travel'), 'Floor ', num('floor', Math.max(1, f.n || 1)), ' ', btn('travel', 'Go'), ' ', btn('town', 'Town')]),
       h('div', [h('h3', 'DPS dummy'), btn('dummy', 'Place dummy'), ' ', h('span.dbg-dps', st.dummy ? dps().toFixed(1) + ' dps' : '—')]),
       h('div', [h('h3', 'Scenario'), sel('scn', ['1', '2', '3']), ' ', btn('ssave', 'Save'), ' ', btn('sload', 'Load')]),
-      h('div', [h('h3', 'Bot watch'), sel('speed', ['1', '2', '4', '8'], String(st.speed)), ' ', btn('bot', st.bot ? 'Stop bot' : 'Run bot')]),
-      h('div.dbg-wide', [h('h3', 'Data Lab'), sel('table', ['monsters', 'skills', 'bases', 'affixes', 'legendaries', 'bosses', 'balance']), ' id ', h('input', { name: 'pid', style: 'width:120px' }),
-        h('textarea', { name: 'fields', rows: 2, style: 'width:100%', placeholder: '{"hp": 40}' }), btn('patch', 'Apply patch'), ' ', btn('unpatch', 'Clear patches (reload)'), ' ', h('span.muted.small', readLab().length + ' active')]),
+      h('div', [h('h3', 'Bot watch'), sel('speed', ['1', '2', '4', '8'], String(st.speed)), ' ',
+        btn('bot', st.bot ? 'Stop bot' : 'Run bot')]),
+      h('div.dbg-wide', [h('h3', 'Data Lab'), sel('table', LAB_TABLES), ' id ', h('input', { name: 'pid', style: 'width:120px' }),
+        h('textarea', { name: 'fields', rows: 2, style: 'width:100%', placeholder: '{"hp": 40}' }),
+        btn('patch', 'Apply patch'), ' ', btn('unpatch', 'Clear patches (reload)'), ' ',
+        h('span.muted.small', readLab().length + ' active')]),
     ]));
     const val = (n) => /** @type {HTMLInputElement} */ (el.querySelector('[name="' + n + '"]')).value;
     BD.ui.dom.delegate(el, {
@@ -125,7 +151,12 @@
       ssave: () => saveScenario(val('scn')),
       sload: () => loadScenario(val('scn')),
       bot: () => { bot(!st.bot, +val('speed')); BD.ui.panels.rebuild('arena'); },
-      patch: () => { try { BD.data.patch(val('table'), val('pid'), JSON.parse(val('fields'))); BD.ui.panels.rebuild('arena'); } catch (e) { alert(String(e)); } },
+      patch: () => {
+        try {
+          BD.data.patch(val('table'), val('pid'), JSON.parse(val('fields')));
+          BD.ui.panels.rebuild('arena');
+        } catch (e) { alert(String(e)); }
+      },
       unpatch: () => { localStorage.removeItem(LAB_KEY); location.reload(); },
     });
     el.querySelector('[name="god"]').addEventListener('change', (e) => { st.god = /** @type {HTMLInputElement} */ (e.target).checked; });

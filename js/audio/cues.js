@@ -4,13 +4,16 @@
 (function (BD) {
   'use strict';
 
-  const W = () => BD.app && BD.app.world;
+  const W = () => BD.audio.host.world();
   const ent = (id) => { const w = W(); return w && id != null ? BD.sim.entities.get(w, id) : null; };
   const isPlayer = (id) => { const w = W(); return !!(w && w.player && w.player.id === id); };
   const at = (ev, extra) => Object.assign({ x: ev.x, y: ev.y }, extra || {});
   const has = (tags, t) => !!(tags && tags.indexOf(t) >= 0);
 
-  const MELEE = { dagger: 'melee_dagger', sword: 'melee_sword', club: 'melee_club', mace: 'melee_mace', staff: 'melee_staff', arrow: 'ranged_impact', bolt: 'ranged_impact' };
+  const MELEE = {
+    dagger: 'melee_dagger', sword: 'melee_sword', club: 'melee_club', mace: 'melee_mace', staff: 'melee_staff',
+    arrow: 'ranged_impact', bolt: 'ranged_impact',
+  };
   const ELEMENT_HIT = { fire: 'fire_hit', cold: 'cold_hit', light: 'zap', pois: 'poison_hit' };
   const SHOT = { arrow: 'bow', bolt: 'crossbow' };
   const DEATH = { undead: 'death_undead', beast: 'death_beast', demon: 'death_demon', human: 'death_human', construct: 'death_construct' };
@@ -22,7 +25,10 @@
     spark: 'zap', chain_lightning: 'zap', frost_nova: 'cold_hit', blizzard: 'cold_hit', meteor: 'fire_cast', rain_of_arrows: 'bow',
     multishot: 'bow', aimed_shot: 'bow', piercing_shot: 'bow', pinning_shot: 'bow', bash: null, whirlwind: 'melee_sword',
   };
-  const SCHOOL_CAST = { fire: 'fire_cast', cold: 'spell', storm: 'zap', holy: 'spell', shadow: 'evade', poison: 'spell', blood: null, steel: null, dust: 'evade', gold: 'spell', ki: null };
+  const SCHOOL_CAST = {
+    fire: 'fire_cast', cold: 'spell', storm: 'zap', holy: 'spell', shadow: 'evade', poison: 'spell',
+    blood: null, steel: null, dust: 'evade', gold: 'spell', ki: null,
+  };
 
   const CUES = {
     damage(ev) {
@@ -35,8 +41,9 @@
         const w = W();
         const fx = src.kind === 'player' ? BD.sim.stats.statsOf(w, src).weapon.fx : null;
         if (ev.abilityId === 'bash') out.push(['bash', at(ev)]);
-        else if (has(ev.tags, 'projectile') || !has(ev.tags, 'melee') && ev.abilityId !== 'attack') out.push([ELEMENT_HIT[ev.maxPart] || 'ranged_impact', at(ev)]);
-        else out.push([MELEE[fx] || 'melee_club', at(ev, { vol: src.kind === 'ally' ? 0.5 : 1 })]);
+        else if (has(ev.tags, 'projectile') || (!has(ev.tags, 'melee') && ev.abilityId !== 'attack')) {
+          out.push([ELEMENT_HIT[ev.maxPart] || 'ranged_impact', at(ev)]);
+        } else out.push([MELEE[fx] || 'melee_club', at(ev, { vol: src.kind === 'ally' ? 0.5 : 1 })]);
         if (ev.crit) out.push(['crit_ring', at(ev)]);
         return out;
       }
@@ -49,11 +56,17 @@
     crit: () => null,   // the damage cue layers the crit ring
     'ability.cast'(ev) {
       if (!isPlayer(ev.id)) return null;
-      if (ev.abilityId === 'attack') return SHOT[ev.weapon] ? [SHOT[ev.weapon], at(ev)] : ev.weapon === 'staff' && BD.app.world.player.def === 'magician' ? ['wand', at(ev)] : null;
+      if (ev.abilityId === 'attack') {
+        if (SHOT[ev.weapon]) return [SHOT[ev.weapon], at(ev)];
+        return ev.weapon === 'staff' && W().player.def === 'magician' ? ['wand', at(ev)] : null;
+      }
       if (Object.prototype.hasOwnProperty.call(CAST, ev.abilityId)) return CAST[ev.abilityId] ? [CAST[ev.abilityId], at(ev)] : null;
       const sk = BD.data.skills[ev.abilityId];
       if (!sk) return null;
-      if (sk.school === 'ki') { const p = BD.app.world.player; return ['ki_charge', at(ev, { stack: p.resources.combo ? p.resources.combo.n + 1 : 1 })]; }
+      if (sk.school === 'ki') {
+        const combo = W().player.resources.combo;
+        return ['ki_charge', at(ev, { stack: combo ? combo.n + 1 : 1 })];
+      }
       const id = SCHOOL_CAST[sk.school];
       return id ? [id, at(ev)] : has(sk.tags, 'projectile') ? ['bow', at(ev)] : null;
     },
@@ -78,7 +91,11 @@
     leap: (ev) => ['javelin', at(ev, { vol: 0.6 })],
     dash: (ev) => ['evade', at(ev)],
     heal: (ev) => (isPlayer(ev.id) && ev.amount >= 5 ? ['heal', {}] : null),
-    'status.apply': (ev) => (ev.status === 'frozen' ? ['cold_hit', at(ev)] : ev.status === 'stunned' ? ['melee_mace', at(ev, { vol: 0.4, pitch: 0.7 })] : null),
+    'status.apply'(ev) {
+      if (ev.status === 'frozen') return ['cold_hit', at(ev)];
+      if (ev.status === 'stunned') return ['melee_mace', at(ev, { vol: 0.4, pitch: 0.7 })];
+      return null;
+    },
     'mod.shield': (ev) => ['block', at(ev, { vol: 0.5 })],
     absorb: (ev) => ['block', at(ev, { vol: 0.4, pitch: 1.3 })],
     'ally.spawn': (ev) => ['summon', at(ev)],
@@ -117,7 +134,12 @@
     // loot & items
     gold: (ev) => ['gold', at(ev)],
     'loot.pickup': (ev) => (ev.kind === 'item' || ev.kind === 'scroll' ? ['loot', at(ev)] : null),
-    'loot.drop': (ev) => (ev.rarity === 'legendary' || ev.rarity === 'set' ? [['drop_legendary', at(ev, { priority: true })]] : ev.rarity === 'rare' ? ['drop_rare', at(ev)] : ev.rarity === 'magic' ? ['drop_magic', at(ev, { vol: 0.6 })] : null),
+    'loot.drop'(ev) {
+      if (ev.rarity === 'legendary' || ev.rarity === 'set') return [['drop_legendary', at(ev, { priority: true })]];
+      if (ev.rarity === 'rare') return ['drop_rare', at(ev)];
+      if (ev.rarity === 'magic') return ['drop_magic', at(ev, { vol: 0.6 })];
+      return null;
+    },
     'loot.fountain': (ev) => ['chest', at(ev, { pitch: 0.8 })],
     'item.equip': (ev) => ['equip_' + (ev.material || 'cloth'), {}],
     'item.unequip': () => ['equip_cloth', { vol: 0.6 }],
@@ -174,9 +196,9 @@
 
   // events that are deliberately silent: bookkeeping, visual-only, or voiced by a neighbouring cue
   const SILENT = ['ability.cancel', 'ability.end', 'ability.ready', 'act.complete.ui', 'announce', 'bar.change', 'bone_wall.end', 'brand',
-    'collide', 'corpse', 'corpse.eaten', 'corpse.end', 'deploy.end', 'ally.end', 'floor.enter', 'keeper.ping', 'knockback', 'lob', 'monster.attack',
-    'monster.cancel', 'power', 'projectile.end', 'projectile.hit', 'projectile.spawn', 'resource.change', 'run.death', 'run.harvest',
-    'save.request', 'shimmer', 'spawn', 'status.end', 'xp', 'zone.end', 'zone.resolve', 'zone.tick'];
+    'collide', 'corpse', 'corpse.eaten', 'corpse.end', 'deploy.end', 'ally.end', 'floor.enter', 'keeper.ping', 'knockback', 'lob',
+    'monster.attack', 'monster.cancel', 'power', 'projectile.end', 'projectile.hit', 'projectile.spawn', 'resource.change',
+    'run.death', 'run.harvest', 'save.request', 'shimmer', 'spawn', 'status.end', 'xp', 'zone.end', 'zone.resolve', 'zone.tick'];
 
   /** normalise a cue's result to a list of [id, opts] */
   function resolve(ev) {

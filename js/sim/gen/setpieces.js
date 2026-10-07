@@ -9,7 +9,9 @@
   const MARKERS = 'CBSMETL';
 
   function candidates(biome, floorN) {
-    return BD.data.setpieces.filter((s) => s.biomes.includes(biome) && s.minFloor <= floorN && !(floorN === 1 && s.rows.join('').includes('E')));
+    // no elite markers on the first floor
+    const fits = (s) => s.biomes.includes(biome) && s.minFloor <= floorN && !(floorN === 1 && s.rows.join('').includes('E'));
+    return BD.data.setpieces.filter(fits);
   }
 
   /** Stamp a template at (ox,oy). Registers a room and markers. */

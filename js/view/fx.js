@@ -8,14 +8,16 @@
   const P = BD.view.palette;
   const CAP = 1500;
   const parts = [];
-  for (let i = 0; i < CAP; i++) parts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, g: 0, t: 0, life: 1, size: 1, color: '#fff', ambient: false });
+  for (let i = 0; i < CAP; i++) {
+    parts.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, g: 0, t: 0, life: 1, size: 1, color: '#fff', ambient: false });
+  }
   let live = 0, cursor = 0;
   const shapes = [];
   const lights = [];
   const tmp = { x: 0, y: 0 };
   const glowCache = new Map();
 
-  function reduced() { return BD.ui.options && BD.ui.options.get('particles') === 'reduced'; }
+  function reduced() { return BD.view.host.prefs.particles === 'reduced'; }
 
   /** spawn one particle; ambient motes are dropped first when the pool is full */
   function spark(x, y, o) {
@@ -29,8 +31,9 @@
     if (!p) { for (const c of parts) if (c.ambient) { p = c; live--; break; } }
     if (!p) return;
     live++;
-    p.on = true; p.x = x; p.y = y; p.z = o.z != null ? o.z : 8; p.vx = o.vx || 0; p.vy = o.vy || 0; p.vz = o.vz || 0;
-    p.g = o.g != null ? o.g : 0.0002; p.t = 0; p.life = o.life || 400; p.size = o.size || 2; p.color = o.color || '#fff'; p.ambient = !!o.ambient;
+    p.on = true; p.x = x; p.y = y; p.z = o.z != null ? o.z : 8;
+    p.vx = o.vx || 0; p.vy = o.vy || 0; p.vz = o.vz || 0; p.g = o.g != null ? o.g : 0.0002;
+    p.t = 0; p.life = o.life || 400; p.size = o.size || 2; p.color = o.color || '#fff'; p.ambient = !!o.ambient;
   }
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = (v) => (Array.isArray(v) ? rnd(v[0], v[1]) : v);
@@ -56,8 +59,10 @@
         const sp = pick(pd.speed);
         const r0 = pd.radius ? Math.random() * pd.radius : 0;
         spark(x + Math.cos(a) * r0, y + Math.sin(a) * r0, {
-          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, z: pick(pd.z || [6, 14]), vz: pick(pd.vz || [0.01, 0.04]), g: pd.g != null ? pd.g : 0.0002,
-          life: pick(pd.life || [250, 450]), size: pick(pd.size || [1.5, 3]), color: Math.random() < 0.5 ? pal.mid : Math.random() < 0.6 ? pal.core : pal.edge,
+          vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+          z: pick(pd.z || [6, 14]), vz: pick(pd.vz || [0.01, 0.04]), g: pd.g != null ? pd.g : 0.0002,
+          life: pick(pd.life || [250, 450]), size: pick(pd.size || [1.5, 3]),
+          color: Math.random() < 0.5 ? pal.mid : Math.random() < 0.6 ? pal.core : pal.edge,
         });
       }
     }

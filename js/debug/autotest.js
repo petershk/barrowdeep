@@ -37,13 +37,19 @@
     s.src = 'js/debug/autotests/' + name + '.js';
     s.onload = () => setTimeout(() => {
       try { D.autotests[name](D); }
-      catch (e) { const d = document.createElement('pre'); d.style.cssText = 'position:fixed;top:0;left:0;color:#f55;z-index:99;background:#000'; d.textContent = 'AUTOTEST ERROR: ' + (e && e.stack || e); document.body.appendChild(d); }
+      catch (e) {
+        const d = document.createElement('pre');
+        d.style.cssText = 'position:fixed;top:0;left:0;color:#f55;z-index:99;background:#000';
+        d.textContent = 'AUTOTEST ERROR: ' + (e && e.stack || e);
+        document.body.appendChild(d);
+      }
     }, 50);
     document.body.appendChild(s);
   }
   window.addEventListener('error', (ev) => {
     const d = document.createElement('pre');
-    d.style.cssText = 'position:fixed;bottom:0;left:0;color:#f55;z-index:99;background:#000;font-size:12px;max-width:100vw;white-space:pre-wrap';
+    d.style.cssText = 'position:fixed;bottom:0;left:0;color:#f55;z-index:99;background:#000;font-size:12px;'
+      + 'max-width:100vw;white-space:pre-wrap';
     d.textContent = 'ERROR: ' + ev.message + ' @ ' + ev.filename + ':' + ev.lineno;
     document.body.appendChild(d);
   });

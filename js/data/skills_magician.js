@@ -4,7 +4,10 @@
 (function (BD) {
   'use strict';
   const S = (BD.data.skills = BD.data.skills || {});
-  const sk = (o) => { S[o.id] = Object.assign({ cls: 'magician', isSpell: true, tags: [], effects: [], breakpoints: [], cues: { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' } }, o); };
+  const sk = (o) => {
+    const cues = { cast: 'skill.' + o.id + '.cast', impact: 'skill.' + o.id + '.impact' };
+    S[o.id] = Object.assign({ cls: 'magician', isSpell: true, tags: [], effects: [], breakpoints: [], cues }, o);
+  };
 
   // ---------------- Pyromancy ----------------
   sk({
@@ -102,7 +105,10 @@
     tags: ['spell', 'mobility'], resource: { type: 'mana', cost: 15 }, cooldownMs: 5000, charges: 2, castMs: 150, noIas: true,
     targeting: { mode: 'point', range: 8, requiresLOS: false, requiresVisible: true, outOfRange: 'reject' }, delivery: { kind: 'blink' },
     breakpoints: [
-      { rank: 3, set: { area: { shape: 'circle', radius: 1 }, effects: [{ type: 'damage', source: 'spell', base: [8, 12], element: 'light', canCrit: true, canDodge: false }] }, text: 'An arrival nova (radius 1) deals lightning damage.' },
+      { rank: 3, set: {
+        area: { shape: 'circle', radius: 1 },
+        effects: [{ type: 'damage', source: 'spell', base: [8, 12], element: 'light', canCrit: true, canDodge: false }],
+      }, text: 'An arrival nova (radius 1) deals lightning damage.' },
       { rank: 5, set: { charges: 3 }, text: '3 charges.' },
     ],
     desc: 'Blink to a visible, explored floor tile within 8. 2 charges, 5 s each.',
@@ -111,10 +117,16 @@
     id: 'chain_lightning', branch: 'storm', tier: 3, name: 'Chain Lightning', icon: 'chain_lightning', school: 'storm',
     tags: ['spell', 'lightning', 'chain'], resource: { type: 'mana', cost: 20 }, cooldownMs: 0,
     targeting: { mode: 'unit', range: 8, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'chain', jumps: 4, jumpRange: 3, falloff: 0.1 },
-    effects: [{ type: 'damage', source: 'spell', base: [10, 26], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', chance: 0.3, needsHit: true }],
+    effects: [
+      { type: 'damage', source: 'spell', base: [10, 26], element: 'light', canCrit: true, canDodge: false },
+      { type: 'status', id: 'shocked', chance: 0.3, needsHit: true },
+    ],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'chain', jumps: 6, jumpRange: 3, falloff: 0.1 } }, text: '6 jumps.' },
-      { rank: 5, set: { effects: [{ type: 'damage', source: 'spell', base: [10, 26], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', needsHit: true }] }, text: 'Every jump Shocks.' },
+      { rank: 5, set: { effects: [
+        { type: 'damage', source: 'spell', base: [10, 26], element: 'light', canCrit: true, canDodge: false },
+        { type: 'status', id: 'shocked', needsHit: true },
+      ] }, text: 'Every jump Shocks.' },
     ],
     desc: 'A bolt to a target that jumps to 4 more enemies within 3 tiles, −10% per jump, with a 30% chance to Shock.',
   });

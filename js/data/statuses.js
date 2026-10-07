@@ -2,19 +2,20 @@
 // Statuses (05 §2.4). Every one has a real name and icon (07 §2.4 — no two share a glyph).
 // clock: action-clock multiplier; dot: element + pct of the applying hit, ticking every 500 ms;
 // stack: 'refresh' (max duration, max magnitude) | 'stack' (independent stacks up to max).
-// boss: what bosses get instead ('chilled', 'slowed', 'weakened', 'ignore', or a duration mult).
+// boss: what bosses get instead ('chilled', 'slowed', 'weakened', 'ignore', or a duration mult);
+// bossDurMs: the replacement's duration.
 (function (BD) {
   'use strict';
 
   BD.data.statuses = {
     burning: { name: 'Burning', icon: 'flame', durMs: 3000, dot: 'fire', pct: 0.35, stack: 'refresh', debuff: true },
     chilled: { name: 'Chilled', icon: 'snow', durMs: 2500, clock: 0.5, stack: 'refresh', debuff: true },
-    frozen: { name: 'Frozen', icon: 'ice', durMs: 1500, clock: 0, stack: 'refresh', boss: 'chilled', debuff: true, cc: true },
+    frozen: { name: 'Frozen', icon: 'ice', durMs: 1500, clock: 0, stack: 'refresh', boss: 'chilled', bossDurMs: 3000, debuff: true, cc: true },
     shocked: { name: 'Shocked', icon: 'bolt', durMs: 3000, takenMult: 0.15, stack: 'refresh', debuff: true },
     poisoned: { name: 'Poisoned', icon: 'drop', durMs: 4000, dot: 'pois', pct: 0.5, stack: 'stack', max: 5, debuff: true },
     bleeding: { name: 'Bleeding', icon: 'blood', durMs: 4000, dot: 'phys', pct: 0.4, stack: 'refresh', debuff: true },
     stunned: { name: 'Stunned', icon: 'stars', durMs: 1000, clock: 0, stack: 'refresh', boss: 0.3, debuff: true, cc: true },
-    feared: { name: 'Feared', icon: 'skull', durMs: 2000, stack: 'refresh', boss: 'weakened', debuff: true, cc: true },
+    feared: { name: 'Feared', icon: 'skull', durMs: 2000, stack: 'refresh', boss: 'weakened', bossDurMs: 4000, debuff: true, cc: true },
     weakened: { name: 'Weakened', icon: 'broken', durMs: 4000, dealtMult: -0.2, stack: 'refresh', debuff: true },
     vulnerable: { name: 'Vulnerable', icon: 'target', durMs: 4000, takenMult: 0.2, stack: 'refresh', debuff: true },
     exposed: { name: 'Exposed', icon: 'eye', durMs: 1400, clock: 0, takenMult: 0.5, stack: 'refresh', debuff: true },

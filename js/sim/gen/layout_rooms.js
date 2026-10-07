@@ -84,13 +84,17 @@
       const n = rng.int(0, 2);
       for (let k = 0; k < n; k++) {
         const x = rng.chance(0.5) ? r.x : r.x + r.w - 1, y = rng.int(r.y + 1, r.y + r.h - 2);
-        if (C.get(p, x, y) === T.FLOOR && !p.protect[C.idx(p, x, y)] && wallAdjacent(p, x, y)) { C.set(p, x, y, T.DECOR); p.decor[C.idx(p, x, y)] = rng.pick(kinds); }
+        if (C.get(p, x, y) === T.FLOOR && !p.protect[C.idx(p, x, y)] && wallAdjacent(p, x, y)) {
+          C.set(p, x, y, T.DECOR);
+          p.decor[C.idx(p, x, y)] = rng.pick(kinds);
+        }
       }
     }
   }
 
   function wallAdjacent(p, x, y) {
-    return C.get(p, x - 1, y) === T.WALL || C.get(p, x + 1, y) === T.WALL || C.get(p, x, y - 1) === T.WALL || C.get(p, x, y + 1) === T.WALL;
+    return C.get(p, x - 1, y) === T.WALL || C.get(p, x + 1, y) === T.WALL
+      || C.get(p, x, y - 1) === T.WALL || C.get(p, x, y + 1) === T.WALL;
   }
 
   BD.sim.gen.layouts = BD.sim.gen.layouts || {};

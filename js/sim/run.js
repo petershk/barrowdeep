@@ -17,12 +17,11 @@
    * down stairs), 'waypoint', 'portal', 'gate', or a {x,y}.
    */
   function travel(world, key, arrive) {
-    const prevKey = world.floor ? world.floor.key : null;
     BD.sim.world.enterFloor(world, key, null);
     const f = world.floor;
     const pos = arrivalPos(world, f, arrive);
     if (pos) placePlayer(world, pos);
-    onEnter(world, f, prevKey);
+    onEnter(world, f);
     return f;
   }
 
@@ -41,13 +40,16 @@
   function placePlayer(world, pos) {
     const f = world.floor, p = world.player, E = BD.sim.entities;
     E.vacate(f, p);
-    const spot = (pos.exact && E.isFree(f, pos.x, pos.y) ? pos : null) || E.nearestFree(f, pos.x, pos.y, 8, (x, y) => x !== pos.x || y !== pos.y) || E.nearestFree(f, pos.x, pos.y, 8);
+    const exact = pos.exact && E.isFree(f, pos.x, pos.y) ? pos : null;
+    const spot = exact
+      || E.nearestFree(f, pos.x, pos.y, 8, (x, y) => x !== pos.x || y !== pos.y)
+      || E.nearestFree(f, pos.x, pos.y, 8);
     p.x = spot.x; p.y = spot.y; p.move = null;
     E.occupy(f, p);
     BD.sim.fov.refresh(world);
   }
 
-  function onEnter(world, f, prevKey) {
+  function onEnter(world, f) {
     const r = world.run;
     if (typeof f.n === 'number' && f.key === f.n) {
       r.floor = f.n;
@@ -67,7 +69,6 @@
       r.flags.visitedTown = true;
     }
     world.events.push({ type: 'save.request', why: 'travel' });
-    void prevKey;
   }
 
   /** AL for town stock: deepest floor reached in the current act; after an act boss, the next act's first floor */

@@ -46,7 +46,8 @@
     const arena = typeof f.key === 'string' && f.key[0] === 'a';
     // a saved game never resumes inside a live boss fight: it resumes at the gate
     let key = f.key, pos = { x: world.player.x, y: world.player.y };
-    if ((arena && !f.bossDead) || (f.n === 13 && BD.sim.bossfight && BD.sim.bossfight.liveFight(world))) { key = arena ? Number(f.key.slice(1)) : 13; pos = null; }
+    const inFight = (arena && !f.bossDead) || (f.n === 13 && BD.sim.bossfight && BD.sim.bossfight.liveFight(world));
+    if (inFight) { key = arena ? Number(f.key.slice(1)) : 13; pos = null; }
     const deltas = Object.assign({}, world.floorDeltas);
     if (key === f.key) deltas[f.key] = BD.sim.floors.snapshot(world);
     return {
@@ -65,12 +66,23 @@
   function reconcile(p) {
     const D = BD.data, fixed = [];
     const known = (it) => it && D.bases[it.base];
-    for (const slot in p.equip || {}) if (p.equip[slot] && !known(p.equip[slot])) { fixed.push('item ' + p.equip[slot].base); p.equip[slot] = null; }
-    p.pack = (p.pack || []).filter((e) => { const ok = known(e.item || e); if (!ok) fixed.push('item ' + (e.item || e).base); return ok; });
-    for (const id in p.skills || {}) if (!D.skills[id]) { fixed.push('skill ' + id); p.unspent.skill += p.skills[id]; delete p.skills[id]; }
+    for (const slot in p.equip || {}) {
+      if (p.equip[slot] && !known(p.equip[slot])) { fixed.push('item ' + p.equip[slot].base); p.equip[slot] = null; }
+    }
+    p.pack = (p.pack || []).filter((e) => {
+      const ok = known(e.item || e);
+      if (!ok) fixed.push('item ' + (e.item || e).base);
+      return ok;
+    });
+    for (const id in p.skills || {}) {
+      if (!D.skills[id]) { fixed.push('skill ' + id); p.unspent.skill += p.skills[id]; delete p.skills[id]; }
+    }
     for (const k in p.bar || {}) if (p.bar[k] && !D.skills[p.bar[k]]) p.bar[k] = null;
     p.statuses = (p.statuses || []).filter((st) => D.statuses[st.id]);
-    if (p.background && !D.backgrounds[p.background]) { fixed.push('background ' + p.background); p.background = Object.keys(D.backgrounds)[0]; }
+    if (p.background && !D.backgrounds[p.background]) {
+      fixed.push('background ' + p.background);
+      p.background = Object.keys(D.backgrounds)[0];
+    }
     return fixed;
   }
 
@@ -108,7 +120,11 @@
   function saveHash(world) {
     const deltas = Object.assign({}, world.floorDeltas);
     deltas[world.floor.key] = BD.sim.floors.snapshot(world);
-    for (const k in deltas) { const d = deltas[k]; deltas[k] = Object.assign({}, d, { timeOnFloor: 0, survivors: d.survivors.map((x) => ({ id: x.id, hp: Math.round(x.hp * 100), x: x.x, y: x.y })) }); }
+    for (const k in deltas) {
+      const d = deltas[k];
+      const survivors = d.survivors.map((x) => ({ id: x.id, hp: Math.round(x.hp * 100), x: x.x, y: x.y }));
+      deltas[k] = Object.assign({}, d, { timeOnFloor: 0, survivors });
+    }
     const p = cleanPlayer(world.player);
     delete p.statsVersion;
     return U.hashOf({ p, run: world.run, deltas, rng: world.rng.state(), loot: world.lootRng.state() });

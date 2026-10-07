@@ -34,7 +34,15 @@
       BD.ui.tooltip.bind(box, (c, shift) => {
         const w = BD.app.world;
         const id = s === 'evade' ? null : w.player.bar[s];
-        if (!id) { BD.ui.dom.append(c, s === 'evade' ? [h('div.tt-title', 'Evade'), h('div.tt-desc', 'Dash 2 tiles. Invulnerable for the first 0.12 s. Free; 3 s cooldown. The answer to every telegraph.')] : [h('div.tt-title', 'Empty slot'), h('div.tt-desc', 'Assign skills in the Skills panel (K).')]); return; }
+        if (!id) {
+          BD.ui.dom.append(c, s === 'evade'
+            ? [
+              h('div.tt-title', 'Evade'),
+              h('div.tt-desc', 'Dash 2 tiles. Invulnerable for the first 0.12 s. Free; 3 s cooldown. The answer to every telegraph.'),
+            ]
+            : [h('div.tt-title', 'Empty slot'), h('div.tt-desc', 'Assign skills in the Skills panel (K).')]);
+          return;
+        }
         BD.ui.dom.append(c, BD.ui.tooltip.skillBody(w, w.player, id, shift));
       });
     }
@@ -70,7 +78,8 @@
           frac = cd > 0 ? Math.min(1, cd / Math.max(1, BD.sim.abilities.cdTime(world, p, ab))) : 0;
         }
         const res = ab.resource || {};
-        const unaffordable = res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0 && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart);
+        const hasCost = res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0;
+        const unaffordable = hasCost && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart);
         sl.box.classList.toggle('poor', !!unaffordable);
         sl.box.classList.toggle('active', !!(p.attack && p.attack.abilityId === id));
       }

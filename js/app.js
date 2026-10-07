@@ -9,7 +9,11 @@
   const app = {
     world: null, state: 'boot', bus, showLabels: false, showBars: false, tactical: false,
     hitstopMs: 0, lastHitstopAt: -1e9, realNow: 0, debug: /[?&]debug=1/.test(location.search),
-    paused() { return app.state !== 'playing' || app.tactical || (BD.ui.panels ? BD.ui.panels.pausesWorld() : false) || (app.world && app.world.run.paused); },
+    paused() {
+      if (app.state !== 'playing' || app.tactical) return true;
+      if (BD.ui.panels && BD.ui.panels.pausesWorld()) return true;
+      return !!(app.world && app.world.run.paused);
+    },
     togglePause() { app.tactical = !app.tactical; bus.emit({ type: 'ui.pause', on: app.tactical }); },
     userGesture() { if (BD.audio.audio) BD.audio.audio.resume(); },
     /** request a presentation-level freeze (≤70 ms, at most once per 240 ms) */
@@ -81,7 +85,9 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     const gr = g.createRadialGradient(c.width / 2, c.height * 0.62, 10, c.width / 2, c.height * 0.6, c.height * 0.8);
     const fl = 0.85 + 0.15 * Math.sin(menuT / 180) * Math.sin(menuT / 67);
-    gr.addColorStop(0, 'rgb(' + Math.round(70 * fl) + ',' + Math.round(34 * fl) + ',14)'); gr.addColorStop(0.5, '#120a07'); gr.addColorStop(1, '#030202');
+    gr.addColorStop(0, 'rgb(' + Math.round(70 * fl) + ',' + Math.round(34 * fl) + ',14)');
+    gr.addColorStop(0.5, '#120a07');
+    gr.addColorStop(1, '#030202');
     g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
   }
 
@@ -128,8 +134,30 @@
     dispatch(world);
   }
 
+  /** The view and audio layers declare what they need from their host; the app provides it. */
+  function hostLayers() {
+    const live = (obj, key, get) => Object.defineProperty(obj, key, { get, configurable: true });
+    const VH = BD.view.host;
+    if (BD.ui.options) live(VH, 'prefs', () => BD.ui.options.all);
+    if (BD.input.mouse) live(VH, 'pointer', () => BD.input.mouse);
+    live(VH, 'showLabels', () => app.showLabels);
+    live(VH, 'showBars', () => app.showBars);
+    VH.paused = () => app.paused();
+    VH.world = () => app.world;
+    VH.hitstop = (ms) => app.hitstop(ms);
+    const AH = BD.audio.host;
+    if (BD.ui.options) {
+      const VOLUMES = ['master', 'effects', 'music', 'ambience'];
+      AH.volume = (k) => BD.ui.options.get(k);
+      AH.onVolumeChange = (fn) => BD.ui.options.onChange((k) => { if (VOLUMES.includes(k)) fn(); });
+    }
+    AH.world = () => app.world;
+    AH.playing = () => app.state === 'playing';
+  }
+
   function boot() {
     if (BD.ui.options) BD.ui.options.load();
+    hostLayers();
     const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('world'));
     BD.view.render.init(canvas);
     if (BD.ui.options) BD.view.render.setZoom(BD.ui.options.get('zoom'));
@@ -141,10 +169,19 @@
     bus.on('save.request', (ev) => saveNow(ev.why || 'travel'));
     bus.on('stash', () => { if (BD.ui.meta) BD.ui.meta.save(); saveNow('stash'); });
     bus.on('run.death', () => { saveNow('death'); setTimeout(() => BD.ui.panels.open('death'), 1200); });
-    bus.on('run.harvest', (ev) => { if (BD.ui.meta) BD.ui.meta.addSouls(ev.souls); if (app.world && BD.ui.saves) BD.ui.saves.markDead(app.world.run.charId); });
+    bus.on('run.harvest', (ev) => {
+      if (BD.ui.meta) BD.ui.meta.addSouls(ev.souls);
+      if (app.world && BD.ui.saves) BD.ui.saves.markDead(app.world.run.charId);
+    });
     bus.on('run.victory', (ev) => {
       const w = app.world;
-      if (BD.ui.meta) { const m = BD.ui.meta.get(); m.victories++; m.ascension[w.run.difficulty] = Math.max(m.ascension[w.run.difficulty] || 0, (w.run.ascension || 0) + 1); BD.ui.meta.addSouls(ev.souls); }
+      if (BD.ui.meta) {
+        const m = BD.ui.meta.get();
+        const diff = w.run.difficulty;
+        m.victories++;
+        m.ascension[diff] = Math.max(m.ascension[diff] || 0, (w.run.ascension || 0) + 1);
+        BD.ui.meta.addSouls(ev.souls);
+      }
       saveNow('victory');
       if (BD.ui.saves) BD.ui.saves.markDead(w.run.charId);
       app.slowmoMs = 1000;
@@ -188,7 +225,10 @@
   function tickSaves() {
     const w = app.world;
     if (!w || w.run.dead || !w.run.charId) return;
-    if (w.time - (app.lastSnapAt || 0) >= 2000 && BD.sim.save.isSafe(w)) { app.lastSnapAt = w.time; app.lastSafe = BD.sim.save.serialize(w, Date.now()); }
+    if (w.time - (app.lastSnapAt || 0) >= 2000 && BD.sim.save.isSafe(w)) {
+      app.lastSnapAt = w.time;
+      app.lastSafe = BD.sim.save.serialize(w, Date.now());
+    }
     if (w.time - app.lastSaveAt >= BD.data.balance.player.autosaveMs) saveNow('auto');
   }
 

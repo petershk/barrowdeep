@@ -96,5 +96,8 @@
     }
   }
 
-  BD.ui.panels = { register, open, close, closeAll, toggle, isOpen, top, pausesWorld, anyModal, rebuild, markDirty, frame, onKey, hotkey, defs, stack };
+  BD.ui.panels = {
+    register, open, close, closeAll, toggle, isOpen, top, pausesWorld, anyModal,
+    rebuild, markDirty, frame, onKey, hotkey, defs, stack,
+  };
 })(globalThis.BD);
