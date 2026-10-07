@@ -10,7 +10,7 @@
   /** migrations[i] upgrades a save from version i+1 to i+2 */
   const migrations = [];
 
-  const TRANSIENT = ['intent', 'attack', 'move', 'queued', 'lockId', 'airborne'];
+  const TRANSIENT = ['intent', 'attack', 'move', 'queued', 'lockId', 'airborne', '_zt', '_silentHit'];
   function cleanPlayer(p) {
     const c = U.clone(p);
     for (const k of TRANSIENT) delete c[k];

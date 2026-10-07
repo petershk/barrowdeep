@@ -45,18 +45,33 @@
     else { vseg(ax, ay, by); hseg(by, ax, bx); }
   }
 
-  /** Label walkable regions (8-conn). Returns { labels:Int32Array, sizes:number[] } */
+  /** Label walkable regions (8-conn, no corner cutting) in one O(N) pass. Returns { labels, sizes } */
   function regions(p) {
     const walk = walkFn(p);
-    const labels = new Int32Array(p.w * p.h).fill(-1);
+    const W = p.w, N = p.w * p.h;
+    const labels = new Int32Array(N).fill(-1);
+    const q = new Int32Array(N);
     const sizes = [];
-    for (let i = 0; i < p.w * p.h; i++) {
+    const DIRS = BD.core.util.DIRS;
+    for (let i = 0; i < N; i++) {
       if (labels[i] !== -1) continue;
-      const x = i % p.w, y = (i / p.w) | 0;
-      if (!walk(x, y)) continue;
-      const d = G.bfs(p.w, p.h, [[x, y]], walk);
-      const id = sizes.length; let n = 0;
-      for (let k = 0; k < d.length; k++) if (d[k] >= 0) { labels[k] = id; n++; }
+      const x0 = i % W, y0 = (i / W) | 0;
+      if (!walk(x0, y0)) continue;
+      const id = sizes.length;
+      let head = 0, tail = 0, n = 0;
+      labels[i] = id; q[tail++] = i;
+      while (head < tail) {
+        const k = q[head++]; n++;
+        const x = k % W, y = (k / W) | 0;
+        for (let d = 0; d < 8; d++) {
+          const dx = DIRS[d][0], dy = DIRS[d][1], nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= p.h) continue;
+          const nk = ny * W + nx;
+          if (labels[nk] !== -1 || !walk(nx, ny)) continue;
+          if (dx && dy && !(walk(x + dx, y) && walk(x, y + dy))) continue;
+          labels[nk] = id; q[tail++] = nk;
+        }
+      }
       sizes.push(n);
     }
     return { labels, sizes };

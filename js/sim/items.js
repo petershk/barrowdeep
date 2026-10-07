@@ -47,6 +47,7 @@
       const af = AF && AF[a.id];
       if (!af) continue;
       if (af.stat === 'skill_plus' || af.special) { d.lines.push({ affix: a.id, special: af.special || 'skill_plus', value: a.skill ? (a.n || 1) : 0, skill: a.skill, band: af.band }); if (a.skill) addMod(d, 'skill_plus_' + a.skill, a.n || 1); continue; }
+      if (af.proc) { d.lines.push({ affix: a.id, proc: af.proc, band: af.band }); d.proc = af.proc; continue; }
       const v = af.fixed != null ? af.fixed : affixValue(af, a.roll, item.ilvl, enh);
       if (af.stat === 'all_attr') { addMod(d, 'all_attr', v); }
       else addMod(d, af.stat, v);

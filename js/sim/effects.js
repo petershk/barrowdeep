@@ -11,6 +11,8 @@
 
   /** @type {Record<string, (world:any, caster:any, ab:any, rank:number, arg:any)=>any>} */
   const scripts = {};
+  /** hooks run before every impact: (world, caster, ab, rank, ctx, action) */
+  const preImpact = [];
   function register(name, fn) { scripts[name] = fn; }
   /** run a special script hook: '<abilityId>.<phase>' or a named special effect */
   function special(world, caster, ab, rank, phase, arg) {
@@ -47,6 +49,7 @@
   /** The impact of an ability (end of wind-up / each channel tick). */
   function impact(world, caster, ab, rank, a) {
     const ctx = baseCtx(world, caster, ab, rank, a);
+    for (let i = 0; i < preImpact.length; i++) preImpact[i](world, caster, ab, rank, ctx, a);
     if (scripts[ab.id + '.before']) { if (scripts[ab.id + '.before'](world, caster, ab, rank, { a, ctx }) === false) return; }
     const d = ab.delivery || { kind: 'instant' };
     const target = a.targetId != null ? E.get(world, a.targetId) : null;
@@ -198,5 +201,5 @@
     if (ab.area) areaAt(world, ctx, ab, spot.x, spot.y, ab.area);
   }
 
-  BD.sim.effects = { register, special, scripts, precheck, impact, areaAt, chain, melee, landingSpot, baseCtx, afterHits };
+  BD.sim.effects = { preImpact, register, special, scripts, precheck, impact, areaAt, chain, melee, landingSpot, baseCtx, afterHits };
 })(globalThis.BD);

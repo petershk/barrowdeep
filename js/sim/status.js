@@ -159,6 +159,7 @@
       if (d.hasteMove) { add('move_pct', d.hasteMove, d.name); add('ias', d.hasteIas, d.name); }
       if (d.flag) add(d.flag, true, d.name);
       if (s.id === 'braced') add('dr_pct', s.magnitude, d.name);
+      if (s.id === 'oath') { add('dmg_pct', 25, d.name); add('dr_pct', 20, d.name); }
     }
   }
 

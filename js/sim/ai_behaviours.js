@@ -48,6 +48,7 @@
   reg('shoot', {
     decide(world, e, b, ctx) {
       const range = b.range || 6;
+      if (ctx.tgt.kind === 'player' && BD.sim.zones.inSmoke(world, ctx.tgt.x, ctx.tgt.y)) return AI.chase(world, e, ctx.tgt) || 400;
       if (ctx.dist <= range + 0.5 && ctx.hasLos()) {
         e.dir = dirOf(ctx.tgt.x - e.x, ctx.tgt.y - e.y);
         const s = stats(world, e);

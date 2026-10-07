@@ -1,0 +1,38 @@
+// Headless bot runs: node tools/bot.js [cls] [seed] [maxFloor] [minutes] [difficulty]
+// Prints a JSON report: time per floor, deaths, TTK per rank, damage taken by source, skill use,
+// gold, items by rarity, level per floor.
+'use strict';
+const { loadBD } = require('../test/harness');
+
+function runBot(opts) {
+  const BD = opts.BD || loadBD({ extra: ['js/debug/bot.js'] });
+  const w = BD.sim.world.createWorld({ seed: opts.seed, cls: opts.cls, name: 'Bot', difficulty: opts.difficulty || 'penitent', firstSkill: BD.debug.bot.SKILL_PLAN[opts.cls][0] });
+  w.run.charId = 'bot';
+  w.stash = [[], [], []];
+  BD.sim.run.begin(w, {});
+  BD.sim.economy && BD.sim.economy.onRunStart && BD.sim.economy.onRunStart(w, {});
+  const bot = BD.debug.bot.make(w, { floorMs: opts.floorMs, bargain: opts.bargain, maxFloor: opts.maxFloor });
+  BD.debug.bot.spendPoints(bot);
+  const maxFloor = opts.maxFloor || 13;
+  BD.debug.bot.run(bot, (opts.minutes || 120) * 60000, { until: (world) => world.run.deepestFloor > maxFloor || world.run.victory || (world.floor.key === maxFloor && world.floor.sealBroken && opts.stopAtSeal) });
+  const avg = (a) => (a && a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(2) : null);
+  const med = (a) => (a && a.length ? a.slice().sort((x, y) => x - y)[a.length >> 1] : null);
+  const s = bot.stats;
+  return {
+    cls: opts.cls, seed: opts.seed, minutes: +(w.time / 60000).toFixed(1), deepest: w.run.deepestFloor, level: w.player.level, dead: w.run.dead && w.run.harvested,
+    victory: !!w.run.victory, bargains: w.run.bargainsUsed, deaths: bot.deathCauses, floorTimes: bot.floorTimes, levelAtFloor: s.levelAtFloor,
+    ttk: Object.fromEntries(Object.entries(s.ttk).map(([k, v]) => [k, { avg: avg(v), med: med(v), n: v.length }])), kills: s.kills,
+    bossTimes: s.bossTimes, items: s.items, gold: { earned: s.goldEarned, spent: s.goldSpent, now: w.player.gold }, swaps: s.swaps,
+    skillUse: bot.skillUse, dmgTaken: Object.entries(s.dmgTakenBySrc).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ':' + Math.round(v)),
+  };
+}
+
+if (require.main === module) {
+  const [cls = 'fighter', seed = 'bot1', maxFloor = '3', minutes = '60', difficulty = 'penitent'] = process.argv.slice(2);
+  const t0 = Date.now();
+  const r = runBot({ cls, seed, maxFloor: Number(maxFloor), minutes: Number(minutes), difficulty });
+  r.realSeconds = +((Date.now() - t0) / 1000).toFixed(1);
+  console.log(JSON.stringify(r, null, 1));
+}
+
+module.exports = { runBot };

@@ -37,6 +37,7 @@
   // ---- movement & basic interaction ----
   register('Move', (world, c) => {
     const p = world.player;
+    if (p.attack && p.attack.phase === 'windup' && p.attack.cancellable && BD.sim.abilities) BD.sim.abilities.cancel(world, p, 'move');
     const path = BD.sim.player.pathTo(world, p, c.x, c.y, true);
     if (!path || !path.length) { p.intent = { kind: 'idle' }; return; }
     p.intent = { kind: 'move', path };

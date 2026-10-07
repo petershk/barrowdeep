@@ -53,6 +53,7 @@ module.exports = (T) => {
         const w = setup(ab.cls, ab.id, rank);
         const nums = BD.sim.describe.numbers(w, w.player, ab.id, rank);
         if (!nums.length) continue;
+        T.ok(nums.every((n) => n.hi > 0), ab.id + ' r' + rank + ' describes zero damage');
         const cap = capture(BD);
         try {
           const c = castAt(w, ab.id);

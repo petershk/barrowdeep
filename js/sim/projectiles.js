@@ -42,7 +42,7 @@
   /** Fire the projectiles of an ability (count, spread, pierce from delivery). */
   function fireAbility(world, caster, ab, rank, a, tx, ty, ctx) {
     const d = ab.delivery;
-    const s = BD.sim.stats.statsOf(world, caster.kind === 'ally' && caster.ownerId ? world.player : caster);
+    const s = BD.sim.stats.statsOf(world, caster.kind === 'monster' ? caster : world.player);
     let count = d.count || 1;
     if (d.extraFromStat) count += s.extra_projectiles || 0;
     const spread = ((d.spread || 0) * Math.PI) / 180;
@@ -51,13 +51,14 @@
     const base = Math.atan2(ay, ax);
     const range = (ab.targeting && ab.targeting.range) || 7;
     const kind = d.projectile || 'arrow';
+    const group = { hits: 0, abilityId: ab.id };
     for (let i = 0; i < count; i++) {
       const ang = count > 1 ? base - spread / 2 + (spread * i) / (count - 1) : base;
       spawn(world, {
         kind, srcId: ctx.srcId, faction: caster.faction, x: caster.x, y: caster.y, dx: Math.cos(ang), dy: Math.sin(ang),
         maxDist: d.maxDist || range + 1, pierce: d.pierce === 'all' ? 99 : d.pierce || 0, ricochet: d.ricochet || 0, returns: !!d.returns,
         stopAt: d.stopAtTarget ? { x: tx, y: ty } : null,
-        payload: { type: 'ability', abilityId: ab.id, rank, combo: ctx.combo, focus: ctx.focus, casterId: caster.kind === 'ally' ? caster.ownerId || caster.id : caster.id, forceCrit: ctx.forceCrit, critAdd: ctx.critAdd, packetMult: ctx.packetMult, idx: i },
+        payload: { type: 'ability', abilityId: ab.id, rank, combo: ctx.combo, focus: ctx.focus, casterId: caster.kind === 'ally' ? caster.ownerId || caster.id : caster.id, forceCrit: ctx.forceCrit, critAdd: ctx.critAdd, packetMult: ctx.packetMult, idx: i, group },
       });
     }
   }

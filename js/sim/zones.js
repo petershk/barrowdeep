@@ -104,6 +104,11 @@
     }
     if (!def) return;
     for (const e of victims(world, z)) {
+      // overlapping ground of the same kind doesn't stack: one tick per kind per victim per 500 ms
+      const tk = z.kind + ':' + (z.faction || '');
+      e._zt = e._zt || {};
+      if (e._zt[tk] != null && world.time - e._zt[tk] < z.tickMs - 1) continue;
+      e._zt[tk] = world.time;
       if (def.element && (z.amount > 0 || def.maxLifePct)) {
         const amt = def.maxLifePct ? BD.sim.stats.statsOf(world, e).maxLife * def.maxLifePct : z.amount;
         const am = {}; am[def.element] = amt;
@@ -133,6 +138,10 @@
       }
       z.durMs -= dt;
       z.tickLeft -= dt;
+      if (z.spread) {
+        z.spreadAcc = (z.spreadAcc || 0) + dt;
+        if (z.spreadAcc >= 1000 && (z.spreadN || 0) < z.spread) { z.spreadAcc -= 1000; z.spreadN = (z.spreadN || 0) + 1; growZone(world, z); }
+      }
       if (z.tickLeft <= 0) { z.tickLeft += z.tickMs; tick(world, z); }
       if (z.durMs <= 0) { list.splice(i--, 1); world.events.push({ type: 'zone.end', zoneId: z.id }); }
     }
@@ -144,11 +153,11 @@
     const flight = (ab.delivery && ab.delivery.flightMs) || 600;
     const area = ab.area || { shape: 'circle', radius: 1 };
     const centres = BD.sim.effects.special(world, caster, ab, rank, 'lobTargets', { tx, ty }) || [[tx, ty]];
-    for (const [cx, cy] of centres) {
-      world.events.push({ type: 'lob', srcId: caster.id, fromX: caster.x, fromY: caster.y, x: cx, y: cy, ms: flight, abilityId: ab.id });
+    for (const [cx, cy, k, extraMs] of centres) {
+      world.events.push({ type: 'lob', srcId: caster.id, fromX: caster.x, fromY: caster.y, x: cx, y: cy, ms: flight + (extraMs || 0), abilityId: ab.id });
       create(world, {
-        tiles: BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir), cx, cy, armMs: flight, telegraph: false, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school,
-        resolve: { type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus, mult: ctx.packetMult, linger: ab.linger || null },
+        tiles: BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir), cx, cy, armMs: flight + (extraMs || 0), telegraph: false, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school,
+        resolve: { type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus, mult: ctx.packetMult * (k || 1), linger: ab.linger || null, noAfter: k != null && k !== 1 },
         kind: 'lob',
       });
     }
@@ -164,7 +173,7 @@
       const base = { tiles, cx, cy, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school, kind: ab.id };
       if (d.tickMs) {
         create(world, Object.assign(base, { armMs: d.delayMs || 0, telegraph: !!d.delayMs, durMs: d.durMs, tickMs: d.tickMs, tickLeft: 0, resolve: null,
-          tickPayload: { abilityId: ab.id, rank, casterId: caster.id, mult: (k || 1) * ctx.packetMult, focus: ctx.focus }, follow: ab.follow ? (ab.follow === 'self' ? caster.id : a && a.targetId) : null, friendly: true }));
+          tickPayload: { abilityId: ab.id, rank, casterId: caster.id, mult: (k || 1) * ctx.packetMult, focus: ctx.focus }, follow: ab.follow ? (ab.follow === 'self' ? caster.id : (a && a.targetId) || caster.lockId || null) : null, friendly: true }));
       } else {
         create(world, Object.assign(base, { armMs: d.delayMs || 0, telegraph: true,
           resolve: { type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus, mult: (k || 1) * ctx.packetMult, linger: ab.linger || null, noAfter: centres.length > 1 && k !== 1 } }));
@@ -172,8 +181,25 @@
     }
   }
 
+  /** is (x,y) inside a player-made smoke cloud? */
+  function inSmoke(world, x, y) {
+    for (const z of world.floor.zones) if (z.kind === 'smoke' && z.resolved !== false && z.tiles.some(([a, b]) => a === x && b === y)) return true;
+    return false;
+  }
+
+  /** grow a ground zone by one ring of walkable tiles (Cinderveil) */
+  function growZone(world, z) {
+    const f = world.floor, have = new Set(z.tiles.map(([x, y]) => y * f.w + x));
+    const add = [];
+    for (const [x, y] of z.tiles) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, k = ny * f.w + nx;
+      if (!have.has(k) && BD.sim.entities.walkable(f, nx, ny)) { have.add(k); add.push([nx, ny]); }
+    }
+    z.tiles = z.tiles.concat(add);
+  }
+
   function clearFloor(world) { world.floor.zones.length = 0; }
 
-  BD.sim.zones = { create, victims, resolve, ground, tick, system, lob, fromAbility, clearFloor, startLinger };
+  BD.sim.zones = { inSmoke, create, victims, resolve, ground, tick, system, lob, fromAbility, clearFloor, startLinger };
   BD.sim.world.addSystem('zones', system, 25);
 })(globalThis.BD);

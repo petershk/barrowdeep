@@ -22,7 +22,7 @@
   function computeHit(world, caster, ab, eff, rank, ctx) {
     const s = ST().statsOf(world, caster);
     const roll = ctx.roll != null ? ctx.roll : ctx.rng ? ctx.rng.next() : 0.5;
-    let mult = AB().scale(eff, rank);
+    let mult = eff.mult != null || eff.perRank ? AB().scale(eff, rank) : 1 + 0.2 * (rank - 1);
     const rk = 1 + 0.2 * (rank - 1);
     if (eff.perCombo) mult += eff.perCombo * (ctx.combo || 0) * (eff.perComboScales === false ? 1 : rk);
     if (eff.perFocus) mult += eff.perFocus * (ctx.focus || 0) * (eff.perFocusScales === false ? 1 : rk);
@@ -120,7 +120,7 @@
         const r = BD.sim.damage.dealDamage(world, {
           srcId: ctx.srcId != null ? ctx.srcId : caster.id, tgtId: tgt.id, amounts: h.amounts, tags, canCrit: eff.canCrit !== false,
           canDodge: eff.canDodge !== false, canBlock: eff.canBlock !== false, mult: 1, abilityId: ctx.ab.id, forceCrit: !!ctx.forceCrit,
-          critChanceAdd: ctx.critAdd || 0,
+          critChanceAdd: ctx.critAdd || 0, noOnHit: !!ctx.noOnHit,
         });
         return r;
       }
