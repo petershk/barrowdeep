@@ -108,7 +108,7 @@
     const r = p.resources;
     const n = r.combo ? r.combo.n : r.focus ? r.focus.n : 0;
     const max = r.combo ? BD.sim.resources.comboMax(world, p) : r.focus ? 5 : 0;
-    if (!max || BD.app.state !== 'playing') { pips.style.display = 'none'; return; }
+    if (!max || BD.app.state !== 'playing' || BD.ui.panels.top()) { pips.style.display = 'none'; return; }
     pips.style.display = '';
     const key = n + '/' + max;
     if (pips.dataset.key !== key) {

@@ -62,9 +62,10 @@
       tickSaves();
       BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
     }
+    else if (BD.input.gamepad) BD.input.gamepad.frame(real);
     if (BD.ui.hud && w) BD.ui.hud.frame(w, real);
-    if (BD.ui.hints) BD.ui.hints.frame(real);
     else if (!w) document.body.classList.add('no-hud');
+    if (BD.ui.hints) BD.ui.hints.frame(real);
     if (BD.ui.panels) BD.ui.panels.frame(real);
     if (BD.audio.music) BD.audio.music.frame(real);
     requestAnimationFrame(frame);
@@ -135,6 +136,7 @@
     if (BD.view.wire) BD.view.wire(bus);
     if (BD.audio.wire) BD.audio.wire(bus);
     if (BD.ui.wire) BD.ui.wire(bus);
+    if (BD.input.gamepad) BD.input.gamepad.wire(bus);
     bus.on('save.request', (ev) => saveNow(ev.why || 'travel'));
     bus.on('stash', () => { if (BD.ui.meta) BD.ui.meta.save(); saveNow('stash'); });
     bus.on('run.death', () => { saveNow('death'); setTimeout(() => BD.ui.panels.open('death'), 1200); });

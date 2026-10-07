@@ -259,3 +259,7 @@ body.save-failed .minimap { border-color: var(--bad); }
 .hint-title { color: var(--gold); font-variant: small-caps; letter-spacing: 0.06em; font-size: 1.05rem; margin-bottom: 4px; }
 .hint-text { color: var(--bone); font-size: 0.95rem; line-height: 1.35; }
 .hint-close { color: #8a7a60; font-size: 0.75rem; text-align: right; margin-top: 4px; font-variant: small-caps; }
+.pad-prompt { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); color: var(--bone); background: rgba(10, 8, 6, 0.85); border: 1px solid var(--border); padding: 4px 12px; font-variant: small-caps; letter-spacing: 0.05em; opacity: 0; transition: opacity 0.15s; pointer-events: none; border-radius: 2px; }
+.pad-prompt.show { opacity: 1; }
+body.pad { cursor: none; }
+.pad-focus { outline: 2px solid var(--gold); outline-offset: 1px; }

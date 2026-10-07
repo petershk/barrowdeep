@@ -73,7 +73,7 @@
 
   /** recompute hover each frame (the camera moves under a still mouse) */
   function frame() {
-    if (!m.inside) return;
+    if (!m.inside || (BD.input.gamepad && BD.input.gamepad.pad.active)) return;
     m.hoverTile = iso.toTile(m.screen.x, m.screen.y, { x: 0, y: 0 });
     const w = BD.app.world;
     m.hoverEntity = w && w.floor ? entityAt(w, m.screen, m.hoverTile) : null;
