@@ -48,24 +48,31 @@
   }
 
   /** Prim's MST over room centres + a few extra loop edges. */
-  function connectRooms(p, rng, wideChance, extraLoops) {
-    const rooms = p.rooms;
-    const inTree = [0];
-    const edges = [];
+  /** Prim's minimum spanning tree over room centres (Manhattan distance), as [a, b] index pairs */
+  function spanningTree(rooms) {
+    const inTree = [0], edges = [];
     while (inTree.length < rooms.length) {
       let best = null, bd = Infinity;
-      for (const a of inTree) for (let b = 0; b < rooms.length; b++) {
-        if (inTree.includes(b)) continue;
-        const d = Math.abs(rooms[a].cx - rooms[b].cx) + Math.abs(rooms[a].cy - rooms[b].cy);
-        if (d < bd) {
-          bd = d;
-          best = [a, b];
+      for (const a of inTree) {
+        for (let b = 0; b < rooms.length; b++) {
+          if (inTree.includes(b)) continue;
+          const d = Math.abs(rooms[a].cx - rooms[b].cx) + Math.abs(rooms[a].cy - rooms[b].cy);
+          if (d < bd) {
+            bd = d;
+            best = [a, b];
+          }
         }
       }
       if (!best) break;
       inTree.push(best[1]);
       edges.push(best);
     }
+    return edges;
+  }
+
+  function connectRooms(p, rng, wideChance, extraLoops) {
+    const rooms = p.rooms;
+    const edges = spanningTree(rooms);
     for (let k = 0; k < extraLoops; k++) {
       const a = rng.int(0, rooms.length - 1), b = rng.int(0, rooms.length - 1);
       if (a !== b) edges.push([a, b]);
@@ -120,5 +127,5 @@
 
   BD.sim.gen.layouts = BD.sim.gen.layouts || {};
   BD.sim.gen.layouts.rooms = generate;
-  BD.sim.gen.layoutHelpers = { tryRoom, connectRooms, addNavePillars, wallAdjacent };
+  BD.sim.gen.layoutHelpers = { tryRoom, spanningTree, connectRooms, addNavePillars, wallAdjacent };
 })(globalThis.BD);

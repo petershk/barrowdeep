@@ -158,7 +158,7 @@
     placePlatforms(p, rng, rng.int(params.platforms[0], params.platforms[1]));
     // bridges: MST over platform centres, 2–3 wide, carved as BRIDGE over lava
     const R = p.rooms;
-    const edges = spanningTree(R);
+    const edges = LayoutHelpers().spanningTree(R);
     if (R.length > 3) edges.push([rng.int(1, R.length - 1), rng.int(1, R.length - 1)]);
     for (const [a, b] of edges) {
       if (a === b) continue;
@@ -185,28 +185,6 @@
       p.rooms.push({ x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) });
       k++;
     }
-  }
-
-  /** Prim's minimum spanning tree over room centres (Manhattan distance), as [a, b] index pairs */
-  function spanningTree(R) {
-    const inTree = [0], edges = [];
-    while (inTree.length < R.length) {
-      let best = null, bd = Infinity;
-      for (const a of inTree) {
-        for (let b = 0; b < R.length; b++) {
-          if (inTree.includes(b)) continue;
-          const d = Math.abs(R[a].cx - R[b].cx) + Math.abs(R[a].cy - R[b].cy);
-          if (d < bd) {
-            bd = d;
-            best = [a, b];
-          }
-        }
-      }
-      if (!best) break;
-      inTree.push(best[1]);
-      edges.push(best);
-    }
-    return edges;
   }
 
   function bridge(p, ax, ay, bx, by, width, horizFirst) {
