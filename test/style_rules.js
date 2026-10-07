@@ -58,8 +58,10 @@ function functionLength(lines, i) {
 /** @returns {{rule: string, at: string, detail?: string}[]} */
 function check(file) {
   const rel = path.relative(ROOT, file).split(path.sep).join('/');
-  const raw = fs.readFileSync(file, 'utf8').split('\n');
-  const code = stripCode(fs.readFileSync(file, 'utf8')).split('\n');
+  // line endings are normalised to LF on commit; a CRLF working copy must not count the \r
+  const src = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  const raw = src.split('\n');
+  const code = stripCode(src).split('\n');
   const out = [];
   const add = (rule, i, detail) => out.push({ rule, at: rel + ':' + (i + 1), detail });
   const max = isTable(rel) ? TABLE_LINE_MAX : LINE_MAX;
