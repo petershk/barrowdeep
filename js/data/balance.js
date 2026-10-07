@@ -24,7 +24,7 @@
       manaRegenBase: 1.5, manaRegenPerMag: 0.04, surgeDelayMs: 2500, surgeMult: 3,
       rageMax: 100, rageBasicGen: 6, rageDecay: 8, rageDecayDelayMs: 3000,
       momentumThresh: 50, momentumDmg: 10, momentumIas: 10,
-      energyMax: 100, energyRegen: 14,
+      energyMax: 100, energyRegen: 18,
       comboMax: 3, comboWindowMs: 6000, comboBasicBonus: 0.4,
       focusMax: 5, focusStillMs: 1000, focusLoseMs: 4000, focusSameTargetGapMs: 500, focusCritPer: 4,
       lifeRegenPct: 0.4, oocRegenPct: 3, oocDelayMs: 4000,
@@ -37,15 +37,17 @@
         magician: { str: 8, dex: 12, mag: 20, vit: 12 }, valkyrie: { str: 12, dex: 18, mag: 10, vit: 14 } },
     },
     monsters: {
-      hpGrowth: 1.15, dmgGrowth: 1.08, xpGrowth: 1.12, goldGrowth: 1.10,
+      // life follows AL^hpExp (fit to measured on-curve player power, 05 §4); hpGrowth is kept for tools
+      hpExp: 0.6, hpGrowth: 1.10, dmgGrowth: 1.08, xpGrowth: 1.12, goldGrowth: 1.10,
       defaultWindupMs: 500, reactionMs: 300, leashLostMs: 4000, notice: 6, leash: 14,
       ranks: {
         normal: { hp: 1, dmg: 1, xp: 1 }, minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
-        champion: { hp: 3, dmg: 1.2, xp: 3 }, unique: { hp: 7, dmg: 1.4, xp: 7 }, keeper: { hp: 7, dmg: 1.4, xp: 7 },
+        champion: { hp: 3.6, dmg: 1.2, xp: 3 }, unique: { hp: 10, dmg: 1.4, xp: 7 }, keeper: { hp: 10, dmg: 1.4, xp: 7 },
         boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 70, dmg: 1.8, xp: 0 },
       },
       projectileSpeed: 6, flowRadius: 30,
       actDmg: { 1: 1, 2: 1, 3: 1, 4: 1 },   // per-act damage correction (tuned by the balance bot, 05 §3)
+      actHp: { 1: 3.5, 2: 3.15, 3: 4.45, 4: 3.35 },    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
     },
     xp: { base: 280, growth: 1.12, fullClearKills: 5 },

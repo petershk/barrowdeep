@@ -120,6 +120,9 @@
     },
     assassin(bot, t, near) {
       const p = bot.world.player, c = BD.sim.resources.combo(p), en = p.resources.energy.cur;
+      // Shadowstep flanks shield-bearers, closes on kiters, and sets up a guaranteed crit
+      const guarded = BD.sim.monsters.blockFront(t) > 0 && BD.sim.targeting.inFront(t, p.x, p.y);
+      if (en >= 15 && (guarded || cheb(t.x, t.y, p.x, p.y) >= 2) && useSkill(bot, 's4', t)) return true;
       if (c >= 3 && en >= 40 && near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length >= 2 && useSkill(bot, 's2', t)) return true;
       if (c >= 2 && en >= 30 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
       if (cheb(t.x, t.y, p.x, p.y) >= 3 && en >= 20 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
@@ -154,6 +157,7 @@
     const t = near[0];
     // give up on targets we can't reach after 4 s without progress
     const key = t.id + ':' + p.x + ',' + p.y;
+    if (p.attack) bot.fightSince = w.time;   // swinging counts as progress
     if (bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) { bot.unreach.set(t.id, w.time + 20000); bot.fightKey = null; return progress(bot); }
     if (bot.fightKey !== key) { bot.fightKey = key; bot.fightSince = w.time; }
     if (p.attack && p.attack.phase === 'windup') return;

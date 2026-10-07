@@ -11,7 +11,7 @@
     id: 'firebolt', branch: 'pyro', tier: 1, name: 'Firebolt', icon: 'firebolt', school: 'fire',
     tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'projectile', projectile: 'firebolt' },
-    effects: [{ type: 'damage', source: 'spell', base: [6, 10], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'firebolt', pierce: 1 } }, text: 'Pierces 1 target.' },
       { rank: 5, set: { splitOnHit: 2 }, text: 'Splits into 2 bolts on hit.' },
@@ -23,7 +23,7 @@
     tags: ['spell', 'projectile', 'fire', 'aoe'], resource: { type: 'mana', cost: 14 }, cooldownMs: 0,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 1 } },
-    effects: [{ type: 'damage', source: 'spell', base: [14, 22], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [8, 12], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 2 } } }, text: 'Radius 2.' },
       { rank: 5, set: { fbGround: true }, text: 'Leaves burning ground for 3 s.' },
@@ -35,7 +35,7 @@
     tags: ['spell', 'fire', 'aoe'], resource: { type: 'mana', cost: 30 }, cooldownMs: 5000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, requiresVisible: false, outOfRange: 'approach' },
     delivery: { kind: 'zone', delayMs: 900 }, area: { shape: 'circle', radius: 2 }, linger: { kind: 'burning_ground', durMs: 4000 },
-    effects: [{ type: 'damage', source: 'spell', base: [40, 60], element: 'fire', canCrit: true, canDodge: false }],
+    effects: [{ type: 'damage', source: 'spell', base: [22, 33], element: 'fire', canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, set: { followers: 2 }, text: 'Two smaller meteors (50%) follow.' },
       { rank: 5, add: [{ type: 'status', id: 'stunned', durMs: 1000 }], text: 'Impact stuns for 1 s.' },
@@ -51,7 +51,7 @@
     tags: ['spell', 'projectile', 'cold', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
     targeting: { mode: 'point', range: 7, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'ice_shard', count: 3, spread: 20, extraFromStat: true, eachLands: false },
-    effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'cold', canCrit: true }, { type: 'status', id: 'chilled', needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [2, 3], element: 'cold', canCrit: true }, { type: 'status', id: 'chilled', needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true } }, text: '4 shards.' },
       { rank: 5, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true, pierce: 'all' } }, text: 'Shards pierce.' },
@@ -62,7 +62,7 @@
     id: 'frost_nova', branch: 'frost', tier: 2, name: 'Frost Nova', icon: 'frost_nova', school: 'cold',
     tags: ['spell', 'cold', 'aoe'], resource: { type: 'mana', cost: 18 }, cooldownMs: 6000,
     targeting: { mode: 'self' }, delivery: { kind: 'instant' }, area: { shape: 'circle', radius: 2 },
-    effects: [{ type: 'damage', source: 'spell', base: [10, 14], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'frozen', durMs: 1500, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [5, 8], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'frozen', durMs: 1500, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
       { rank: 5, add: [{ type: 'status', id: 'vulnerable', durMs: 3000, needsHit: true }], text: 'Frozen enemies are Vulnerable for 3 s.' },
@@ -74,7 +74,7 @@
     tags: ['spell', 'cold', 'aoe', 'zone'], resource: { type: 'mana', cost: 28 }, cooldownMs: 4000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'zone', tickMs: 500, durMs: 4000 }, area: { shape: 'circle', radius: 2 },
-    effects: [{ type: 'damage', source: 'spell', base: [6, 9], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'chilled', durMs: 1000, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'chilled', durMs: 1000, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
       { rank: 5, set: { freezeAfter: 2000 }, text: 'Enemies Chilled by Blizzard for 2 s become Frozen.' },
@@ -90,7 +90,7 @@
     tags: ['spell', 'projectile', 'lightning', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
     targeting: { mode: 'point', range: 6, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'spark', count: 3, spread: 30, extraFromStat: true, maxDist: 6 },
-    effects: [{ type: 'damage', source: 'spell', base: [2, 6], element: 'light', canCrit: true }, { type: 'status', id: 'shocked', chance: 0.1, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [1, 3], element: 'light', canCrit: true }, { type: 'status', id: 'shocked', chance: 0.1, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'spark', count: 4, spread: 30, extraFromStat: true, maxDist: 6 } }, text: '4 sparks.' },
       { rank: 5, set: { sparkChain: true }, text: 'Sparks chain once.' },
@@ -102,7 +102,7 @@
     tags: ['spell', 'mobility'], resource: { type: 'mana', cost: 15 }, cooldownMs: 5000, charges: 2, castMs: 150, noIas: true,
     targeting: { mode: 'point', range: 8, requiresLOS: false, requiresVisible: true, outOfRange: 'reject' }, delivery: { kind: 'blink' },
     breakpoints: [
-      { rank: 3, set: { area: { shape: 'circle', radius: 1 }, effects: [{ type: 'damage', source: 'spell', base: [10, 16], element: 'light', canCrit: true, canDodge: false }] }, text: 'An arrival nova (radius 1) deals lightning damage.' },
+      { rank: 3, set: { area: { shape: 'circle', radius: 1 }, effects: [{ type: 'damage', source: 'spell', base: [5, 8], element: 'light', canCrit: true, canDodge: false }] }, text: 'An arrival nova (radius 1) deals lightning damage.' },
       { rank: 5, set: { charges: 3 }, text: '3 charges.' },
     ],
     desc: 'Blink to a visible, explored floor tile within 8. 2 charges, 5 s each.',
@@ -111,10 +111,10 @@
     id: 'chain_lightning', branch: 'storm', tier: 3, name: 'Chain Lightning', icon: 'chain_lightning', school: 'storm',
     tags: ['spell', 'lightning', 'chain'], resource: { type: 'mana', cost: 20 }, cooldownMs: 0,
     targeting: { mode: 'unit', range: 8, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'chain', jumps: 4, jumpRange: 3, falloff: 0.1 },
-    effects: [{ type: 'damage', source: 'spell', base: [12, 30], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', chance: 0.3, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [7, 17], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', chance: 0.3, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'chain', jumps: 6, jumpRange: 3, falloff: 0.1 } }, text: '6 jumps.' },
-      { rank: 5, set: { effects: [{ type: 'damage', source: 'spell', base: [12, 30], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', needsHit: true }] }, text: 'Every jump Shocks.' },
+      { rank: 5, set: { effects: [{ type: 'damage', source: 'spell', base: [7, 17], element: 'light', canCrit: true, canDodge: false }, { type: 'status', id: 'shocked', needsHit: true }] }, text: 'Every jump Shocks.' },
     ],
     desc: 'A bolt to a target that jumps to 4 more enemies within 3 tiles, −10% per jump, with a 30% chance to Shock.',
   });
