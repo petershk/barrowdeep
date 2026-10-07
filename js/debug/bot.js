@@ -183,7 +183,9 @@
     bot.unreach = bot.unreach || new Map();
     near = near.filter((e) => !(bot.unreach.get(e.id) > w.time));
     if (!near.length) return progress(bot);
-    const t = near[0];
+    // spawners (egg clutches, bone piles) first: they turn one fight into an endless one
+    const spawner = near.find((e) => { const d = BD.sim.monsters.defOf(e); return d && d.role === 'spawner'; });
+    const t = spawner || near[0];
     // give up on a target whose life hasn't dropped in 8 s (across lava, kiting out of reach…)
     const isBoss = t.rank === 'boss' || t.rank === 'malgoth';   // never write off a boss (phases, wings, burrows)
     if (isBoss || !bot.prog || bot.prog.id !== t.id || t.hp < bot.prog.hp) bot.prog = { id: t.id, hp: t.hp, at: w.time };
@@ -203,7 +205,22 @@
     if (p.dead) return deathChoice(bot);
     if (p.unspent.attr || p.unspent.skill) spendPoints(bot);
     const s = BD.sim.stats.statsOf(w, p);
-    if (p.hp < s.maxLife * 0.4 && p.flask.charges > 0 && !(p.cooldowns.flask > 0)) CMD(w, { type: 'DrinkFlask' });
+    if (p.hp < s.maxLife * 0.5 && p.flask.charges > 0 && !(p.cooldowns.flask > 0)) CMD(w, { type: 'DrinkFlask' });
+    // out of flasks and hurting, away from a boss: portal home, rest, come back (what a player would do)
+    if (!f.arena && f.n !== 13 && f.key !== 'town' && p.flask.charges === 0 && p.hp < s.maxLife * 0.35 && (p.pouch.portal || 0) > 0 && !(bot.portalAt > w.time - 20000)) {
+      bot.portalAt = w.time;
+      if (BD.sim.commands.apply(w, { type: 'ReadScroll', kind: 'portal' })) { bot.goHome = true; return; }
+    }
+    if (bot.goHome && f.key !== 'town') {
+      const pt = f.objects.find((o) => o.kind === 'portal');
+      if (pt) { CMD(w, { type: 'Interact', x: pt.x, y: pt.y }); return; }
+      bot.goHome = false;
+    }
+    // low and nothing to drink: break off — evade away from the nearest enemy
+    if (p.hp < s.maxLife * 0.3 && (p.flask.charges === 0 || p.cooldowns.flask > 0) && !(p.cooldowns.evade > 0)) {
+      const foe = visibleEnemies(w, 3)[0];
+      if (foe && !(foe.rank === 'boss' || foe.rank === 'malgoth') && kiteFrom(bot, foe)) return;
+    }
     // telegraphs: step or Evade out of marked tiles
     const z = dangerAt(w, p.x, p.y);
     if (z) {
@@ -212,7 +229,7 @@
       else if (away) CMD(w, { type: 'Move', x: away.x, y: away.y });
       return;
     }
-    if (f.key === 'town') return townRoutine(bot);
+    if (f.key === 'town') { bot.goHome = false; return townRoutine(bot); }
     // enemies we've given up on (unreachable) don't count: loot, chests and exploring carry on
     const near = visibleEnemies(w, 9).filter((e) => !(bot.unreach && bot.unreach.get(e.id) > w.time));
     if (near.length) { fight(bot, near); return; }
@@ -325,9 +342,11 @@
   function nextDestination(w) {
     const r = w.run;
     if (r.flags.sanctum) return 13;
-    if (r.portal && r.portal.x >= 0) return 'portal';
     const wp = r.waypoints.filter((n) => n > 0);
-    return wp.length ? Math.max(...wp) : 1;
+    const furthest = wp.length ? Math.max(...wp) : 1;
+    // an open portal back to a floor we've already moved past is stale: take the waypoint instead
+    if (r.portal && r.portal.x >= 0 && !(typeof r.portal.key === 'number' && r.portal.key < furthest)) return 'portal';
+    return furthest;
   }
 
   function deathChoice(bot) {
