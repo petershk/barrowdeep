@@ -108,6 +108,10 @@
     if (BD.sim.abilities.cooldownLeft(p, ab) > 0) return false;
     const res = ab.resource || {};
     if (res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0 && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart)) return false;
+    // a cast that was just tried and didn't start (rejected: no room, out of sight…) waits, so the rotation falls through
+    bot.tries = bot.tries || {};
+    if (!p.attack && bot.tries[id] != null && w.time - bot.tries[id] < 1500) return false;
+    bot.tries[id] = w.time;
     CMD(w, { type: 'UseSkill', slot, aim: aim || (t ? { entityId: t.id, x: t.x, y: t.y } : 'auto') });
     bot.skillUse[id] = (bot.skillUse[id] || 0) + 1;
     return true;
@@ -138,7 +142,9 @@
       const close = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length;
       if (close >= 2 && m >= 18 && useSkill(bot, 's3', t)) return true;
       // a caster doesn't trade blows: when something reaches melee range, back off a few tiles
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && !(p.cooldowns.evade > 0) && kiteFrom(bot, t)) return true;
+      const awake = t.ai && t.ai.state !== 'idle' && t.ai.state !== 'dormant';
+      const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7 || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
+      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000) && kiteFrom(bot, t)) { bot.kitedAt = bot.world.time; return true; }
       if (near.length >= 3 && m >= 30 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (m >= 14 + 10 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
@@ -175,10 +181,14 @@
     near = near.filter((e) => !(bot.unreach.get(e.id) > w.time));
     if (!near.length) return progress(bot);
     const t = near[0];
+    // give up on a target whose life hasn't dropped in 8 s (across lava, kiting out of reach…)
+    const isBoss = t.rank === 'boss' || t.rank === 'malgoth';   // never write off a boss (phases, wings, burrows)
+    if (isBoss || !bot.prog || bot.prog.id !== t.id || t.hp < bot.prog.hp) bot.prog = { id: t.id, hp: t.hp, at: w.time };
+    else if (w.time - bot.prog.at > 8000) { bot.unreach.set(t.id, w.time + 30000); bot.prog = null; return progress(bot); }
     // give up on targets we can't reach after 4 s without progress
     const key = t.id + ':' + p.x + ',' + p.y;
     if (p.attack) bot.fightSince = w.time;   // swinging counts as progress
-    if (bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) { bot.unreach.set(t.id, w.time + 20000); bot.fightKey = null; return progress(bot); }
+    if (!isBoss && bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) { bot.unreach.set(t.id, w.time + 20000); bot.fightKey = null; return progress(bot); }
     if (bot.fightKey !== key) { bot.fightKey = key; bot.fightSince = w.time; }
     if (p.attack && p.attack.phase === 'windup') return;
     if (!ROTATION[p.cls](bot, t, near)) CMD(w, { type: 'Engage', entityId: t.id, hold: true });
@@ -221,7 +231,14 @@
     if (p.pack.length) manageGear(bot);
     if (p.pack.length >= 26) sellJunkOrDrop(bot);
     // chests
-    const ch = f.objects.find((o) => (o.kind === 'chest' || o.kind === 'pile') && !o.used && f.explored[o.y * f.w + o.x] && within(o.x, o.y, p.x, p.y, 10));
+    // chests: commit to the nearest until opened (8 s, then skip it) so two chests can't tug-of-war
+    const openable = (o) => (o.kind === 'chest' || o.kind === 'pile') && !o.used && !bot.ignore.has('o' + o.x + ',' + o.y) && f.explored[o.y * f.w + o.x] && within(o.x, o.y, p.x, p.y, 10);
+    let ch = bot.chestAt ? f.objects.find((o) => o.x === bot.chestAt.x && o.y === bot.chestAt.y && openable(o)) : null;
+    if (!ch) {
+      let bd = 1e9;
+      for (const o of f.objects) if (openable(o)) { const d = U.dist2(o.x, o.y, p.x, p.y); if (d < bd) { bd = d; ch = o; } }
+      if (ch) bot.chestAt = { x: ch.x, y: ch.y, since: w.time };
+    } else if (w.time - bot.chestAt.since > 8000) { bot.ignore.add('o' + ch.x + ',' + ch.y); bot.chestAt = null; ch = null; }
     if (ch) { CMD(w, { type: 'Interact', x: ch.x, y: ch.y }); return; }
     return progress(bot);
   }
@@ -246,15 +263,15 @@
       return;
     }
     if (f.n === 13) {
-      const boss = Array.from(f.entities.values()).find((e) => !e.dead);
-      if (boss) CMD(w, { type: 'Move', x: boss.x, y: boss.y });
+      const boss = Array.from(f.entities.values()).find((e) => e.rank === 'malgoth' && !e.dead) || Array.from(f.entities.values()).find((e) => e.kind === 'monster' && !e.dead);
+      if (boss) CMD(w, { type: 'Engage', entityId: boss.id, hold: true });
       return;
     }
     const explored = f.reachableCount ? f.seenCount / f.reachableCount : 1;
     const fl = BD.data.floors.byN(f.n);
     const goalReady = fl.actEnd ? !!r.flags['key' + f.n] : f.sealBroken;
     const tooLong = f.timeOnFloor > (bot.opts.floorMs || 8 * 60000);
-    if (goalReady && (explored > (bot.opts.explore || 0.85) || tooLong)) {
+    if (goalReady && (explored > (bot.opts.explore || 0.9) || tooLong)) {
       if (fl.actEnd) { const g = f.gatePos; CMD(w, { type: 'Interact', x: g.at.x, y: g.at.y }); return; }
       CMD(w, { type: 'Interact', x: f.downPos.x, y: f.downPos.y });
       return;

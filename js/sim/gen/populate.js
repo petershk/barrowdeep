@@ -135,7 +135,12 @@
       const spots = cluster(p, dist, taken, a[0], a[1], members.length, pk.spread ? 6 : 3);
       addPack(spots.map(([x, y], i) => ({ def: members[i], x, y, rank: 'normal' })), { kind: id, counted: true, leader: pk.leader || null });
       budget -= spots.length;
-      if (pk.corpses) for (let i = 0; i < pk.corpses; i++) { const t = cluster(p, dist, new Set(taken), a[0], a[1], 1, 4)[0]; if (t) p.objects.push({ kind: 'corpse_prop', x: t[0], y: t[1], def: 'skeleton' }); }
+      // corpse props: never stacked, never on another object's tile, and they don't block monster spots
+      if (pk.corpses) {
+        const busy = new Set(taken);
+        for (const o of p.objects) busy.add(o.y * p.w + o.x);
+        for (let i = 0; i < pk.corpses; i++) { const t = cluster(p, dist, busy, a[0], a[1], 1, 4)[0]; if (t) p.objects.push({ kind: 'corpse_prop', x: t[0], y: t[1], def: 'skeleton' }); }
+      }
     }
     // ---- unique elites (floors 3+: 0–1 besides the Keeper) ----
     const elites = fl.n >= 3 ? rng.int(0, 1) : 0;

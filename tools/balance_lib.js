@@ -34,7 +34,11 @@ function onCurve(BD, cls, n, seed, o) {
   w.run.charId = 'bal'; w.stash = [[], [], []];
   BD.sim.run.travel(w, n, 'spawn');
   const p = w.player;
-  const snap = CURVE && CURVE[cls] && (CURVE[cls][n] || CURVE[cls][n - 1]);
+  // several snapshot runs per class: the measurement seed picks one, so gear luck averages out
+  const runs = CURVE && CURVE[cls] ? (Array.isArray(CURVE[cls]) ? CURVE[cls] : [CURVE[cls]]) : null;
+  let h = 0; for (const ch of String(seed || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const run = runs && runs.length ? runs[h % runs.length] : null;
+  const snap = run && (run[n] || run[n - 1]);
   if (snap) {
     p.level = snap.level; p.attrs = Object.assign({}, snap.attrs); p.skills = Object.assign({}, snap.skills); p.bar = Object.assign({}, snap.bar);
     p.unspent.attr = 0; p.unspent.skill = 0;

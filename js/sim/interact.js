@@ -9,6 +9,8 @@
   /** Object (chest, shrine, lever, pile…) at a tile, if any and still interactable. */
   function objectAt(world, x, y) {
     const f = world.floor;
+    // something usable wins over decoration sharing the tile (corpse props, used chests…)
+    for (const o of f.objects) if (o.x === x && o.y === y && !o.used && o.kind !== 'trap' && objectHandlers[o.kind]) return o;
     for (const o of f.objects) if (o.x === x && o.y === y && !o.used && o.kind !== 'trap') return o;
     for (const o of f.objects) if (o.kind === 'trap' && o.x === x && o.y === y && o.visible && !o.disarmed) return o;
     return null;
