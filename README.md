@@ -26,6 +26,18 @@ Layers depend downward only: `core ← data ← sim ← view / audio ← ui / in
 - Timed events (`BD.core.scheduler`) are floor-scoped by default and dropped on leaving the floor; hero-scoped
   ones (`{ scope: 'run' }`) survive travel and saves.
 - Saves are versioned (`BD.sim.save.migrations`) and reconciled against current content on load.
-- Style: lines ≤ 140 chars (data tables 180); files are split by concept, not by size.
+- Tuning numbers live in `js/data` (`balance.js` sections, or the owning entry: a trap, a status, a legendary,
+  an ascension level). Constants that are implementation details are named at the top of their file.
+
+## Conventions and checks
+
+- Module aliases are PascalCase full names (`const Entities = BD.sim.entities;`, lazy: `const Ai = () => BD.sim.ai;`).
+- Tile indices go through `BD.core.grid.idx(f, x, y)`.
+- One statement per line, no nested ternaries, functions ≤ 60 lines, lines ≤ 140 chars (data tables 180).
+  `node test/style_rules.js [path]` lists violations; the test suite enforces zero.
+- `node tools/golden.js > before.txt` … refactor … `node tools/golden.js` must print the same: it fingerprints
+  four full bot playthroughs and ten boss fights, so any behaviour change shows.
+- `powershell -File toolsutotests.ps1` runs every browser scene headless and fails on any error.
+- `node tools/typecheck.js` type-checks all of `js/` (TypeScript via npx, dev-only).
 
 The design spec lives in the original repo's `remake/` folder.
