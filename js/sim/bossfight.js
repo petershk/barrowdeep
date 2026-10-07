@@ -10,8 +10,8 @@
   const HOLD_SLACK_MS = 100;           // held monsters stay idle a little past the countdown
   const WEB_FOREVER_MS = 1e9;          // arena webs never expire
   const EXIT_SEARCH_RADIUS = 4;
-  const FINAL_ACT = 4;
-  const SANCTUM_FLOOR = 13;            // Malgoth's floor counts as an arena
+  const LAST_ACT = FloorData.LAST_ACT;
+  const SANCTUM_FLOOR = FloorData.LAST;   // Malgoth's floor counts as an arena
 
   function useGate(world) {
     const f = world.floor, r = world.run;
@@ -86,8 +86,8 @@
     // act transition: next act's waypoint, town stock moves on
     const act = FloorData.byN(f.n).act;
     const next = FloorData.firstOfAct(act + 1);
-    if (act < FINAL_ACT && !r.waypoints.includes(next)) r.waypoints.push(next);
-    if (act === FINAL_ACT) r.flags.sanctum = true;
+    if (act < LAST_ACT && !r.waypoints.includes(next)) r.waypoints.push(next);
+    if (act === LAST_ACT) r.flags.sanctum = true;
     r.flags['act' + act + 'Done'] = true;
     world.events.push({ type: 'act.complete', act });
     placeExit(world, e.x, e.y);
@@ -103,7 +103,7 @@
   }
 
   BD.sim.interact.registerObject('exit_portal', (world) => {
-    world.run.act = Math.max(world.run.act, Math.min(FINAL_ACT, FloorData.byN(world.floor.n).act + 1));
+    world.run.act = Math.max(world.run.act, Math.min(LAST_ACT, FloorData.byN(world.floor.n).act + 1));
     BD.sim.run.travel(world, 'town', 'portal');
   });
 

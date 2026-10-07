@@ -131,7 +131,8 @@
     desc: 'A bolt to a target that jumps to 4 more enemies within 3 tiles, −10% per jump, with a 30% chance to Shock.',
   });
   sk({ id: 'energy_shield', branch: 'storm', tier: 4, name: 'Energy Shield', icon: 'energy_shield', keystone: true, passive: () => void 0, isSpell: false, school: 'storm',
-    desc: '40% of damage taken is drained from mana instead (1 mana per 1 life). Surge regenerates ×4.' });
+    desc: '40% of damage taken is drained from mana instead (1 mana per 1 life). Surge regenerates ×4.',
+    params: { absorb: 0.4, surgeMult: 4 } });
 
   for (const id in S) if (S[id].cls === 'magician') BD.data.stats.ensureSkillKey(id, S[id].name);
 })(globalThis.BD);

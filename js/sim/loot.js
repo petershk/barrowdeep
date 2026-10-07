@@ -9,32 +9,11 @@
   const { dropCount } = BD.core.rng;
   const Grid = BD.core.grid;
 
-  // rarity: base chances, raised by diminished magic find (eff = mf·K / (mf + K))
-  const MF_DIMINISH_K = 250;
-  const LEGENDARY_BASE = 0.015, RARE_BASE = 0.12, MAGIC_BASE = 0.4;
-  const MAGIC_MF_DIV = 200;            // magic find counts half for magic items
+  const LootBalance = Balance.loot;    // rarity chances, magic find, gold and the drop tables
+
   const RARITY_ORDER = ['common', 'magic', 'rare', 'legendary'];
-  const SMART_LOOT_TARGET = 0.65;      // share of drops a class should be able to use
-  // affixes
   const AFFIX_ROLL_GUARD = 24;         // max attempts while rolling an item's affixes
-  const RARE_HOOK_CHANCE = 0.25;       // a rare's next affix is its class hook this often…
-  const RARE_PROC_CHANCE = 0.15;       // …or its proc this often
-  const LEGENDARY_OWN_CLASS_CHANCE = 0.5;
-  // gold and magic find
-  const MF_PER_ASCENSION = 10;
-  const GOLD_BASE = 6, GOLD_GROWTH = 1.1;   // gold = base × growth^(al−1) × roll × k × gold find
-  const GOLD_ROLL_LO = 0.6, GOLD_ROLL_HI = 1.4;
   const DROP_SEARCH_RADIUS = 4;
-  // drop tables (05 §6.1)
-  const LORE_DROP_MULT = 1.2;          // champions with a lore mod drop more
-  const TRASH_DROPS = { item: 0.10, gold: 0.25, orb: 0.30, scroll: 0.05, portalScroll: 0.75 };
-  const CHAMPION_DROPS = { gold: 2, orb: 0.5 };
-  const ELITE_DROPS = { items: 2, gold: 6 };
-  const BOSS_DROPS = {
-    ilvlBonus: 2, items: 4, malgothItems: 6, legendaryChance: 0.25, rares: 1, malgothRares: 2,
-    goldPiles: 4, gold: 40, malgothGold: 80, orbs: 2,
-  };
-  const CHEST_DROPS = { rare: 0.15, gold: 0.6, goldK: 4, orb: 0.3 };
 
   /** slot words a base satisfies for affix eligibility */
   function slotTags(b) {
@@ -52,10 +31,10 @@
 
   // ---- rarity ----
   function rollRarity(rng, mf, min) {
-    const eff = (mf * MF_DIMINISH_K) / (mf + MF_DIMINISH_K);
-    const leg = LEGENDARY_BASE * (1 + eff / 100);
-    const rare = RARE_BASE * (1 + eff / 100);
-    const magic = MAGIC_BASE * (1 + eff / MAGIC_MF_DIV);
+    const eff = (mf * LootBalance.mfDiminishK) / (mf + LootBalance.mfDiminishK);
+    const leg = LootBalance.legendaryBase * (1 + eff / 100);
+    const rare = LootBalance.rareBase * (1 + eff / 100);
+    const magic = LootBalance.magicBase * (1 + eff / LootBalance.magicMfDiv);
     const r = rng.next();
     let rar = 'common';
     if (r < leg) rar = 'legendary';
@@ -71,7 +50,7 @@
     if (!usableShare.has(cls)) {
       const all = Object.values(Bases());
       const u = all.filter((b) => usableBy(cls, b)).length / all.length;
-      usableShare.set(cls, Math.max(0, (SMART_LOOT_TARGET - u) / (1 - u)));
+      usableShare.set(cls, Math.max(0, (LootBalance.smartLootTarget - u) / (1 - u)));
     }
     return usableShare.get(cls);
   }
@@ -110,8 +89,8 @@
     let hook = false, proc = false;
     for (let guard = 0; out.length < n && guard < AFFIX_ROLL_GUARD; guard++) {
       let band = 'core';
-      if (rarity === 'rare' && !hook && rng.chance(RARE_HOOK_CHANCE)) band = 'hook';
-      else if (rarity === 'rare' && !proc && rng.chance(RARE_PROC_CHANCE)) band = 'proc';
+      if (rarity === 'rare' && !hook && rng.chance(LootBalance.rareHookChance)) band = 'hook';
+      else if (rarity === 'rare' && !proc && rng.chance(LootBalance.rareProcChance)) band = 'proc';
       let pool = eligible(base, band, cls, taken);
       if (!pool.length) {
         band = 'core';
@@ -163,7 +142,7 @@
       const pool = legendaryPool(world);
       const mine = pool.filter((l) => l.cls === cls);
       const rest = pool.filter((l) => l.cls !== cls);
-      const fromMine = rng.chance(LEGENDARY_OWN_CLASS_CHANCE) && mine.length;
+      const fromMine = rng.chance(LootBalance.legendaryOwnClassChance) && mine.length;
       const others = rest.length ? rest : pool;
       L = fromMine ? rng.pick(mine) : rng.pick(others);
     }
@@ -196,12 +175,13 @@
   function mfOf(world) {
     const s = BD.sim.stats.statsOf(world, world.player);
     const diff = BD.data.difficulties[world.run.difficulty];
-    return s.magic_find + diff.mf + MF_PER_ASCENSION * (world.run.ascension || 0);
+    return s.magic_find + diff.mf + LootBalance.mfPerAscension * (world.run.ascension || 0);
   }
   function goldOf(world, al, k) {
     const s = BD.sim.stats.statsOf(world, world.player);
-    const roll = world.lootRng.range(GOLD_ROLL_LO, GOLD_ROLL_HI);
-    return Math.max(1, Math.round(GOLD_BASE * Math.pow(GOLD_GROWTH, al - 1) * roll * k * (1 + s.gold_find / 100)));
+    const roll = world.lootRng.range(LootBalance.goldRollLo, LootBalance.goldRollHi);
+    const base = LootBalance.goldBase * Math.pow(Balance.monsters.goldGrowth, al - 1);   // gold = base × roll × k × gold find
+    return Math.max(1, Math.round(base * roll * k * (1 + s.gold_find / 100)));
   }
 
   // ---- drops ----
@@ -228,35 +208,35 @@
     const al = e.al || world.floor.al;
     const rank = e.rank;
     const elite = rank === 'unique' || rank === 'keeper';
-    const loreMult = (e.mods && e.mods.some((m) => BD.data.championMods[m] && BD.data.championMods[m].lore)) ? LORE_DROP_MULT : 1;
+    const loreMult = (e.mods && e.mods.some((m) => BD.data.championMods[m] && BD.data.championMods[m].lore)) ? LootBalance.loreDropMult : 1;
     const ilvl = al + (rank === 'champion' || elite ? 1 : 0);
     const orbK = 1 + (BD.sim.stats.statsOf(world, world.player).orb_drop_pct || 0) / 100;
     if (rank === 'normal' || rank === 'minion') {
-      if (rng.chance(TRASH_DROPS.item)) dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl }) });
-      if (rng.chance(TRASH_DROPS.gold)) dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, 1) });
-      if (rng.chance(TRASH_DROPS.orb * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
-      if (rng.chance(TRASH_DROPS.scroll)) {
-        dropAt(world, e.x, e.y, { kind: 'scroll', scroll: rng.chance(TRASH_DROPS.portalScroll) ? 'portal' : 'reveal' });
+      if (rng.chance(LootBalance.trash.item)) dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl }) });
+      if (rng.chance(LootBalance.trash.gold)) dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, 1) });
+      if (rng.chance(LootBalance.trash.orb * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
+      if (rng.chance(LootBalance.trash.scroll)) {
+        dropAt(world, e.x, e.y, { kind: 'scroll', scroll: rng.chance(LootBalance.trash.portalScroll) ? 'portal' : 'reveal' });
       }
     } else if (rank === 'champion') {
       for (let i = 0; i < dropCount(rng, loreMult); i++) {
         dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: 'magic' }) });
       }
-      dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, CHAMPION_DROPS.gold) });
-      if (rng.chance(CHAMPION_DROPS.orb * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
+      dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, LootBalance.champion.gold) });
+      if (rng.chance(LootBalance.champion.orb * orbK)) dropAt(world, e.x, e.y, { kind: 'orb' });
     } else if (elite) {
-      const n = dropCount(rng, ELITE_DROPS.items * loreMult);
+      const n = dropCount(rng, LootBalance.elite.items * loreMult);
       for (let i = 0; i < n; i++) {
         dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: i === 0 ? 'rare' : 'magic' }) });
       }
-      dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, ELITE_DROPS.gold) });
+      dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, LootBalance.elite.gold) });
       dropAt(world, e.x, e.y, { kind: 'orb' });
     }
   }
 
   /** boss loot fountain (act boss / Malgoth) */
   function bossDrop(world, e, isMalgoth) {
-    const drops = BOSS_DROPS;
+    const drops = LootBalance.boss;
     const rng = world.lootRng, al = e.al || world.floor.al, ilvl = al + drops.ilvlBonus;
     const r = world.run;
     const n = isMalgoth ? drops.malgothItems : drops.items;
@@ -282,12 +262,12 @@
   function chestDrop(world, o) {
     const rng = world.lootRng, al = world.floor.al;
     const n = rng.int(1, 2);
-    const rareIdx = rng.chance(CHEST_DROPS.rare) ? 0 : -1;
+    const rareIdx = rng.chance(LootBalance.chest.rare) ? 0 : -1;
     for (let i = 0; i < n; i++) {
       dropAt(world, o.x, o.y, { kind: 'item', item: rollItem(world, rng, { ilvl: al, min: i === rareIdx ? 'rare' : null }) });
     }
-    if (rng.chance(CHEST_DROPS.gold)) dropAt(world, o.x, o.y, { kind: 'gold', amount: goldOf(world, al, CHEST_DROPS.goldK) });
-    if (rng.chance(CHEST_DROPS.orb)) dropAt(world, o.x, o.y, { kind: 'orb' });
+    if (rng.chance(LootBalance.chest.gold)) dropAt(world, o.x, o.y, { kind: 'gold', amount: goldOf(world, al, LootBalance.chest.goldK) });
+    if (rng.chance(LootBalance.chest.orb)) dropAt(world, o.x, o.y, { kind: 'orb' });
   }
 
   BD.sim.damage.onKillHooks.push((world, e) => {

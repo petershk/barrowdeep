@@ -27,7 +27,7 @@
     hidden: { name: 'Hidden', icon: 'cloak', durMs: 0, stack: 'refresh', buff: true },
     hasted: { name: 'Hasted', icon: 'wing', durMs: 3000, hasteMove: 15, hasteIas: 15, stack: 'refresh', buff: true },
     shielded: { name: 'Shielded', icon: 'shield', durMs: 6000, shield: true, stack: 'refresh', buff: true },
-    braced: { name: 'Braced', icon: 'brace', durMs: 3000, stack: 'refresh', buff: true },
+    braced: { name: 'Braced', icon: 'brace', durMs: 3000, stack: 'refresh', buff: true, ragePerHit: 4 },   // rage per hit taken
     evading: { name: 'Evading', icon: 'dash', durMs: 120, invuln: true, stack: 'refresh', buff: true, hiddenChip: true },
     airborne: { name: 'Airborne', icon: 'dash', durMs: 300, invuln: true, stack: 'refresh', hiddenChip: true },
     knockback_immune: { name: 'Unstoppable', icon: 'anchor', durMs: 1000, flag: 'knockback_immune', stack: 'refresh', buff: true },
@@ -37,7 +37,7 @@
     ambush_ready: { name: 'Shadow Strike', icon: 'cloak', durMs: 2000, stack: 'refresh', buff: true },
     vault_ready: { name: 'Steady Aim', icon: 'target', durMs: 3000, stack: 'refresh', buff: true },
     aegis: { name: 'Aegis', icon: 'shield', durMs: 4000, drPct: true, stack: 'refresh', buff: true },
-    oath: { name: "Shieldmaiden's Oath", icon: 'wing', durMs: 0, stack: 'refresh', buff: true },
+    oath: { name: "Shieldmaiden's Oath", icon: 'wing', durMs: 0, stack: 'refresh', buff: true, grants: { dmg_pct: 25, dr_pct: 20 } },   // fixed +% (not magnitude)
     shrine_damage: { name: 'Shrine of Wrath', icon: 'fury', durMs: 0, dmgPct: true, stack: 'refresh', buff: true },
     shrine_speed: { name: 'Shrine of Haste', icon: 'wing', durMs: 0, movePct: true, stack: 'refresh', buff: true },
     shrine_regen: { name: 'Shrine of Mending', icon: 'heart', durMs: 0, regenPct: true, stack: 'refresh', buff: true },

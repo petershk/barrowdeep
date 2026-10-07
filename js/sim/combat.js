@@ -7,12 +7,11 @@
   const Entities = BD.sim.entities;
   const Abilities = () => BD.sim.abilities;
   const Balance = BD.data.balance;
+  const Ascension = BD.data.ascension;
   const Commands = BD.sim.commands;
   const Grid = BD.core.grid;
 
   const AIR_SWING_SNAP_RADIUS = 1.5;   // a force-attack near an enemy snaps onto it
-  const FLASK_NERF_ASCENSION = 4;      // from this ascension on, flasks heal less…
-  const FLASK_NERF_MULT = 0.8;         // …by this factor
 
   function basicRange(world, p) {
     const w = BD.sim.stats.statsOf(world, p).weapon;
@@ -82,7 +81,7 @@
     fl.charges--;
     p.cooldowns.flask = Balance.player.flaskCdMs;
     let pct = Balance.player.flaskHealPct * (1 + (s.flask_heal_pct || 0) / 100);
-    if (world.run.ascension >= FLASK_NERF_ASCENSION) pct *= FLASK_NERF_MULT;
+    if (world.run.ascension >= Ascension.flask.level) pct *= Ascension.flask.healMult;
     BD.sim.status.apply(world, p, 'healing', { durMs: Balance.player.flaskHealMs, magnitude: (s.maxLife * pct) / 100 });
     BD.sim.status.cleanse(world, p, ['poisoned', 'bleeding']);
     world.events.push({ type: 'flask.drink', id: p.id, charges: fl.charges, x: p.x, y: p.y });

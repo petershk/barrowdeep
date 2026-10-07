@@ -6,10 +6,9 @@
   const Balance = BD.data.balance;
   const Commands = BD.sim.commands;
 
+  const SkillBalance = Balance.skills;
+
   const DEFAULT_MONSTER_XP = 10;               // XP weight of a monster def that names none
-  const SKILL_MAX_RANK = 5;                    // ranks per skill...
-  const KEYSTONE_TIER = 4;                     // ...except the tier-4 keystone, which has one
-  const TIER_LEVEL = { 1: 1, 2: 6, 3: 12, 4: 18 };   // character level that unlocks each skill tier
 
   const xpToNext = (L) => Math.round(Balance.xp.base * Math.pow(Balance.xp.growth, L - 1));
 
@@ -78,11 +77,11 @@
     const ab = BD.data.skills[id];
     if (!ab || ab.cls !== p.cls) return { ok: false, why: 'Not your class' };
     const cur = p.skills[id] || 0;
-    const max = ab.tier === KEYSTONE_TIER ? 1 : SKILL_MAX_RANK;
+    const max = ab.tier === SkillBalance.keystoneTier ? 1 : SkillBalance.maxRank;
     if (cur >= max) return { ok: false, why: 'Maximum rank' };
-    const lvl = TIER_LEVEL[ab.tier];
+    const lvl = SkillBalance.tierLevel[ab.tier];
     if (p.level < lvl) return { ok: false, why: 'Requires level ' + lvl };
-    if (ab.tier === KEYSTONE_TIER) {
+    if (ab.tier === SkillBalance.keystoneTier) {
       const t3 = Object.values(BD.data.skills).find((s) => s.cls === p.cls && s.branch === ab.branch && s.tier === 3);
       if (!t3 || !p.skills[t3.id]) return { ok: false, why: 'Requires a point in ' + (t3 ? t3.name : 'tier 3') };
     }

@@ -9,11 +9,6 @@
   const Stats = () => BD.sim.stats;
   const Status = () => BD.sim.status;
 
-  const CRIT_CAP_SLACK_PCT = 40;       // crit chance may exceed Balance.combat.critCap by this much
-  const MONSTER_PHYS_DR_CAP = 0.75;    // monsters' physical damage reduction cap
-  const MONSTER_RES_CAP = 0.9;         // monsters' elemental resistance cap…
-  const MONSTER_RES_FLOOR = -1;        // …and floor (−100% = double damage)
-
   /** hooks: (world, src, tgt, packet, result) — status chances, leech, procs, resources, retaliation */
   const onHitHooks = [];
   /** hooks: (world, victim, killer, packet) */
@@ -76,7 +71,7 @@
     const s = Stats().statsOf(world, src);
     const resourceBonus = src.kind === 'player' && BD.sim.resources ? BD.sim.resources.critBonus(world, src) : 0;
     const ch = (s.critChance || 0) + (p.critChanceAdd || 0) + resourceBonus;
-    return ch > 0 && world.rng.chance(Math.min(Balance.combat.critCap + CRIT_CAP_SLACK_PCT, ch) / 100);
+    return ch > 0 && world.rng.chance(Math.min(Balance.combat.critCap + Balance.combat.critCapSlackPct, ch) / 100);
   }
 
   /** situational multipliers: weakened, vulnerable/shocked/exposed, vs-family, elites, hooks */
@@ -106,8 +101,8 @@
       } else m = (ts.res ? ts.res[el] || 0 : 0) / 100;
       return 1 - (1 - m) * (1 - (ts.dr_pct || 0) / 100);
     }
-    if (el === 'phys') return Math.min(MONSTER_PHYS_DR_CAP, (ts.dr_pct || 0) / 100);
-    return Math.max(MONSTER_RES_FLOOR, Math.min(MONSTER_RES_CAP, (ts.res ? ts.res[el] || 0 : 0) / 100));
+    if (el === 'phys') return Math.min(Balance.combat.monsterPhysDrCap, (ts.dr_pct || 0) / 100);
+    return Math.max(Balance.combat.monsterResFloor, Math.min(Balance.combat.monsterResCap, (ts.res ? ts.res[el] || 0 : 0) / 100));
   }
 
   function absorbShields(world, tgt, total) {

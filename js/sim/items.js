@@ -7,20 +7,14 @@
   let dataVersion = 0;
   function invalidate() { dataVersion++; }
 
-  const ILVL_SCALE_STEP = 0.09;        // base damage / armour grow 9% per item level
-  const AFFIX_TABLE_TOP = 28;          // affix ranges are given at ilvl 1 and 28…
-  const AFFIX_GROWTH_PAST_TOP = 0.02;  // …and keep growing 2% per level beyond
-  const ENHANCE_STEP = 0.1;            // each enhance level adds 10% to base and affix values
-  const REQ_GROWTH = 0.06;             // attribute requirement grows 6% per item level
-  const VALUE_BASE = 20;               // gold value = base × growth^(ilvl−1) × rarity × enhance bonus
-  const VALUE_GROWTH = 1.1;
-  const VALUE_RARITY_MULT = { common: 1, magic: 2.5, rare: 6, legendary: 15 };
-  const VALUE_PER_ENHANCE = 0.15;
+  const ItemBalance = BD.data.balance.items;   // item level scaling, enhancing, requirements, gold value
+
+  const AFFIX_TABLE_TOP = 28;          // affix ranges are given at ilvl 1 and 28 (data/affixes.js `at28`)
   const FNV_OFFSET = 2166136261, FNV_PRIME = 16777619;   // FNV-1a hash
   const UID_FRAC_BUCKETS = 10007;
   const UID_RANDOM_RANGE = 2176782336; // 36^6: six base-36 digits
 
-  const ilvlScale = (i) => 1 + ILVL_SCALE_STEP * (i - 1);
+  const ilvlScale = (i) => 1 + ItemBalance.ilvlScaleStep * (i - 1);
   /** deterministic 0..1 from a uid (base armour roll without storing it) */
   function uidFrac(uid) {
     let h = FNV_OFFSET;
@@ -37,12 +31,12 @@
     const t = Math.min(1, Math.max(0, (ilvl - 1) / (AFFIX_TABLE_TOP - 1)));
     let lo = r1[0] + (r28[0] - r1[0]) * t, hi = r1[1] + (r28[1] - r1[1]) * t;
     if (ilvl > AFFIX_TABLE_TOP) {
-      const k = 1 + AFFIX_GROWTH_PAST_TOP * (ilvl - AFFIX_TABLE_TOP);
+      const k = 1 + ItemBalance.affixGrowthPastTop * (ilvl - AFFIX_TABLE_TOP);
       lo *= k;
       hi *= k;
     }
     let v = lo + roll * (hi - lo);
-    v *= 1 + ENHANCE_STEP * (enhance || 0);
+    v *= 1 + ItemBalance.enhanceStep * (enhance || 0);
     const fmt = affix.fmt || (BD.data.stats.defs[affix.stat] ? BD.data.stats.defs[affix.stat].fmt : 'int');
     return fmt === 'dec' ? Math.round(v * 10) / 10 : Math.round(v);
   }
@@ -54,7 +48,7 @@
     let d;
     const b = BD.data.bases[item.base];
     if (!b) throw new Error('unknown base ' + item.base);
-    const enh = item.enhance || 0, ek = 1 + ENHANCE_STEP * enh;
+    const enh = item.enhance || 0, ek = 1 + ItemBalance.enhanceStep * enh;
     const sc = ilvlScale(item.ilvl);
     d = {
       uid: item.uid, base: b.id, baseName: b.name, slot: b.slot, category: b.category, perm: b.perm,
@@ -97,9 +91,10 @@
       d.name = L.name;
       d.cls = L.cls;
     }
-    if (b.reqAttr && b.heft) d.req = { attr: b.reqAttr, value: Math.round(b.heft * (1 + REQ_GROWTH * item.ilvl)) };
-    const rm = VALUE_RARITY_MULT[item.rarity] || 1;
-    d.value = Math.round(VALUE_BASE * Math.pow(VALUE_GROWTH, item.ilvl - 1) * rm * (1 + VALUE_PER_ENHANCE * enh));
+    if (b.reqAttr && b.heft) d.req = { attr: b.reqAttr, value: Math.round(b.heft * (1 + ItemBalance.reqGrowth * item.ilvl)) };
+    const rm = ItemBalance.valueRarityMult[item.rarity] || 1;
+    const value = ItemBalance.valueBase * Math.pow(ItemBalance.valueGrowth, item.ilvl - 1) * rm;
+    d.value = Math.round(value * (1 + ItemBalance.valuePerEnhance * enh));
     Object.defineProperty(item, '_d', { value: d, writable: true, configurable: true, enumerable: false });
     Object.defineProperty(item, '_dk', { value: key, writable: true, configurable: true, enumerable: false });
     return d;

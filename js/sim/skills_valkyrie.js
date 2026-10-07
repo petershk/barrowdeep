@@ -17,7 +17,7 @@
   const isValk = (p) => p && p.kind === 'player' && p.cls === 'valkyrie';
   const Grid = BD.core.grid;
 
-  const FULL_FOCUS = 5;                // Aimed Shot / Deadeye bonuses need this much focus
+  const PlayerBalance = BD.data.balance.player;   // Aimed Shot / Deadeye bonuses need full focus (focusMax)
   const EXTRA_ARROW_SEEK = 6;          // extra Aimed Shot arrows seek enemies this close to the aim point...
   const EXTRA_ARROW_FAN = 0.25;        // ...else fan out by this many radians per pair...
   const EXTRA_ARROW_MISS_DIST = 8;     // ...toward a point this far away
@@ -25,10 +25,10 @@
   // ---------------- Aimed Shot ----------------
   reg('aimed_shot.commit', (world, p, ab, rank, a) => {
     if (BD.sim.status.has(p, 'vault_ready')) {
-      a.focusHeld = FULL_FOCUS;
+      a.focusHeld = PlayerBalance.focusMax;
       BD.sim.status.remove(world, p, 'vault_ready');
     }
-    if (a.focusHeld >= FULL_FOCUS && ks(p, 'deadeye')) {
+    if (a.focusHeld >= PlayerBalance.focusMax && ks(p, 'deadeye')) {
       Resources.refund(world, p, 'focus', Math.min(2, a.spent));
       a.spent = Math.max(0, a.spent - 2);
       a.deadeye = true;
@@ -36,10 +36,10 @@
   });
   reg('aimed_shot.before', (world, p, ab, rank, { a, ctx }) => {
     if (a && a.deadeye) ctx.forceCrit = true;
-    if (ctx.focus >= FULL_FOCUS && ab.pierceAt5) ab.delivery = Object.assign({}, ab.delivery, { pierce: 'all' });
+    if (ctx.focus >= PlayerBalance.focusMax && ab.pierceAt5) ab.delivery = Object.assign({}, ab.delivery, { pierce: 'all' });
   });
   reg('aimed_shot.impact', (world, p, ab, rank, { a, ctx, tx, ty }) => {
-    if (ctx.focus < FULL_FOCUS) return;
+    if (ctx.focus < PlayerBalance.focusMax) return;
     let extra = ab.extraAt5 || 0;
     if (Powers.has(p, 'eagles_talon')) extra += 2;
     if (!extra) return;

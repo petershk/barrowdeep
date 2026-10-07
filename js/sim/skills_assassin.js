@@ -18,9 +18,9 @@
   const dead = (e) => !e || e.hp <= 0 || e.dying;
   const Grid = BD.core.grid;
 
-  const UNSEEN_DAMAGE_MULT = 3;        // Unseen: the first damaging hit out of hiding
-  const SILENT_HIT_CLEAR_MS = 50;      // ...stays silent (no alert) for this long after it lands
-  const FIRE_BLAST_COMBO_MULT = 1.6;   // Fire Blast: damage when it eats a combo point
+  const Skills = BD.data.skills;       // skill-specific numbers live in the skill's `params`
+
+  const SILENT_HIT_CLEAR_MS = 50;      // Unseen's hit out of hiding stays silent (no alert) for this long after it lands
   const CLONE_REACH = 1.5;             // Shadow Master clones copy finishers on enemies this close
 
   // ---------------- pre-impact: basic attacks spend combo, Shadowstep ambush, Unseen ----------------
@@ -38,7 +38,7 @@
       BD.sim.status.remove(world, p, 'ambush_ready');
     }
     if (BD.sim.status.has(p, 'hidden') && hasDamage(ab)) {
-      ctx.packetMult *= UNSEEN_DAMAGE_MULT;
+      ctx.packetMult *= Skills.unseen.params.dmgMult;
       p._silentHit = true;
       BD.sim.status.remove(world, p, 'hidden');
       BD.core.scheduler.after(world, SILENT_HIT_CLEAR_MS, 'unseen.clear', {});
@@ -166,7 +166,7 @@
   reg('fire_blast.before', (world, p, ab, rank, { ctx }) => {
     if (Resources.combo(p) > 0) {
       Resources.addCombo(world, p, -1);
-      ctx.packetMult *= FIRE_BLAST_COMBO_MULT;
+      ctx.packetMult *= Skills.fire_blast.params.comboMult;
     }
   });
   reg('fire_blast.lobTargets', (world, p, ab, rank, { tx, ty }) => {

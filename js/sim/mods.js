@@ -14,12 +14,6 @@
   const FIRST_DUE_MIN = 0.4;           // a mod first fires after 40–100% of its period (staggered by id)
   const MOD_RANGE = 9;                 // offensive mods only act with the player this close
   const TELEPORT_RADIUS = 2;
-  const SHIELD_MS = 6000;
-  const MOLTEN_DMG_MULT = 0.15;        // trail tick = this × average hit
-  const MOLTEN_TRAIL_MS = 3000;
-  const SPARK_DMG_MULT = 0.5;          // each spark = this × average hit
-  const SPARK_COUNT = 3;
-  const SPARK_RANGE = 5;
 
   function due(world, e, key, every) {
     const cds = e.ai.cds;
@@ -69,7 +63,7 @@
         }
         if (best) {
           const magnitude = BD.sim.stats.statsOf(world, best).maxLife * m.shield.pct;
-          BD.sim.status.apply(world, best, 'shielded', { durMs: SHIELD_MS, magnitude });
+          BD.sim.status.apply(world, best, 'shielded', { durMs: m.shield.durMs, magnitude });
           world.events.push({ type: 'mod.shield', from: e.id, to: best.id });
         }
       }
@@ -90,8 +84,9 @@
     if (!hasMod(e, 'molten')) return;
     // the trail is left on the tile being stepped off
     const tile = e.move ? [e.move.fromX, e.move.fromY] : [e.x, e.y];
-    const amount = Monsters.avgDmg(world, e) * MOLTEN_DMG_MULT;
-    BD.sim.zones.ground(world, 'molten_trail', [tile], { durMs: MOLTEN_TRAIL_MS, faction: 'monster', srcId: e.id, amount });
+    const trail = ChampionMods().molten.trail;
+    const amount = Monsters.avgDmg(world, e) * trail.mult;
+    BD.sim.zones.ground(world, 'molten_trail', [tile], { durMs: trail.durMs, faction: 'monster', srcId: e.id, amount });
   }
 
   BD.sim.damage.onHitHooks.push((world, src, tgt, pk, res) => {
@@ -104,14 +99,15 @@
       }
     }
     // taken by a lightning-enchanted monster: release sparks (visible crackle aura)
-    const sparkReady = (e) => !e._sparkAt || world.time - e._sparkAt >= ChampionMods().lightning_enchanted.sparkCdMs;
+    const le = ChampionMods().lightning_enchanted;
+    const sparkReady = (e) => !e._sparkAt || world.time - e._sparkAt >= le.sparkCdMs;
     if (tgt.kind === 'monster' && hasMod(tgt, 'lightning_enchanted') && !pk.isDot && sparkReady(tgt)) {
       Object.defineProperty(tgt, '_sparkAt', { value: world.time, writable: true, configurable: true, enumerable: false });
-      const amt = Monsters.avgDmg(world, tgt) * SPARK_DMG_MULT;
-      for (let i = 0; i < SPARK_COUNT; i++) {
+      const amt = Monsters.avgDmg(world, tgt) * le.sparkMult;
+      for (let i = 0; i < le.sparksOnHit; i++) {
         const a = world.rng.range(0, Math.PI * 2);
         BD.sim.projectiles.spawn(world, {
-          kind: 'spark', srcId: tgt.id, faction: 'monster', x: tgt.x, y: tgt.y, dx: Math.cos(a), dy: Math.sin(a), maxDist: SPARK_RANGE,
+          kind: 'spark', srcId: tgt.id, faction: 'monster', x: tgt.x, y: tgt.y, dx: Math.cos(a), dy: Math.sin(a), maxDist: le.sparkRange,
           payload: { type: 'packet', amounts: { light: amt } },
         });
       }

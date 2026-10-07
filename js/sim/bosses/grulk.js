@@ -20,7 +20,6 @@
   const CONE_RECOVER_MS = 300;
   const CONE_TAIL_MS = 200;       // extra wind-up after the last row fires
   const RAISE_CAP = 4;            // live adds when the move sets no cap
-  const DEFAULT_SUMMON_CAP = 6;   // as in the boss framework
   const RAISE_TRIES_PER_ADD = 4;  // random tiles tried per add before giving up
   const RAISE_SCATTER = 4;        // the dead rise within this many tiles of Grulk
   const RAISE_RECOVER_MS = 400;
@@ -82,7 +81,7 @@
   });
   reg('raise_dead', {
     start(world, e, m, ctx) {
-      const cap = Math.min(m.cap || RAISE_CAP, BD.sim.monsters.defOf(e).summonCap || DEFAULT_SUMMON_CAP);
+      const cap = Math.min(m.cap || RAISE_CAP, BD.sim.monsters.defOf(e).summonCap || BD.data.balance.bosses.defaultSummonCap);
       const room = cap - Bosses.addsOf(world, e);
       if (room <= 0) return null;
       const f = world.floor;

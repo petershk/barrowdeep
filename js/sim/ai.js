@@ -8,6 +8,7 @@
   const Entities = BD.sim.entities;
   const Monsters = BD.sim.monsters;
   const Balance = BD.data.balance;
+  const Ascension = BD.data.ascension;
   const { within, cheb, dirOf } = BD.core.util;
 
   const COMBAT_RADIUS = 10;            // an awake monster this close (per axis) means "in combat"
@@ -21,8 +22,6 @@
   const FLEE_RETRY_MS = 300;           // a fleeing monster that can't step waits this long
   const HOME_REST_MS = 500;            // pause after a monster gets home and resets
   const HOME_RETRY_MS = 400;           // a homing monster that can't step waits this long
-  const EXPOSED_ASCENSION = 9;         // from this ascension on, exposed windows are shorter…
-  const EXPOSED_ASCENSION_MULT = 0.7;  // …by this factor
 
   /** @type {Record<string, any>} behaviour id → { decide?, resolve?, onHit?, onDeath?, passive? } */
   const BEH = {};
@@ -199,7 +198,7 @@
   }
 
   function makeExposed(world, e, ms) {
-    const k = world.run.ascension >= EXPOSED_ASCENSION ? EXPOSED_ASCENSION_MULT : 1;
+    const k = world.run.ascension >= Ascension.exposed.level ? Ascension.exposed.exposedMult : 1;
     const dur = ms * k;
     e.ai.state = 'exposed';
     e.ai.timer = dur;

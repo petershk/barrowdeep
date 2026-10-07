@@ -141,7 +141,7 @@
     }
     body.appendChild(sel);
     if (st.ascension) {
-      const mods = BD.data.ascensionMods.slice(0, st.ascension).map((t, i) => (i + 1) + '. ' + t);
+      const mods = BD.data.ascensionMods.slice(0, st.ascension).map((m) => m.level + '. ' + m.desc);
       body.appendChild(h('div.muted.small', mods.join('  ')));
     }
   }

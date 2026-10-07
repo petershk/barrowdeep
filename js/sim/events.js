@@ -12,31 +12,20 @@
   const { within, cheb } = BD.core.util;
   const Grid = BD.core.grid;
 
-  const FINAL_ACT = 4;
+  const MonsterBalance = BD.data.balance.monsters;
+
+  const LAST_ACT = BD.data.floors.LAST_ACT;
   const WAVE_SCATTER = 3;              // un-roomed waves land within ±this many tiles of the centre
   const WAVE_MIN_PLAYER_DIST = 2;      // roomed waves never land right next to the player
-  const REWARD_ILVL_BONUS = 1;
   const FIRST_WAVE_DELAY_MS = 500;
-  const CURSED_WAVE_BASE = 3;          // cursed-chest wave k has this + k monsters
   const BARS_FAILSAFE_MS = 30000;      // bars lift this long after the last wave even if a straggler lives
-  const EVENT_REWARD_ITEMS = 2;
-  const SHRINE_OPTIONS = 2;
   const SHRINE_REACH = 2;
-  const ALTAR_ILVL_BONUS = 2;
-  const HOARDER_DROP_CHANCE = 0.25;    // per decision while fleeing
-  const HOARDER_DROP_GOLD = 0.6;       // gold pile size multiplier while fleeing…
-  const HOARDER_DEATH_PILES = 6;       // …and on death, this many piles of
-  const HOARDER_DEATH_GOLD = 4;        // this multiplier
   const HOARDER_RETRY_MS = 300;
   const RESTLESS_ENTER_RADIUS = 2;     // standing this close to the grave counts as inside
   const RESTLESS_LEAVE_RADIUS = 6;     // walking this far away resets the event
-  const RESTLESS_WAVE_SIZE = 3;
-  const RESTLESS_XP_BASE = 10;         // xp = base × growth^(al−1) × kills-worth
-  const RESTLESS_XP_GROWTH = 1.12;
-  const RESTLESS_XP_KILLS = 8;
 
   function actSpecies(world, barred) {
-    const act = Math.min(FINAL_ACT, world.floor.n ? BD.data.floors.byN(world.floor.n).act : 1);
+    const act = Math.min(LAST_ACT, world.floor.n ? BD.data.floors.byN(world.floor.n).act : 1);
     // a barred room can't hold monsters that blink or phase out of it (the event would never end)
     const leaves = (m) => (m.behaviours || []).some((b) => /blink|teleport|phase|burrow/.test(b.id));
     const fits = (m) => m.act === act && !m.spawner && !m.spawnOnly && m.role !== 'bomber' && !(barred && leaves(m));
@@ -69,7 +58,7 @@
   function reward(world, x, y, items, minRare) {
     for (let i = 0; i < items; i++) {
       const min = i === 0 && minRare ? 'rare' : 'magic';
-      const item = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al + REWARD_ILVL_BONUS, min });
+      const item = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al + BD.data.eventRewardIlvlBonus, min });
       BD.sim.loot.dropAt(world, x, y, { kind: 'item', item });
     }
   }
@@ -102,7 +91,7 @@
   // ---------------- Shrine ----------------
   function shrine(world, o) {
     if (o.used) return;
-    if (!o.offer) o.offer = world.lootRng.shuffle(BD.data.shrineBuffs.map((b) => b.id)).slice(0, SHRINE_OPTIONS);
+    if (!o.offer) o.offer = world.lootRng.shuffle(BD.data.shrineBuffs.map((b) => b.id)).slice(0, FloorEvents().shrine.options);
     world.events.push({ type: 'shrine.offer', x: o.x, y: o.y, options: o.offer });
   }
   Commands.register('ShrineChoose', (world, c) => {
@@ -128,7 +117,7 @@
       type: 'damage', srcId: null, tgtId: p.id, total: cost, parts: { phys: cost },
       crit: false, blocked: false, tags: ['altar'], x: p.x, y: p.y,
     });
-    const it = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al + ALTAR_ILVL_BONUS, min: 'magic' });
+    const it = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: world.floor.al + FloorEvents().blood_altar.ilvlBonus, min: 'magic' });
     BD.sim.loot.dropAt(world, o.x, o.y, { kind: 'item', item: it });
     world.events.push({ type: 'event.complete', id: 'blood_altar', x: o.x, y: o.y });
   });
@@ -136,23 +125,24 @@
   // ---------------- the Hoarder ----------------
   Ai.registerBehaviour('hoard', {
     decide(world, e, b, ctx) {
-      const ev = world.floor.event;
+      const ev = world.floor.event, d = FloorEvents().hoarder;
       if (ev && ev.id === 'hoarder' && ev.state === 'idle') {
         ev.state = 'active';
-        ev.endAt = world.time + FloorEvents().hoarder.escapeMs;
+        ev.endAt = world.time + d.escapeMs;
         world.events.push({ type: 'announce', text: 'The Hoarder flees with its gold!', style: 'keeper' });
       }
-      if (world.rng.chance(HOARDER_DROP_CHANCE)) {
-        BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, HOARDER_DROP_GOLD) });
+      if (world.rng.chance(d.dropChance)) {
+        BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, d.dropGold) });
       }
       const c = Ai.stepAlong(world, e, BD.sim.pathing.chaseField(world), true);
       return c != null ? c : Ai.chase(world, e, ctx.tgt) || HOARDER_RETRY_MS;
     },
   });
   BD.sim.damage.onKillHooks.push((world, e) => {
-    if (e.def !== FloorEvents().hoarder.monster) return;
-    for (let i = 0; i < HOARDER_DEATH_PILES; i++) {
-      BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, HOARDER_DEATH_GOLD) });
+    const d = FloorEvents().hoarder;
+    if (e.def !== d.monster) return;
+    for (let i = 0; i < d.deathPiles; i++) {
+      BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, d.deathGold) });
     }
     reward(world, e.x, e.y, world.lootRng.int(1, 2), false);
     const ev = world.floor.event;
@@ -172,7 +162,7 @@
       if (world.time >= ev.nextWave && ev.wave < d.waves) {
         ev.wave++;
         ev.nextWave = world.time + d.waveMs;
-        spawnWave(world, ev.x, ev.y, CURSED_WAVE_BASE + ev.wave, 'cursed', ev.room);
+        spawnWave(world, ev.x, ev.y, d.waveBase + ev.wave, 'cursed', ev.room);
         world.events.push({ type: 'event.wave', id: 'cursed_chest', n: ev.wave });
       }
       const alive = Array.from(f.entities.values()).some((e) => e.eventId === 'cursed' && !e.dead);
@@ -180,7 +170,7 @@
       if (ev.wave >= d.waves && (!alive || world.time > ev.endAt + BARS_FAILSAFE_MS)) {
         ev.state = 'done';
         liftBars(f, ev);
-        reward(world, ev.x, ev.y, EVENT_REWARD_ITEMS, true);
+        reward(world, ev.x, ev.y, d.rewardItems, true);
         world.events.push({ type: 'event.complete', id: 'cursed_chest', x: ev.x, y: ev.y });
       }
     },
@@ -213,12 +203,13 @@
       ev.nextWave -= dt;
       if (ev.nextWave <= 0) {
         ev.nextWave = d.waveMs;
-        spawnWave(world, ev.x, ev.y, RESTLESS_WAVE_SIZE, 'restless');
+        spawnWave(world, ev.x, ev.y, d.waveSize, 'restless');
       }
       if (ev.t >= d.surviveMs) {
         ev.state = 'done';
-        reward(world, ev.x, ev.y, EVENT_REWARD_ITEMS, true);
-        const xp = RESTLESS_XP_BASE * Math.pow(RESTLESS_XP_GROWTH, world.floor.al - 1) * RESTLESS_XP_KILLS;
+        reward(world, ev.x, ev.y, d.rewardItems, true);
+        // the xp of d.xpKills normal monsters at this AL (no difficulty multiplier)
+        const xp = MonsterBalance.trashXpBase * Math.pow(MonsterBalance.xpGrowth, world.floor.al - 1) * d.xpKills;
         BD.sim.progression.gainXp(world, p, xp, 'event');
         world.events.push({ type: 'event.complete', id: 'restless_dead', x: ev.x, y: ev.y });
       }

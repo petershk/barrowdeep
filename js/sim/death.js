@@ -5,17 +5,7 @@
   'use strict';
 
   const Commands = BD.sim.commands;
-
-  // souls formula
-  const SOULS_PER_KEEPER = 10;
-  const SOULS_PER_LESSER_BOSS = 40;
-  const SOULS_FOR_MALGOTH = 150;
-  const SOULS_PER_ASCENSION = 0.15;    // +15% souls per ascension level
-  const SACRIFICE_SOULS_MULT = 0.5;
-  // the Ferryman's Bargain
-  const BARGAIN_CHANCES = [80, 55, 30]; // % success for the 1st / 2nd / 3rd bargain
-  const MAX_BARGAINS = 3;
-  const BARGAIN_CAP_PCT = 95;
+  const DeathBalance = BD.data.balance.death;   // souls formula and the Ferryman's Bargain
 
   /** souls = round((base + bonus) × difficultyMult × (1 + 0.15 × ascension)) × gear bonus */
   function souls(world, sacrifice) {
@@ -23,21 +13,21 @@
     const L = p.level;
     const base = (L - 1) * (L + 3);
     const lesserBosses = r.bossesKilled.filter((b) => b !== 'malgoth').length;
-    const malgothBonus = r.bossesKilled.includes('malgoth') ? SOULS_FOR_MALGOTH : 0;
-    const bonus = SOULS_PER_KEEPER * r.keepersSlain + SOULS_PER_LESSER_BOSS * lesserBosses + malgothBonus;
+    const malgothBonus = r.bossesKilled.includes('malgoth') ? DeathBalance.soulsForMalgoth : 0;
+    const bonus = DeathBalance.soulsPerKeeper * r.keepersSlain + DeathBalance.soulsPerLesserBoss * lesserBosses + malgothBonus;
     const diff = BD.data.difficulties[r.difficulty];
     const gear = 1 + (BD.sim.stats.statsOf(world, p).souls_pct || 0) / 100;
-    const v = Math.round((base + bonus) * diff.souls * (1 + SOULS_PER_ASCENSION * (r.ascension || 0)) * gear);
-    return sacrifice ? Math.round(v * SACRIFICE_SOULS_MULT) : v;
+    const v = Math.round((base + bonus) * diff.souls * (1 + DeathBalance.soulsPerAscension * (r.ascension || 0)) * gear);
+    return sacrifice ? Math.round(v * DeathBalance.sacrificeSoulsMult) : v;
   }
 
   /** Bargain success chance: 80 / 55 / 30% for the 1st / 2nd / 3rd (cap 95% with bonuses) */
   function bargainChance(world) {
     const used = world.run.bargainsUsed;
-    if (used >= MAX_BARGAINS) return 0;
-    const base = BARGAIN_CHANCES[used];
+    if (used >= DeathBalance.maxBargains) return 0;
+    const base = DeathBalance.bargainChances[used];
     const bonus = BD.sim.stats.statsOf(world, world.player).bargain_chance || 0;
-    return Math.min(BARGAIN_CAP_PCT, base + bonus);
+    return Math.min(DeathBalance.bargainCapPct, base + bonus);
   }
 
   function onPlayerDeath(world, d) {
@@ -61,7 +51,7 @@
   /** Bargain: roll; success → revive in town at full life, lose 50% gold, portal back */
   Commands.register('Bargain', (world) => {
     const r = world.run, p = world.player;
-    if (!r.dead || r.bargainsUsed >= MAX_BARGAINS || r.harvested) return null;
+    if (!r.dead || r.bargainsUsed >= DeathBalance.maxBargains || r.harvested) return null;
     const chance = bargainChance(world);
     r.bargainsUsed++;
     const ok = world.lootRng.next() * 100 < chance;

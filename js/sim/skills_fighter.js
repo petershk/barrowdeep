@@ -15,18 +15,17 @@
   const ks = (p, id) => !!(p.skills && p.skills[id]);
   const dead = (e) => !e || e.hp <= 0 || e.dying;
 
-  const BLOODLUST_HEAL_PCT = 0.05;       // Bloodlust: max life healed when Berserk Strike lands
-  const WARLORD_HEAL_PER_TARGET = 0.08;  // Warlord: War Cry heals this much max life per target...
-  const WARLORD_HEAL_MAX = 0.4;          // ...up to this much
-  const WARLORD_CRY_CD_MS = 8000;        // ...and its cooldown becomes this
+  const Skills = BD.data.skills;         // keystone numbers live in their skill's `params`
+
   const RAGE_OVER_TIME_TICKS = 3;        // War Cry r5 rage arrives in this many 1 s ticks
   const EARTHSHAKER_COMMIT_MS = 320;     // knockback immunity through the Earthshaker wind-up
-  const AFTERSHOCK_DELAY_MS = 1000;      // Earthshaker r5 aftershock lands this long after
 
   // ---- Berserk Strike: kill refund (r3), side hits (r5), Bloodlust heal ----
   reg('berserk_strike.landed', (world, p, ab, rank, { landed }) => {
     if (ab.killRefund && landed.some((r) => dead(r.tgt))) Resources.gain(world, p, 'rage', ab.killRefund, true);
-    if (ks(p, 'bloodlust') && landed.length) BD.sim.status.heal(world, p, Stats.statsOf(world, p).maxLife * BLOODLUST_HEAL_PCT);
+    if (ks(p, 'bloodlust') && landed.length) {
+      BD.sim.status.heal(world, p, Stats.statsOf(world, p).maxLife * Skills.bloodlust.params.healPct);
+    }
   });
   reg('berserk_strike.impact', (world, p, ab, rank, { results, ctx }) => {
     if (!ab.sideHits || !results.length) return;
@@ -64,7 +63,8 @@
   // ---- War Cry: Warlord heal + cooldown, r5 rage over time ----
   reg('war_cry.impact', (world, p, ab, rank, { results }) => {
     if (ks(p, 'warlord')) {
-      const pct = Math.min(WARLORD_HEAL_MAX, WARLORD_HEAL_PER_TARGET * results.length);
+      const wl = Skills.warlord.params;
+      const pct = Math.min(wl.healMax, wl.healPerTarget * results.length);
       BD.sim.status.heal(world, p, Stats.statsOf(world, p).maxLife * pct);
     }
     if (ab.rageOverTime) {
@@ -74,7 +74,7 @@
     }
     if (BD.sim.powers) BD.sim.powers.onWarCry(world, p, results);
   });
-  reg('war_cry.cooldown', (world, p, ab, ms) => (ks(p, 'warlord') ? WARLORD_CRY_CD_MS : ms));
+  reg('war_cry.cooldown', (world, p, ab, ms) => (ks(p, 'warlord') ? Skills.warlord.params.cryCdMs : ms));
   BD.core.scheduler.register('rage.tick', (world, pl) => {
     if (!world.player.dead) Resources.gain(world, world.player, 'rage', pl.n, true);
   }, { scope: 'run' });
@@ -83,7 +83,7 @@
   reg('earthshaker.commit', (world, p) => { BD.sim.status.apply(world, p, 'knockback_immune', { durMs: EARTHSHAKER_COMMIT_MS }); });
   reg('earthshaker.impact', (world, p, ab, rank) => {
     if (ab.aftershock) {
-      BD.core.scheduler.after(world, AFTERSHOCK_DELAY_MS, 'earthshaker.after', { rank, x: p.x, y: p.y, mult: ab.aftershock });
+      BD.core.scheduler.after(world, ab.aftershockMs, 'earthshaker.after', { rank, x: p.x, y: p.y, mult: ab.aftershock });
     }
     if (BD.sim.powers) BD.sim.powers.onEarthshaker(world, p, ab, rank);
   });

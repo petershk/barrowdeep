@@ -148,5 +148,5 @@
     });
   }
 
-  BD.sim.world = { SAVE_VERSION, stateHash, createWorld, enterFloor, instantiateFloor, step, addSystem, SYSTEMS };
+  BD.sim.world = { SAVE_VERSION, ARRIVAL_SEARCH_RADIUS, stateHash, createWorld, enterFloor, instantiateFloor, step, addSystem, SYSTEMS };
 })(globalThis.BD);

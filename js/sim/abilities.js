@@ -12,10 +12,9 @@
   const Grid = BD.core.grid;
   const { within, cheb, dirOf } = BD.core.util;
 
-  const MAX_SKILL_RANK = 8;            // hard + soft ranks are capped here
-  const RANK_SCALE_STEP = 0.2;         // each rank above 1 adds this fraction of the base value
+  const SkillBalance = Balance.skills;
+
   const PER_RANK_TABLE_LEN = 5;        // perRank tables cover ranks 1–5; higher ranks keep scaling
-  const CDR_CAP_PCT = 40;              // cooldown reduction never exceeds this percent
   const CHANNEL_RELEASE_MS = 260;      // a channel ends once the button hasn't been re-held for this long
 
   /** all ability defs by id (skills register into BD.data.skills) */
@@ -27,16 +26,16 @@
     const hard = p.skills[id] || 0;
     if (!hard) return 0;
     const s = Stats().statsOf(world, p);
-    return Math.min(MAX_SKILL_RANK, hard + (s['skill_plus_' + id] || 0) + (s.all_skills || 0));
+    return Math.min(SkillBalance.rankCap, hard + (s['skill_plus_' + id] || 0) + (s.all_skills || 0));
   }
   /** universal rank scaling 1 + 0.2(r−1), or perRank */
   function scale(eff, rank, key) {
     const k = key || 'mult';
     if (eff.perRank) {
-      const beyond = rank > PER_RANK_TABLE_LEN ? 1 + RANK_SCALE_STEP * (rank - PER_RANK_TABLE_LEN) : 1;
+      const beyond = rank > PER_RANK_TABLE_LEN ? 1 + SkillBalance.rankScaleStep * (rank - PER_RANK_TABLE_LEN) : 1;
       return eff.perRank[Math.min(eff.perRank.length, rank) - 1] * beyond;
     }
-    return (eff[k] || 0) * (1 + RANK_SCALE_STEP * (rank - 1));
+    return (eff[k] || 0) * (1 + SkillBalance.rankScaleStep * (rank - 1));
   }
   /** apply breakpoints: returns { effects, set } for this rank */
   function resolved(ab, rank, p) {
@@ -89,7 +88,7 @@
     const cfn = BD.sim.effects.scripts[ab.id + '.cooldown'];
     if (cfn) ms = cfn(world, p, ab, ms);
     if (BD.sim.powers) ms = BD.sim.powers.cooldown(world, p, ab, ms);
-    return ms * (1 - Math.min(CDR_CAP_PCT, s.cdr_pct || 0) / 100);
+    return ms * (1 - Math.min(SkillBalance.cdrCapPct, s.cdr_pct || 0) / 100);
   }
   function maxCharges(world, p, ab) {
     let n = ab.charges || 0;

@@ -6,10 +6,9 @@
 
   const StatDefs = BD.data.stats.defs;
 
-  const DMG_PER_WIELD = 0.03;          // matches Hits: +3% weapon damage per wield-stat point
-  // rough effective-HP estimate for comparisons (not the combat formula)
-  const EHP_ARMOR_CAP = 0.7;
-  const EHP_ARMOR_K = 50, EHP_ARMOR_PER_AL = 15;
+  const Balance = BD.data.balance;
+
+  // rough effective-HP estimate for comparisons: armour mitigation as in combat, then weighted with resistances
   const EHP_ARMOR_WEIGHT = 0.6, EHP_RES_WEIGHT = 0.4;
   const MIN_SHOWN_DELTA = 0.05;        // smaller stat changes are left out of a comparison
 
@@ -85,14 +84,15 @@
   }
   function dps(s) {
     const w = s.weapon;
-    const physAvg = ((w.dmg[0] + w.dmg[1]) / 2) * (1 + DMG_PER_WIELD * s.wieldValue) * (1 + s.dmg_pct / 100);
+    const physAvg = ((w.dmg[0] + w.dmg[1]) / 2) * (1 + Balance.player.dmgPerAttr * s.wieldValue) * (1 + s.dmg_pct / 100);
     const avg = physAvg + s.fire_add + s.cold_add + s.light_add + s.pois_add;
     return (avg * (1 + (s.critChance / 100) * (s.critMult - 1)) * 1000) / s.attackCycleMs;
   }
   function ehp(world, s) {
     const al = world.floor ? world.floor.al : 1;
     const A = s.armorTotal;
-    const mit = Math.min(EHP_ARMOR_CAP, A / (A + EHP_ARMOR_K + EHP_ARMOR_PER_AL * al));
+    const Combat = Balance.combat;
+    const mit = Math.min(Combat.armorCap, A / (A + Combat.armorK + Combat.armorPerAL * al));
     const res = (s.res.fire + s.res.cold + s.res.light + s.res.pois) / 400;   // average of four, in 0..1
     return s.maxLife / (1 - (mit * EHP_ARMOR_WEIGHT + Math.max(0, res) * EHP_RES_WEIGHT));
   }

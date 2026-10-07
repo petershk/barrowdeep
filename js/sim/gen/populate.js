@@ -7,38 +7,20 @@
   const { T } = BD.data.tiles;
   const Carve = BD.sim.gen.carve;
   const Balance = BD.data.balance;
+  const GenBalance = Balance.gen;
+  const Ascension = BD.data.ascension;
   const { cheb } = BD.core.util;
   const idx = Carve.idx;
 
   const START_CLEAR_R = 2;            // no monsters in the 5×5 block around the up stairs
-  const MIN_START_DIST = 10;          // packs anchor at least this far (Chebyshev) from the up stairs
   const CLUSTER_R = 4;                // default search radius for a pack's tiles
-  const KEEPER_MINIONS_MIN = 2;
-  const KEEPER_MINIONS_MAX = 4;
   const KEEPER_CLUSTER_R = 5;
   const KEEPER_SIGNATURES = ['quake', 'grasp', 'bone_hurl', 'charge_line', 'rally'];
-  const ASC_ELITE_MODS = 1;           // from this Ascension, elites roll at least 2 mods
-  const ASC_KEEPER_MOVES = 3;         // from this Ascension, Keepers have at least 2 signature moves
-  const ASC_BIG_BUDGET = 6;           // from this Ascension, the monster budget grows ...
-  const ASC_BUDGET_MULT = 1.25;       // ... by this factor
   const BUDGET_RAMP_FLOORS = 11;      // the budget ramps from budgetMin on floor 1 to budgetMax on floor 12
-  const PACK_SPACING = 7;             // preferred distance between pack anchors ...
-  const MIN_PACK_SPACING = 3;         // ... relaxed in steps of SPACING_STEP down to this
-  const SPACING_STEP = 2;
+  const SPACING_STEP = 2;            // pack spacing relaxes in these steps (Balance.gen.packSpacing → minPackSpacing)
   const MAX_PACKS = 60;               // guard on the pack loop
-  const CHAMPION_LOW_BUDGET = 20;     // a pending champion pack is placed for sure below this budget
-  const CHAMPION_CHANCE = 0.4;        // otherwise with this chance per pack
-  const CHAMPION_SIZE_MIN = 3;
-  const CHAMPION_SIZE_MAX = 4;
   const PACK_R = 3;                   // pack tiles within this radius of the anchor
   const SPREAD_PACK_R = 6;            // ... or this for packs marked `spread`
-  const ELITE_FLOOR = 3;              // unique elites appear from this floor
-  const ELITE_MINIONS_MIN = 2;
-  const ELITE_MINIONS_MAX = 4;
-  const ROOM_CHESTS_MIN = 1;
-  const ROOM_CHESTS_MAX = 3;
-  const ROOM_PILES_MIN = 1;
-  const ROOM_PILES_MAX = 2;
   const LOOT_STRIDE = 7919;           // a prime stride spreads chests and piles over the free tiles
 
   const MARKER_OBJECTS = { C: 'chest', B: 'pile', S: 'shrine', T: 'trap', L: 'lever' };
@@ -58,7 +40,7 @@
   }
   function eliteModCount(spec) {
     const d = BD.data.difficulties[spec.difficulty || 'penitent'];
-    return Math.max(d.eliteMods, (spec.ascension || 0) >= ASC_ELITE_MODS ? 2 : 1);
+    return Math.max(d.eliteMods, (spec.ascension || 0) >= Ascension.elite_mods.level ? Ascension.elite_mods.minMods : 1);
   }
 
   /** free reachable tiles around an anchor (BFS), avoiding taken tiles */
@@ -114,7 +96,7 @@
     }
     if (p.spawnPos) taken.add(idx(p, p.spawnPos.x, p.spawnPos.y));
     const keeperTiles = new Set(Carve.roomTiles(p, p.keeperRoom).map(([x, y]) => idx(p, x, y)));
-    const awayFromStart = ([x, y]) => cheb(x, y, up.x, up.y) >= MIN_START_DIST && !keeperTiles.has(idx(p, x, y));
+    const awayFromStart = ([x, y]) => cheb(x, y, up.x, up.y) >= GenBalance.minStartDist && !keeperTiles.has(idx(p, x, y));
     const floorList = rng.shuffle(Carve.reachableFloor(p, dist).filter(awayFromStart));
     let packId = 0;
     const addPack = (members, o) => {
@@ -133,10 +115,10 @@
     const kc = kt.sort((a, b) => fromCentre(a) - fromCentre(b))[0];
     const species = rng.pick(actSpecies(act).filter((m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher'));
     const minionSp = rng.pick(actSpecies(act));
-    const nMin = rng.int(KEEPER_MINIONS_MIN, KEEPER_MINIONS_MAX);
+    const nMin = rng.int(GenBalance.keeperMinions[0], GenBalance.keeperMinions[1]);
     const spots = cluster(p, dist, taken, kc[0], kc[1], 1 + nMin, KEEPER_CLUSTER_R);
     const sigs = rng.shuffle(KEEPER_SIGNATURES.slice());
-    const minMoves = (spec.ascension || 0) >= ASC_KEEPER_MOVES ? 2 : 1;
+    const minMoves = (spec.ascension || 0) >= Ascension.keeper_moves.level ? Ascension.keeper_moves.minMoves : 1;
     const nSig = Math.max(BD.data.difficulties[spec.difficulty || 'penitent'].keeperMoves, minMoves);
     const members = spots.map(([x, y], i) => i === 0
       ? {
@@ -157,7 +139,7 @@
     const mSpots = p.markers.filter((m) => m.ch === 'M');
     const anchors = [];
     for (let i = 0; i < mSpots.length; i += 2) anchors.push([mSpots[i].x, mSpots[i].y]);
-    let fi = 0, spacing = PACK_SPACING;
+    let fi = 0, spacing = GenBalance.packSpacing;
     const farFromPacks = (a) => p.spawns.every((pk) => cheb(pk.members[0].x, pk.members[0].y, a[0], a[1]) >= spacing);
     return () => {
       while (anchors.length) {
@@ -170,7 +152,7 @@
           if (taken.has(idx(p, a[0], a[1]))) continue;
           if (farFromPacks(a)) return a;
         }
-        if (spacing <= MIN_PACK_SPACING) return null;
+        if (spacing <= GenBalance.minPackSpacing) return null;
         spacing -= SPACING_STEP;
         fi = 0;
       }
@@ -186,9 +168,9 @@
   /** a champion pack at anchor a; returns how many monsters it placed */
   function placeChampionPack(ctx, p, rng, spec, a) {
     const sp = rng.pick(actSpecies(ctx.act).filter((m) => m.role !== 'spawner'));
-    const n = rng.int(CHAMPION_SIZE_MIN, CHAMPION_SIZE_MAX);
+    const n = rng.int(GenBalance.championSize[0], GenBalance.championSize[1]);
     const spots = cluster(p, ctx.dist, ctx.taken, a[0], a[1], n, PACK_R);
-    const ascBonus = (spec.ascension || 0) >= ASC_ELITE_MODS ? 1 : 0;
+    const ascBonus = (spec.ascension || 0) >= Ascension.elite_mods.level ? Ascension.elite_mods.championExtraMods : 0;
     const mods = rollMods(rng, spec, Math.max(1, eliteModCount(spec) - 1 + ascBonus));
     ctx.addPack(spots.map(([x, y]) => ({ def: sp.id, x, y, rank: 'champion', mods })), { kind: 'champion', counted: true });
     return spots.length;
@@ -216,15 +198,15 @@
   /** normal and champion packs until the monster budget runs out; returns the budget left */
   function placePacks(ctx, p, rng, fl, spec, nextAnchor) {
     const diff = BD.data.difficulties[spec.difficulty || 'penitent'];
-    const ascMult = (spec.ascension || 0) >= ASC_BIG_BUDGET ? ASC_BUDGET_MULT : 1;
+    const ascMult = (spec.ascension || 0) >= Ascension.density.level ? Ascension.density.budgetMult : 1;
     const ramp = (fl.n - 1) / BUDGET_RAMP_FLOORS;
-    let budget = Math.round(BD.core.util.lerp(Balance.gen.budgetMin, Balance.gen.budgetMax, ramp) * diff.spawn * ascMult);
+    let budget = Math.round(BD.core.util.lerp(GenBalance.budgetMin, GenBalance.budgetMax, ramp) * diff.spawn * ascMult);
     let champsLeft = championCount(rng, fl.n);
     let guard = 0;
     while (budget > 0 && guard++ < MAX_PACKS) {
       const a = nextAnchor();
       if (!a) break;
-      if (champsLeft > 0 && (budget < CHAMPION_LOW_BUDGET || rng.chance(CHAMPION_CHANCE))) {
+      if (champsLeft > 0 && (budget < GenBalance.championLowBudget || rng.chance(GenBalance.championChance))) {
         champsLeft--;
         budget -= placeChampionPack(ctx, p, rng, spec, a);
         continue;
@@ -236,7 +218,7 @@
 
   /** unique elites (floors 3+: 0–1 besides the Keeper), on a set-piece 'E' marker when there is one */
   function placeElites(ctx, p, rng, fl, spec, nextAnchor) {
-    const elites = fl.n >= ELITE_FLOOR ? rng.int(0, 1) : 0;
+    const elites = fl.n >= GenBalance.eliteFloor ? rng.int(0, 1) : 0;
     const eSpots = p.markers.filter((m) => m.ch === 'E');
     for (let k = 0; k < elites; k++) {
       const a = eSpots.length ? [eSpots[0].x, eSpots[0].y] : nextAnchor();
@@ -244,7 +226,7 @@
       const eliteRole = (m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher' || m.role === 'caster';
       const sp = rng.pick(actSpecies(ctx.act).filter(eliteRole));
       const minSp = rng.pick(actSpecies(ctx.act));
-      const size = 1 + rng.int(ELITE_MINIONS_MIN, ELITE_MINIONS_MAX);
+      const size = 1 + rng.int(GenBalance.eliteMinions[0], GenBalance.eliteMinions[1]);
       const spots = cluster(p, ctx.dist, ctx.taken, a[0], a[1], size, CLUSTER_R);
       const members = spots.map(([x, y], i) => (i === 0
         ? { def: sp.id, x, y, rank: 'unique', name: eliteName(rng), mods: rollMods(rng, spec, eliteModCount(spec)) }
@@ -262,7 +244,8 @@
       for (const [x, y] of Carve.roomTiles(p, r)) roomTiles.add(idx(p, x, y));
     }
     const free = ctx.floorList.filter(([x, y]) => roomTiles.has(idx(p, x, y)) && !taken.has(idx(p, x, y)));
-    const nChest = rng.int(ROOM_CHESTS_MIN, ROOM_CHESTS_MAX), nPile = rng.int(ROOM_PILES_MIN, ROOM_PILES_MAX);
+    const nChest = rng.int(GenBalance.roomChests[0], GenBalance.roomChests[1]);
+    const nPile = rng.int(GenBalance.roomPiles[0], GenBalance.roomPiles[1]);
     for (let i = 0; i < nChest + nPile && i < free.length; i++) {
       const [x, y] = free[(i * LOOT_STRIDE) % free.length];
       if (taken.has(idx(p, x, y))) continue;

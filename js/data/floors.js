@@ -21,6 +21,8 @@
 
   BD.data.floors = {
     al, byN, ACT_BIOME, ACT_BOSS, LAST: 13,
+    LAST_ACT: 4,              // the last act with its own tables (stock, monster refs, traps); the Sanctum uses act 4's
+    FLOORS_PER_ACT: 3,
     WAYPOINTS: [1, 4, 7, 10],
     firstOfAct: (act) => (act - 1) * 3 + 1,
   };
