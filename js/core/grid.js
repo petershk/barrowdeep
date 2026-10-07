@@ -14,6 +14,12 @@
   }
   const inB = (w, h, x, y) => x >= 0 && y >= 0 && x < w && y < h;
 
+  // Floors and generator plans store tiles in flat row-major arrays of width m.w.
+  /** flat index of (x, y) in a map with width m.w */
+  const idx = (m, x, y) => y * m.w + x;
+  /** the [x, y] of a flat index */
+  const xyOf = (m, i) => [i % m.w, (i / m.w) | 0];
+
   // ---------- shapes (offset lists, cached) ----------
   const shapeCache = new Map();
   /** @returns {number[][]} [dx,dy] offsets */
@@ -279,5 +285,5 @@
     return path.reverse();
   }
 
-  BD.core.grid = { makeGrid, inB, shapeOffsets, shapeTiles, rayTiles, los, canStep, bfs, flowField, makeHeap, astar };
+  BD.core.grid = { makeGrid, inB, idx, xyOf, shapeOffsets, shapeTiles, rayTiles, los, canStep, bfs, flowField, makeHeap, astar };
 })(globalThis.BD);
