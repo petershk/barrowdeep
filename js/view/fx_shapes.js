@@ -119,6 +119,18 @@
         ctx.fillRect(a.x - w / 2, a.y - h, w, h);
         break;
       }
+      case 'lob': {
+        // an arcing projectile from (x,y) to (x1,y1)
+        const px = s.x + (s.x1 - s.x) * t, py = s.y + (s.y1 - s.y) * t;
+        iso.toScreen(px, py, b);
+        const hgt = Math.sin(t * Math.PI) * (s.big ? 160 : 60) * zk + 10 * zk;
+        const r = (s.big ? 14 : 6) * zk;
+        ctx.globalAlpha = 1;
+        ctx.drawImage(BD.view.fx.glow(pal.mid), b.x - r * 1.5, b.y - hgt - r * 1.5, r * 3, r * 3);
+        ctx.drawImage(BD.view.fx.glow(pal.core), b.x - r * 0.6, b.y - hgt - r * 0.6, r * 1.2, r * 1.2);
+        if (Math.random() < 0.6) BD.view.fx.spark(px, py, { z: hgt / zk, vz: 0, g: 0.0002, life: 300, size: 2, color: pal.mid, ambient: true });
+        break;
+      }
       default: break;
     }
     ctx.globalAlpha = 1;

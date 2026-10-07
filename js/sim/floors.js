@@ -77,6 +77,7 @@
     const alive = new Set();
     for (const e of f.entities.values()) {
       if (e.runtime || e.kind !== 'monster') continue;
+      if (e.rank === 'boss' || e.rank === 'malgoth') { alive.add(e.id); continue; }   // bosses reset unless slain
       alive.add(e.id);
       const max = BD.sim.stats.statsOf(world, e).maxLife;
       if (e.hp < max || e.x !== e.home.x || e.y !== e.home.y) survivors.push({ id: e.id, hp: e.hp, x: e.x, y: e.y, statuses: e.statuses.filter((s) => !BD.data.statuses[s.id].invuln) });
@@ -94,6 +95,7 @@
   function leave(world) {
     const f = world.floor;
     if (!f || f.key == null) return;
+    if (BD.sim.events) BD.sim.events.onLeave(world);
     world.floorDeltas[f.key] = snapshot(world);
   }
   /** apply a saved delta to a freshly generated floor */

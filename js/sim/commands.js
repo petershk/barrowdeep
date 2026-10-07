@@ -51,7 +51,13 @@
   });
   register('ForceAttack', (world, c) => { if (BD.sim.combat) BD.sim.combat.forceAttack(world, world.player, c.x, c.y); });
   register('Evade', (world, c) => BD.sim.player.evade(world, world.player, c.dirX, c.dirY));
-  register('Interact', (world, c) => { world.player.intent = { kind: 'interact', x: c.x, y: c.y }; });
+  register('Interact', (world, c) => {
+    const f = world.floor;
+    let x = c.x, y = c.y;
+    // any tile of the 2×2 boss gate interacts through the tile that faces the front
+    if (f.gatePos && f.gatePos.at && f.tiles[y * f.w + x] === BD.data.tiles.T.GATE) { x = f.gatePos.at.x; y = f.gatePos.at.y; }
+    world.player.intent = { kind: 'interact', x, y };
+  });
   register('HoldEnd', (world) => { const it = world.player.intent; if (it) it.hold = false; });
 
   BD.sim.commands = { register, issue, apply, applyQueue, handlers, UI_CMDS };

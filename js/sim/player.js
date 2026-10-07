@@ -55,7 +55,8 @@
     const f = world.floor;
     const walk = (x, y) => E.walkable(f, x, y) && (!E.occupant(f, x, y) || E.occupant(f, x, y) === p.id || cheb(x, y, p.x, p.y) > 1);
     let path = G.astar(f.w, f.h, p.x, p.y, gx, gy, walk, { allowGoalBlocked: adjacentOk, budget: f.w * f.h, partial: true });
-    if (path && adjacentOk && path.length && E.occupant(f, gx, gy) && path[path.length - 1][0] === gx && path[path.length - 1][1] === gy) path.pop();
+    // stop beside the goal if it is occupied or can't be stood on (gates, doors, chests' tiles…)
+    if (path && adjacentOk && path.length && path[path.length - 1][0] === gx && path[path.length - 1][1] === gy && (E.occupant(f, gx, gy) || !E.walkable(f, gx, gy))) path.pop();
     return path;
   }
 

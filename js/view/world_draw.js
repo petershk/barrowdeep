@@ -80,7 +80,7 @@
     R.drawArt(g.art, 'death', fi, g.x, g.y, { pal: g.pal, palKey: g.palKey, flip: g.flip, scale: g.scale, alpha: 1 - Math.max(0, g.t - 300) / 100 });
   }
   function drawObject(world, o) {
-    const map = { chest: o.opened ? 'prop_chest_open' : 'prop_chest', pile: 'prop_pile', shrine: 'prop_shrine', lever: 'prop_lever' };
+    const map = { chest: o.opened ? 'prop_chest_open' : 'prop_chest', pile: 'prop_pile', shrine: 'prop_shrine', lever: 'prop_lever', altar: 'prop_altar' };
     if (o.kind === 'trap') { if (o.visible && !o.disarmed) drawTrap(o); return; }
     if (o.kind === 'pile' && o.used) return;
     if (o.kind === 'npc') {

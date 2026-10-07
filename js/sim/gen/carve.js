@@ -85,6 +85,7 @@
     const N = p.w * p.h;
     const g = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
     const heap = G.makeHeap(256);
+    const hid = new Set(p.hidden);
     const s = idx(p, from[0], from[1]), goal = idx(p, to[0], to[1]);
     g[s] = 0; heap.push(s, 0);
     while (heap.size) {
@@ -96,7 +97,7 @@
         const nx = x + dx, ny = y + dy;
         if (nx < 2 || ny < 2 || nx >= p.w - 2 || ny >= p.h - 2) continue;
         const ni = idx(p, nx, ny);
-        if (p.protect[ni] && p.tiles[ni] === T.WALL) continue;
+        if (p.protect[ni] && p.tiles[ni] === T.WALL && !hid.has(ni)) continue;
         const c = g[i] + (WALK[p.tiles[ni]] ? 1 : 3);
         if (c < g[ni]) { g[ni] = c; prev[ni] = i; heap.push(ni, c + Math.abs(nx - to[0]) + Math.abs(ny - to[1])); }
       }

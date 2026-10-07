@@ -216,7 +216,7 @@
     const goalReady = fl.actEnd ? !!r.flags['key' + f.n] : f.sealBroken;
     const tooLong = f.timeOnFloor > (bot.opts.floorMs || 8 * 60000);
     if (goalReady && (explored > (bot.opts.explore || 0.85) || tooLong)) {
-      if (fl.actEnd) { const g = f.gatePos; CMD(w, { type: 'Interact', x: g.x, y: g.y + 1 }); return; }
+      if (fl.actEnd) { const g = f.gatePos; CMD(w, { type: 'Interact', x: g.at.x, y: g.at.y }); return; }
       CMD(w, { type: 'Interact', x: f.downPos.x, y: f.downPos.y });
       return;
     }

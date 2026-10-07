@@ -106,7 +106,7 @@
     for (let y = 2; y < p.h - 3; y++) for (let x = 2; x < p.w - 3; x++) {
       // block (x..x+1, y..y+1) all wall, unprotected
       let ok = true;
-      for (let j = 0; j < 2 && ok; j++) for (let i = 0; i < 2; i++) { const k = C.idx(p, x + i, y + j); if (p.tiles[k] !== T.WALL || p.protect[k]) ok = false; }
+      for (let j = 0; j < 2 && ok; j++) for (let i = 0; i < 2; i++) { const k = C.idx(p, x + i, y + j); const t = p.tiles[k]; if (!(t === T.WALL || t === T.LAVA) || p.protect[k]) ok = false; }
       if (!ok) continue;
       // the 2 tiles directly below (or right of) the block must be reachable floor (front of the gate)
       const fronts = [[[x, y + 2], [x + 1, y + 2]], [[x + 2, y], [x + 2, y + 1]]];
@@ -122,7 +122,9 @@
     cands.sort((a, b) => b.d - a.d);
     const g = cands[Math.min(cands.length - 1, rng.int(0, Math.min(5, cands.length - 1)))];
     for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { C.set(p, g.x + i, g.y + j, T.GATE); p.protect[C.idx(p, g.x + i, g.y + j)] = 1; }
-    p.gatePos = { x: g.x, y: g.y, front: g.front };
+    // the gate tile that touches the front: where interaction happens
+    const below = g.front[0][1] === g.y + 2;
+    p.gatePos = { x: g.x, y: g.y, front: g.front, at: below ? { x: g.x, y: g.y + 1 } : { x: g.x + 1, y: g.y } };
   }
 
   BD.sim.gen.generateFloor = generateFloor;

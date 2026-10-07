@@ -14,7 +14,9 @@
     if (!p) return EMPTY;
     const src = p.ownerEquip || p.equip;
     if (!src) return EMPTY;
-    const key = Object.values(src).map((it) => (it && it.legendary) || '').join(',');
+    // cheap key: legendary ids of the 8 slots (no allocation when unchanged)
+    let key = '';
+    for (const s in src) { const it = src[s]; if (it && it.legendary) key += it.legendary + ','; }
     if (p._powKey === key) return p._pow;
     const set = new Set();
     for (const s in src) { const it = src[s]; if (it && it.legendary) set.add(it.legendary); }

@@ -85,6 +85,18 @@
     BD.ui.dom.delegate(el, { close: () => BD.ui.panels.close('journal') });
   }
 
+  function buildShrine(el, arg) {
+    el.appendChild(h('h2', 'A Shrine'));
+    el.appendChild(h('p.muted', 'Choose one blessing. It lasts until you leave this floor.'));
+    const row = h('div.col');
+    for (const id of arg.options) {
+      const b = BD.data.shrineBuffs.find((x) => x.id === id);
+      row.appendChild(h('button.btn', { data: { action: 'pick', id } }, b.name + ' — ' + b.desc));
+    }
+    el.appendChild(row);
+    BD.ui.dom.delegate(el, { pick: (t) => { BD.sim.commands.apply(BD.app.world, { type: 'ShrineChoose', id: t.dataset.id }); BD.ui.panels.close('shrinechoice'); } });
+  }
+  BD.ui.panels.register({ id: 'shrinechoice', build: buildShrine });
   BD.ui.panels.register({ id: 'waypoints', build: buildWaypoints });
   BD.ui.panels.register({ id: 'load', build: buildLoad, closeOnEsc: false });
   BD.ui.panels.register({ id: 'journal', build: buildJournal, swappable: true });

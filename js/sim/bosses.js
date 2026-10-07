@@ -57,7 +57,7 @@
       return moves.crushing_blow.start(world, e, d.crushing, ctx);
     }
     if (world.time >= st.nextSpecial) {
-      const fits = d.kit.filter((m) => m.move !== st.last && ctx.dist >= m.minRange && ctx.dist <= m.maxRange + 0.5 && !(st.cds[m.move] > world.time) && (m.phase == null || m.phase === st.phase) && moves[m.move]);
+      const fits = d.kit.filter((m) => m.move !== st.last && ctx.dist >= m.minRange && ctx.dist <= m.maxRange + 0.5 && !(st.cds[m.move] > world.time) && (m.phase == null || m.phase === st.phase || (st.allMoves && m.move !== 'imp_call')) && moves[m.move]);
       if (fits.length) {
         const m = rng.weighted(fits, (k) => k.weight);
         const mp = moveParams(d, st, m);

@@ -99,18 +99,21 @@
     const mSpots = p.markers.filter((m) => m.ch === 'M');
     const anchors = [];
     for (let i = 0; i < mSpots.length; i += 2) anchors.push([mSpots[i].x, mSpots[i].y]);
-    let fi = 0;
+    let fi = 0, spacing = 7;
     const nextAnchor = () => {
       while (anchors.length) { const a = anchors.shift(); if (!taken.has(a[1] * p.w + a[0]) && dist[a[1] * p.w + a[0]] >= 0) return a; }
-      while (fi < floorList.length) {
-        const a = floorList[fi++];
-        if (taken.has(a[1] * p.w + a[0])) continue;
-        // spread packs: keep anchors ≥ 7 tiles from other packs
-        let ok = true;
-        for (const pk of p.spawns) { const m = pk.members[0]; if (cheb(m.x, m.y, a[0], a[1]) < 7) { ok = false; break; } }
-        if (ok) return a;
+      for (;;) {
+        while (fi < floorList.length) {
+          const a = floorList[fi++];
+          if (taken.has(a[1] * p.w + a[0])) continue;
+          // spread packs: keep anchors apart from other packs (relaxed when space runs out)
+          let ok = true;
+          for (const pk of p.spawns) { const m = pk.members[0]; if (cheb(m.x, m.y, a[0], a[1]) < spacing) { ok = false; break; } }
+          if (ok) return a;
+        }
+        if (spacing <= 3) return null;
+        spacing -= 2; fi = 0;
       }
-      return null;
     };
     const champCount = fl.n === 1 ? 0 : fl.n <= 3 ? 1 : rng.int(1, 2);
     let champsLeft = champCount;

@@ -14,6 +14,7 @@
   const STATUS_WORDS = { burning: 'Burning', chilled: 'Chilled', frozen: 'Frozen', shocked: 'Shocked', poisoned: 'Poisoned', bleeding: 'Bleeding', stunned: 'Stunned', feared: 'Feared', weakened: 'Weakened', vulnerable: 'Vulnerable', rooted: 'Rooted', slowed: 'Slowed', blinded: 'Blinded', taunted: 'Taunted' };
 
   function wire(bus) {
+    if (BD.view.skillFx) BD.view.skillFx.wire(bus);
     bus.on('app.world', () => { FX().clear(); FT().clear(); V.clear(); BD.view.world.clear(); BD.view.tiles.invalidate(); });
     bus.on('floor.enter', () => { FX().clear(); FT().clear(); V.clear(); BD.view.world.clear(); BD.view.camera.cam.init = false; });
 

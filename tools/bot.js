@@ -14,7 +14,9 @@ function runBot(opts) {
   const bot = BD.debug.bot.make(w, { floorMs: opts.floorMs, bargain: opts.bargain, maxFloor: opts.maxFloor });
   BD.debug.bot.spendPoints(bot);
   const maxFloor = opts.maxFloor || 13;
-  BD.debug.bot.run(bot, (opts.minutes || 120) * 60000, { until: (world) => world.run.deepestFloor > maxFloor || world.run.victory || (world.floor.key === maxFloor && world.floor.sealBroken && opts.stopAtSeal) });
+  let lastKey = null, t0 = Date.now();
+  const log = process.env.BOT_LOG ? (w2) => { if (w2.floor.key !== lastKey) { lastKey = w2.floor.key; console.error('[bot] ' + ((Date.now() - t0) / 1000).toFixed(1) + 's real, ' + (w2.time / 60000).toFixed(1) + ' min: ' + w2.floor.key + ' lvl ' + w2.player.level + ' hp ' + Math.round(w2.player.hp)); } } : null;
+  BD.debug.bot.run(bot, (opts.minutes || 120) * 60000, { onEvents: log ? () => log(w) : null, until: (world) => world.run.deepestFloor > maxFloor || world.run.victory || (world.floor.key === maxFloor && world.floor.sealBroken && opts.stopAtSeal) });
   const avg = (a) => (a && a.length ? +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(2) : null);
   const med = (a) => (a && a.length ? a.slice().sort((x, y) => x - y)[a.length >> 1] : null);
   const s = bot.stats;
