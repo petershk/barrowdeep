@@ -3,9 +3,15 @@
 (function (BD) {
   'use strict';
 
-  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+  const clamp = (v, lo, hi) => {
+    if (v < lo) return lo;
+    return v > hi ? hi : v;
+  };
   const lerp = (a, b, t) => a + (b - a) * t;
-  const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
+  const sign = (v) => {
+    if (v > 0) return 1;
+    return v < 0 ? -1 : 0;
+  };
   const dist2 = (ax, ay, bx, by) => (ax - bx) * (ax - bx) + (ay - by) * (ay - by);
   const dist = (ax, ay, bx, by) => Math.sqrt(dist2(ax, ay, bx, by));
   /** Chebyshev distance (tiles in 8-connectivity) */
@@ -84,11 +90,21 @@
   function rleEncode(arr) {
     const bytes = [];
     let cur = 0, run = 0;
-    const push = (n) => { while (n >= 128) { bytes.push((n & 127) | 128); n >>>= 7; } bytes.push(n); };
+    const push = (n) => {
+      while (n >= 128) {
+        bytes.push((n & 127) | 128);
+        n >>>= 7;
+      }
+      bytes.push(n);
+    };
     for (let i = 0; i < arr.length; i++) {
       const v = arr[i] ? 1 : 0;
       if (v === cur) run++;
-      else { push(run); cur = v; run = 1; }
+      else {
+        push(run);
+        cur = v;
+        run = 1;
+      }
     }
     push(run);
     return toB64(Uint8Array.from(bytes));
@@ -99,9 +115,14 @@
     let i = 0, pos = 0, cur = 0;
     while (i < bytes.length && pos < len) {
       let n = 0, shift = 0, b;
-      do { b = bytes[i++]; n |= (b & 127) << shift; shift += 7; } while (b & 128);
+      do {
+        b = bytes[i++];
+        n |= (b & 127) << shift;
+        shift += 7;
+      } while (b & 128);
       if (cur) out.fill(1, pos, Math.min(len, pos + n));
-      pos += n; cur ^= 1;
+      pos += n;
+      cur ^= 1;
     }
     return out;
   }

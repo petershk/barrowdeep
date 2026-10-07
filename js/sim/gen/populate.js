@@ -5,13 +5,13 @@
   'use strict';
 
   const { T } = BD.data.tiles;
-  const C = BD.sim.gen.carve;
-  const B = BD.data.balance;
+  const Carve = BD.sim.gen.carve;
+  const Balance = BD.data.balance;
   const { cheb } = BD.core.util;
 
   function eliteName(rng) {
-    const N = BD.data.eliteNames;
-    return rng.pick(N.FIRST) + rng.pick(N.SECOND) + ' ' + rng.pick(N.TITLE);
+    const EliteNames = BD.data.eliteNames;
+    return rng.pick(EliteNames.FIRST) + rng.pick(EliteNames.SECOND) + ' ' + rng.pick(EliteNames.TITLE);
   }
 
   function modPool(spec) {
@@ -69,9 +69,9 @@
     const up = p.upPos;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) taken.add((up.y + dy) * p.w + up.x + dx);
     if (p.spawnPos) taken.add(p.spawnPos.y * p.w + p.spawnPos.x);
-    const keeperTiles = new Set(C.roomTiles(p, p.keeperRoom).map(([x, y]) => y * p.w + x));
+    const keeperTiles = new Set(Carve.roomTiles(p, p.keeperRoom).map(([x, y]) => y * p.w + x));
     const awayFromStart = ([x, y]) => cheb(x, y, up.x, up.y) >= 10 && !keeperTiles.has(y * p.w + x);
-    const floorList = rng.shuffle(C.reachableFloor(p, dist).filter(awayFromStart));
+    const floorList = rng.shuffle(Carve.reachableFloor(p, dist).filter(awayFromStart));
     let packId = 0;
     const addPack = (members, o) => {
       const id = packId++;
@@ -80,7 +80,7 @@
     };
     // ---- Keeper ----
     if (fl.keeper) {
-      const kt = C.roomTiles(p, p.keeperRoom).filter(([x, y]) => p.tiles[y * p.w + x] === T.FLOOR && dist[y * p.w + x] >= 0);
+      const kt = Carve.roomTiles(p, p.keeperRoom).filter(([x, y]) => p.tiles[y * p.w + x] === T.FLOOR && dist[y * p.w + x] >= 0);
       const fromCentre = (t) => cheb(t[0], t[1], p.keeperRoom.cx, p.keeperRoom.cy);
       const kc = kt.sort((a, b) => fromCentre(a) - fromCentre(b))[0];
       const species = rng.pick(actSpecies(act).filter((m) => m.role === 'brute' || m.role === 'tank' || m.role === 'skirmisher'));
@@ -101,7 +101,7 @@
     // ---- normal packs up to the budget ----
     const diff = BD.data.difficulties[spec.difficulty || 'penitent'];
     const ascMult = (spec.ascension || 0) >= 6 ? 1.25 : 1;
-    let budget = Math.round(BD.core.util.lerp(B.gen.budgetMin, B.gen.budgetMax, (fl.n - 1) / 11) * diff.spawn * ascMult);
+    let budget = Math.round(BD.core.util.lerp(Balance.gen.budgetMin, Balance.gen.budgetMax, (fl.n - 1) / 11) * diff.spawn * ascMult);
     // set-piece monster spots get packs first
     const mSpots = p.markers.filter((m) => m.ch === 'M');
     const anchors = [];
@@ -175,7 +175,7 @@
     }
     // a few chests and loot piles in rooms (not on packs, not near the stairs)
     const roomTiles = new Set();
-    for (const r of p.rooms) if (!r.setpiece && r !== p.upRoom) for (const [x, y] of C.roomTiles(p, r)) roomTiles.add(y * p.w + x);
+    for (const r of p.rooms) if (!r.setpiece && r !== p.upRoom) for (const [x, y] of Carve.roomTiles(p, r)) roomTiles.add(y * p.w + x);
     const free = floorList.filter(([x, y]) => roomTiles.has(y * p.w + x) && !taken.has(y * p.w + x));
     const nChest = rng.int(1, 3), nPile = rng.int(1, 2);
     for (let i = 0; i < nChest + nPile && i < free.length; i++) {

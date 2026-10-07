@@ -3,22 +3,21 @@
 (function (BD) {
   'use strict';
 
-  const BS = BD.sim.bosses;
-  const AI = () => BD.sim.ai;
-  const MV = () => BD.sim.ai_moves;
-  const MON = BD.sim.monsters;
-  const E = BD.sim.entities;
-  const G = BD.core.grid;
+  const Bosses = BD.sim.bosses;
+  const AiMoves = () => BD.sim.ai_moves;
+  const Monsters = BD.sim.monsters;
+  const Entities = BD.sim.entities;
+  const Grid = BD.core.grid;
   const { dirOf } = BD.core.util;
-  const reg = BS.registerMove;
-  const tele = BS.telegraph;
-  const after = BS.after;
+  const reg = Bosses.registerMove;
+  const tele = Bosses.telegraph;
+  const after = Bosses.after;
 
   // ---------------- Hakthul ----------------
   reg('shield_charge', {
     start(world, e, m, ctx) {
       const t = ctx.tgt;
-      const tiles = G.rayTiles(e.x, e.y, t.x - e.x, t.y - e.y, m.length);
+      const tiles = Grid.rayTiles(e.x, e.y, t.x - e.x, t.y - e.y, m.length);
       e.dir = dirOf(t.x - e.x, t.y - e.y);
       const z = BD.sim.zones.create(world, {
         tiles, cx: e.x, cy: e.y, armMs: m.armMs,
@@ -27,11 +26,11 @@
       return tele(world, e, [z], { kind: 'shield_charge', tiles, m, again: !!m.twice }, m.armMs);
     },
     resolve(world, e, act) {
-      const c = MV().chargeLine(world, e, act.tiles, act.m.mult, act.m.exposedMs);
+      const c = AiMoves().chargeLine(world, e, act.tiles, act.m.mult, act.m.exposedMs);
       if (act.again && e.ai.state !== 'exposed') {
         // phase 2: a second charge straight away
         const p = world.player;
-        const tiles = G.rayTiles(e.x, e.y, p.x - e.x, p.y - e.y, act.m.length);
+        const tiles = Grid.rayTiles(e.x, e.y, p.x - e.x, p.y - e.y, act.m.length);
         const z = BD.sim.zones.create(world, {
           tiles, cx: e.x, cy: e.y, armMs: act.m.armMs,
           faction: 'monster', srcId: e.id, school: 'blood', heavy: true, resolve: null, kind: 'charge_mark',
@@ -46,9 +45,9 @@
   reg('hellfire', {
     start(world, e, m, ctx) {
       const t = ctx.tgt;
-      const z = MV().strike(world, e, MV().diamond(t.x, t.y, 1), m.armMs, m.mult, {
+      const z = AiMoves().strike(world, e, AiMoves().diamond(t.x, t.y, 1), m.armMs, m.mult, {
         element: 'fire', school: 'fire', cx: t.x, cy: t.y, kind: 'hellfire',
-        linger: { kind: 'burning_ground', durMs: 3000, amount: MON.avgDmg(world, e) * 0.4 },
+        linger: { kind: 'burning_ground', durMs: 3000, amount: Monsters.avgDmg(world, e) * 0.4 },
       });
       return tele(world, e, [z], { kind: 'hellfire', after: 300 }, Math.min(600, m.armMs));
     },
@@ -58,8 +57,8 @@
     start(world, e, m, ctx) {
       const t = ctx.tgt;
       e.dir = dirOf(t.x - e.x, t.y - e.y);
-      const tiles = G.shapeTiles({ shape: 'cone', length: 2, angle: 120 }, e.x, e.y, { x: t.x - e.x, y: t.y - e.y }, e.dir);
-      const z = MV().strike(world, e, tiles, m.armMs, m.mult, {
+      const tiles = Grid.shapeTiles({ shape: 'cone', length: 2, angle: 120 }, e.x, e.y, { x: t.x - e.x, y: t.y - e.y }, e.dir);
+      const z = AiMoves().strike(world, e, tiles, m.armMs, m.mult, {
         school: 'blood', cx: e.x, cy: e.y, kind: 'cleaving_sweep', tags: ['heavy'],
       });
       return tele(world, e, [z], { kind: 'cleaving_sweep', after: 400, heavy: true }, m.armMs);
@@ -76,17 +75,17 @@
         faction: 'monster', srcId: e.id, school: 'lava', follow: t.id, kind: 'brand', heavy: true,
         resolve: {
           type: 'packet',
-          amounts: { fire: MON.avgDmg(world, e) * m.mult },
-          linger: { kind: 'burning_ground', durMs: 3000, amount: MON.avgDmg(world, e) * 0.5 },
+          amounts: { fire: Monsters.avgDmg(world, e) * m.mult },
+          linger: { kind: 'burning_ground', durMs: 3000, amount: Monsters.avgDmg(world, e) * 0.5 },
         },
       });
-      return AI().windup(world, e, { kind: 'brand', after: 300 }, 500, false);
+      return BD.sim.ai.windup(world, e, { kind: 'brand', after: 300 }, 500, false);
     },
     resolve: after(300),
   });
-  BS.registerPhase('eruptions', (world, e) => {
-    BS.bossState(world, e).eruptEvery = 2000;
-    BS.bossState(world, e).nextErupt = world.time + 1500;
+  Bosses.registerPhase('eruptions', (world, e) => {
+    Bosses.bossState(world, e).eruptEvery = 2000;
+    Bosses.bossState(world, e).nextErupt = world.time + 1500;
   });
 
   /** periodic phase effects: eruptions around the hero while the phase lasts */
@@ -98,8 +97,8 @@
       const p = world.player;
       for (let i = 0; i < 4; i++) {
         const x = p.x + world.rng.int(-6, 6), y = p.y + world.rng.int(-6, 6);
-        if (!E.walkable(world.floor, x, y)) continue;
-        MV().strike(world, e, [[x, y]], 1000, 2.5, { element: 'fire', school: 'lava', cx: x, cy: y, kind: 'eruption' });
+        if (!Entities.walkable(world.floor, x, y)) continue;
+        AiMoves().strike(world, e, [[x, y]], 1000, 2.5, { element: 'fire', school: 'lava', cx: x, cy: y, kind: 'eruption' });
       }
     }
   }

@@ -28,7 +28,10 @@
     const s = hashSeed(String(seed));
     let a = s(), b = s(), c = s(), d = s();
     const next = () => {
-      a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+      a >>>= 0;
+      b >>>= 0;
+      c >>>= 0;
+      d >>>= 0;
       let t = (a + b) | 0;
       a = b ^ (b >>> 9);
       b = (c + (c << 3)) | 0;
@@ -49,7 +52,9 @@
       shuffle: (arr) => {
         for (let i = arr.length - 1; i > 0; i--) {
           const j = Math.floor(next() * (i + 1));
-          const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+          const t = arr[i];
+          arr[i] = arr[j];
+          arr[j] = t;
         }
         return arr;
       },
@@ -64,7 +69,12 @@
         return items[items.length - 1];
       },
       state: () => [a >>> 0, b >>> 0, c >>> 0, d >>> 0],
-      setState: (st) => { a = st[0]; b = st[1]; c = st[2]; d = st[3]; },
+      setState: (st) => {
+        a = st[0];
+        b = st[1];
+        c = st[2];
+        d = st[3];
+      },
     };
     return /** @type {Rng} */ (/** @type {unknown} */ (rng));
   }

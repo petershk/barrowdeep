@@ -4,13 +4,13 @@
   'use strict';
 
   const { T, WALK } = BD.data.tiles;
-  const G = BD.core.grid;
+  const Grid = BD.core.grid;
 
   /** @returns {any} an empty plan filled with walls */
   function newPlan(spec, w, h) {
     return {
       n: spec.n, al: spec.al, biome: spec.biome, seed: spec.seed, w, h,
-      tiles: G.makeGrid(w, h, T.WALL), protect: new Uint8Array(w * h),
+      tiles: Grid.makeGrid(w, h, T.WALL), protect: new Uint8Array(w * h),
       rooms: [], decor: {}, markers: [], objects: [], spawns: [], hidden: [], setpieces: [],
       upPos: null, downPos: null, waypointPos: null, keeperRoom: null, gatePos: null, spawnPos: null,
     };
@@ -34,7 +34,7 @@
     const hid = new Set(p.hidden);
     return (x, y) => x >= 0 && y >= 0 && x < p.w && y < p.h && (WALK[p.tiles[y * p.w + x]] === 1 || hid.has(y * p.w + x));
   }
-  function reach(p, from) { return G.bfs(p.w, p.h, [from], walkFn(p)); }
+  function reach(p, from) { return Grid.bfs(p.w, p.h, [from], walkFn(p)); }
 
   /** Carve an L corridor of the given width between two points (skips protected tiles). */
   function carveL(p, ax, ay, bx, by, width, horizFirst) {
@@ -92,7 +92,7 @@
   function tunnel(p, from, to) {
     const N = p.w * p.h;
     const g = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1);
-    const heap = G.makeHeap(256);
+    const heap = Grid.makeHeap(256);
     const hid = new Set(p.hidden);
     const s = idx(p, from[0], from[1]), goal = idx(p, to[0], to[1]);
     g[s] = 0; heap.push(s, 0);

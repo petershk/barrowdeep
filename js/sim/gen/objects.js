@@ -5,12 +5,12 @@
   'use strict';
 
   const { T } = BD.data.tiles;
-  const C = BD.sim.gen.carve;
+  const Carve = BD.sim.gen.carve;
   const { cheb } = BD.core.util;
 
   function corridorish(p, x, y) {
     // a tile is in a narrow corridor if both perpendicular sides are blocked within 1 tile
-    const wk = (a, b) => BD.data.tiles.WALK[C.get(p, a, b)] === 1;
+    const wk = (a, b) => BD.data.tiles.WALK[Carve.get(p, a, b)] === 1;
     const horiz = (!wk(x, y - 1) || !wk(x, y + 1))
       && ((!wk(x, y - 1) && !wk(x, y + 1)) || (!wk(x, y - 2) && !wk(x, y + 1)) || (!wk(x, y - 1) && !wk(x, y + 2)));
     const vert = (!wk(x - 1, y) || !wk(x + 1, y))
@@ -29,7 +29,7 @@
       const cands = [];
       for (const r of p.rooms) {
         if (r === p.upRoom || r.setpiece) continue;
-        for (const [x, y] of C.roomTiles(p, r)) {
+        for (const [x, y] of Carve.roomTiles(p, r)) {
           const i = y * p.w + x;
           if (p.tiles[i] === T.FLOOR && dist[i] >= 0 && !taken.has(i) && far(x, y) && !corridorish(p, x, y)) cands.push([x, y]);
         }
@@ -61,7 +61,7 @@
     const rooms = rng.shuffle(p.rooms.filter((r) => r !== p.upRoom && r !== p.keeperRoom && !r.setpiece));
     const room = rooms[0];
     if (!room) return;
-    const spots = C.roomTiles(p, room).filter(([x, y]) => {
+    const spots = Carve.roomTiles(p, room).filter(([x, y]) => {
       const i = y * p.w + x;
       return p.tiles[i] === T.FLOOR && dist[i] >= 0 && !taken.has(i) && far(x, y);
     });

@@ -5,13 +5,13 @@
   'use strict';
 
   const { T } = BD.data.tiles;
-  const C = BD.sim.gen.carve;
+  const Carve = BD.sim.gen.carve;
 
   function tryRoom(p, rng, w, h, margin) {
     for (let a = 0; a < 80; a++) {
       const x = rng.int(2, p.w - w - 2), y = rng.int(2, p.h - h - 2);
-      if (!C.rectFree(p, x, y, w, h, margin)) continue;
-      C.fillRect(p, x, y, w, h, T.FLOOR);
+      if (!Carve.rectFree(p, x, y, w, h, margin)) continue;
+      Carve.fillRect(p, x, y, w, h, T.FLOOR);
       const r = { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) };
       p.rooms.push(r);
       return r;
@@ -23,9 +23,9 @@
     // two rows of pillars, every other tile, one tile in from the long walls
     const horiz = r.w >= r.h;
     if (horiz) {
-      for (let x = r.x + 2; x < r.x + r.w - 2; x += 2) { C.set(p, x, r.y + 1, T.PILLAR); C.set(p, x, r.y + r.h - 2, T.PILLAR); }
+      for (let x = r.x + 2; x < r.x + r.w - 2; x += 2) { Carve.set(p, x, r.y + 1, T.PILLAR); Carve.set(p, x, r.y + r.h - 2, T.PILLAR); }
     } else {
-      for (let y = r.y + 2; y < r.y + r.h - 2; y += 2) { C.set(p, r.x + 1, y, T.PILLAR); C.set(p, r.x + r.w - 2, y, T.PILLAR); }
+      for (let y = r.y + 2; y < r.y + r.h - 2; y += 2) { Carve.set(p, r.x + 1, y, T.PILLAR); Carve.set(p, r.x + r.w - 2, y, T.PILLAR); }
     }
     r.nave = true;
   }
@@ -52,7 +52,7 @@
     for (const [a, b] of edges) {
       const ra = rooms[a], rb = rooms[b];
       const width = rng.chance(wideChance) ? 3 : 2;
-      C.carveL(p, ra.cx, ra.cy, rb.cx, rb.cy, width, rng.chance(0.5));
+      Carve.carveL(p, ra.cx, ra.cy, rb.cx, rb.cy, width, rng.chance(0.5));
     }
   }
 
@@ -84,17 +84,17 @@
       const n = rng.int(0, 2);
       for (let k = 0; k < n; k++) {
         const x = rng.chance(0.5) ? r.x : r.x + r.w - 1, y = rng.int(r.y + 1, r.y + r.h - 2);
-        if (C.get(p, x, y) === T.FLOOR && !p.protect[C.idx(p, x, y)] && wallAdjacent(p, x, y)) {
-          C.set(p, x, y, T.DECOR);
-          p.decor[C.idx(p, x, y)] = rng.pick(kinds);
+        if (Carve.get(p, x, y) === T.FLOOR && !p.protect[Carve.idx(p, x, y)] && wallAdjacent(p, x, y)) {
+          Carve.set(p, x, y, T.DECOR);
+          p.decor[Carve.idx(p, x, y)] = rng.pick(kinds);
         }
       }
     }
   }
 
   function wallAdjacent(p, x, y) {
-    return C.get(p, x - 1, y) === T.WALL || C.get(p, x + 1, y) === T.WALL
-      || C.get(p, x, y - 1) === T.WALL || C.get(p, x, y + 1) === T.WALL;
+    return Carve.get(p, x - 1, y) === T.WALL || Carve.get(p, x + 1, y) === T.WALL
+      || Carve.get(p, x, y - 1) === T.WALL || Carve.get(p, x, y + 1) === T.WALL;
   }
 
   BD.sim.gen.layouts = BD.sim.gen.layouts || {};

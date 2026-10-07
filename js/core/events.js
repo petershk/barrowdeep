@@ -14,7 +14,10 @@
         let list = subs.get(type);
         if (!list) subs.set(type, (list = []));
         list.push(fn);
-        return () => { const l = subs.get(type); if (l) l.splice(l.indexOf(fn), 1); };
+        return () => {
+          const l = subs.get(type);
+          if (l) l.splice(l.indexOf(fn), 1);
+        };
       },
       /** @param {{type:string}} ev */
       emit(ev) {

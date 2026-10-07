@@ -5,9 +5,8 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const AI = () => BD.sim.ai;
-  const MV = () => BD.sim.ai_moves;
+  const Entities = BD.sim.entities;
+  const AiMoves = () => BD.sim.ai_moves;
   const { cheb } = BD.core.util;
   /** move implementations: { start(world, e, move, ctx) → cost ms | null, resolve?(world, e, act) → ms } */
   const moves = {};
@@ -162,7 +161,7 @@
   /** zone(s) + wind-up in one call; the zone ids are cancelled if the wind-up is interrupted */
   function telegraph(world, e, zones, action, ms) {
     e.ai.zoneIds = zones.map((z) => z.id);
-    return AI().windup(world, e, action, ms);
+    return BD.sim.ai.windup(world, e, action, ms);
   }
   const resolveNoop = { resolve: (world, e, act) => act.after || 300 };
 
@@ -183,9 +182,9 @@
 
   /** delayed strike scheduled by a sweeping move (rows of a cone, waves of fire) */
   BD.core.scheduler.register('boss.zone', (world, pl) => {
-    const e = E.get(world, pl.srcId);
+    const e = Entities.get(world, pl.srcId);
     if (!e || e.dead) return;
-    MV().strike(world, e, pl.tiles, pl.armMs, pl.mult, {
+    AiMoves().strike(world, e, pl.tiles, pl.armMs, pl.mult, {
       school: pl.school, kind: pl.kind, element: pl.element || null,
       statuses: pl.statuses || [], linger: pl.linger || null, knockback: pl.knockback || 0,
     });
