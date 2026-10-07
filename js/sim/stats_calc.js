@@ -96,7 +96,7 @@
     const actH = M.actHp ? M.actHp[Math.min(4, def.act || 1)] || 1 : 1;
     const hpK = M.hpExp ? Math.pow(al, M.hpExp) : Math.pow(M.hpGrowth, al - 1);
     s.maxLife = Math.max(1, Math.round((e.hpBase || def.hp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
-    const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (e.dmgMult || 1);
+    const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK; s.dmgHi = def.dmg[1] * dmgK;
     s.attackCycleMs = def.attackMs;
     s.moveMs = def.moveMs;

@@ -142,7 +142,9 @@
     },
     valkyrie(bot, t, near) {
       const p = bot.world.player, f = p.resources.focus.n;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
+      // Vault out when crowded or hurt; a single melee foe isn't worth the lost shots
+      const adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length, hurt = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.5;
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && (adj >= 2 || hurt) && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
       if (f >= 4 && near.length >= 3 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (f >= 2 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 's4', t, { x: t.x, y: t.y })) return true;

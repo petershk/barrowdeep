@@ -6,7 +6,7 @@
 
   const FAMILY_RES = {
     undead: { fire: 0, cold: 20, light: 0, pois: 40 },
-    demon: { fire: 25, cold: 0, light: 0, pois: 0 },
+    demon: { fire: 35, cold: 0, light: 0, pois: 0 },
     beast: { fire: 0, cold: 0, light: 0, pois: 0 },
     construct: { fire: 0, cold: 0, light: -25, pois: 0 },
     human: { fire: 0, cold: 0, light: 0, pois: 0 },

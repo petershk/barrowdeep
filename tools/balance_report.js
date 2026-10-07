@@ -34,7 +34,8 @@ if (want('ttk')) {
         const v1 = L.ttkOne(BD, cls, n, 'ch' + s, roster[s % roster.length].id, 'champion'); if (v1 != null) c.push(v1);
         const v2 = L.ttkOne(BD, cls, n, 'kp' + s, roster[(s + 1) % roster.length].id, 'keeper'); if (v2 != null) k.push(v2);
       }
-      const r = { trash: L.med(t), champion: L.med(c), keeper: L.med(k) };
+      // typical TTK = mean of the per-species medians (robust to bad seeds, not quantized like a median of 5)
+      const r = { trash: L.mean(t), champion: L.med(c), keeper: L.med(k) };
       meds[cls] = r.trash;
       (out.ttk[n] = out.ttk[n] || {})[cls] = r;
       console.log(String(n).padStart(5), String(fl.al).padStart(3), ' ' + cls.padEnd(9), fmt(r.trash), fmt(r.champion), fmt(r.keeper), '  ', band(r.trash, B.trashTTK), band(r.champion, B.championTTK), band(r.keeper, B.keeperTTK));
@@ -42,6 +43,19 @@ if (want('ttk')) {
     const all = L.med(Object.values(meds).filter((v) => v != null));
     const spread = CLASSES.map((c) => (meds[c] == null ? '?' : ((meds[c] / all - 1) * 100).toFixed(0) + '%')).join(' ');
     console.log('      spread vs median ' + fmt(all) + ': ' + spread);
+  }
+}
+
+// per act: each class's TTK averaged over the act's floors, then the spread against the all-class median
+if (want('ttk')) {
+  const acts = {};
+  for (const n of FLOORS) { const a = BD.data.floors.byN(n).act; (acts[a] = acts[a] || []).push(n); }
+  console.log('\n== Per act (floors pooled): trash TTK by class, spread vs median (band ±' + B.classSpread * 100 + '%)');
+  for (const a in acts) {
+    const by = {};
+    for (const cls of CLASSES) by[cls] = L.mean(acts[a].map((n) => out.ttk[n][cls].trash).filter((v) => v != null));
+    const all = L.med(Object.values(by));
+    console.log('act', a, 'floors', acts[a].join(','), 'median', fmt(all), CLASSES.map((c) => c.slice(0, 4) + fmt(by[c]) + ' ' + ((by[c] / all - 1) * 100).toFixed(0) + '%').join('  '));
   }
 }
 
