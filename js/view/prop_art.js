@@ -2,8 +2,8 @@
 // Pixel-art props (no emoji in the world). Same format as sprite_art: palette keys, K = ink.
 (function (BD) {
   'use strict';
-  const A = BD.view.art;
-  const prop = (id, pal, rows) => { A[id] = { pal, frames: { idle: [rows] }, prop: true }; };
+  const Art = BD.view.art;
+  const prop = (id, pal, rows) => { Art[id] = { pal, frames: { idle: [rows] }, prop: true }; };
 
   prop('prop_chest', { B: '#8a5a2a', b: '#5e3c1a', d: '#3a2410', G: '#d2a73f', g: '#8f6f26' }, [
     '..KKKKKKKKKK..',

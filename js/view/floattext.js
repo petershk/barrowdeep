@@ -49,17 +49,28 @@
   function merge(key, amount, x, y, style, fmt) {
     const m = merges.get(key);
     const now = BD.view.render.timeMs;
-    if (m && now - m.t < 1000) { m.amount += amount; m.item.text = fmt(m.amount); m.item.t = Math.min(m.item.t, 200); return; }
+    if (m && now - m.t < 1000) {
+      m.amount += amount;
+      m.item.text = fmt(m.amount);
+      m.item.t = Math.min(m.item.t, 200);
+      return;
+    }
     add(fmt(amount), x, y, style);
     merges.set(key, { amount, t: now, item: list[list.length - 1] });
   }
 
-  function update(ms) { for (let i = 0; i < list.length; i++) { list[i].t += ms; if (list[i].t >= list[i].st.dur) list.splice(i--, 1); } }
+  function update(ms) {
+    for (let i = 0; i < list.length; i++) {
+      list[i].t += ms;
+      if (list[i].t >= list[i].st.dur) list.splice(i--, 1);
+    }
+  }
 
   function draw(ctx) {
     const v = iso.view, zk = v.Z * v.dpr;
     ctx.save();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     for (const f of list) {
       const st = f.st, k = f.t / st.dur;
@@ -79,7 +90,11 @@
     }
     ctx.restore();
   }
-  function clear() { list.length = 0; merges.clear(); stackT.clear(); }
+  function clear() {
+    list.length = 0;
+    merges.clear();
+    stackT.clear();
+  }
 
   BD.view.floattext = { add, merge, update, draw, clear, STYLES };
 })(globalThis.BD);

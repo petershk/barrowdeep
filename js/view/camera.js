@@ -6,14 +6,21 @@
   const iso = BD.view.iso;
   const cam = { x: 0, y: 0, init: false, trauma: 0, t: 0, shakeX: 0, shakeY: 0, lookX: 0, lookY: 0 };
 
-  function snap(x, y) { cam.x = x; cam.y = y; cam.init = true; }
+  function snap(x, y) {
+    cam.x = x;
+    cam.y = y;
+    cam.init = true;
+  }
 
   /** tx,ty = fractional tile target. dtReal in ms. */
   function update(tx, ty, dtReal, canvasW, canvasH, lookAt) {
     if (!cam.init) snap(tx, ty);
     const k = 1 - Math.exp(-dtReal / 90);
     let gx = tx, gy = ty;
-    if (lookAt) { gx += (lookAt.x - tx) * 0.1; gy += (lookAt.y - ty) * 0.1; }
+    if (lookAt) {
+      gx += (lookAt.x - tx) * 0.1;
+      gy += (lookAt.y - ty) * 0.1;
+    }
     cam.x += (gx - cam.x) * k;
     cam.y += (gy - cam.y) * k;
     cam.t += dtReal;

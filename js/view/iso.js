@@ -14,7 +14,8 @@
   };
 
   function setScale(z, dpr) {
-    view.Z = z; view.dpr = dpr;
+    view.Z = z;
+    view.dpr = dpr;
     view.S = Math.max(1, Math.round(2 * z * dpr));
   }
 
@@ -27,12 +28,14 @@
   /** device px → fractional tile coords */
   function toTileF(sx, sy, out) {
     const a = (sx - view.ox) / (HW * view.S), b = (sy - view.oy) / (HH * view.S);
-    out.x = (a + b) / 2; out.y = (b - a) / 2;
+    out.x = (a + b) / 2;
+    out.y = (b - a) / 2;
     return out;
   }
   function toTile(sx, sy, out) {
     toTileF(sx, sy, out);
-    out.x = Math.round(out.x); out.y = Math.round(out.y);
+    out.x = Math.round(out.x);
+    out.y = Math.round(out.y);
     return out;
   }
 

@@ -45,15 +45,23 @@
     quiver: { g: 3, rows: ['K9.9', 'K5K.', 'K5K.', 'K5K.', 'K6K.', '.K..'] },
   };
 
+  /** offhand art key: bucklers and tower shields have their own art, other shields share one */
+  function offhandKind(o) {
+    if (o.id === 'buckler' || o.id === 'tower') return o.id;
+    if (o.category === 'shield') return 'shield';
+    return o.category || '-';
+  }
+
   /** the doll key for an entity, or '' when it shows its default painted gear */
   function dollOf(e) {
     if (e.kind !== 'player' || !e.equip) return '';
-    const B = BD.data.bases;
-    const w = e.equip.weapon && B[e.equip.weapon.base], o = e.equip.offhand && B[e.equip.offhand.base];
-    let wk = w ? (w.category === 'blade' && w.hands === 2 ? 'blade2' : w.category) : '-';
+    const Bases = BD.data.bases;
+    const w = e.equip.weapon && Bases[e.equip.weapon.base], o = e.equip.offhand && Bases[e.equip.offhand.base];
+    let wk = '-';
+    if (w) wk = w.category === 'blade' && w.hands === 2 ? 'blade2' : w.category;
     if (!WEAPON[wk]) wk = '-';
     let ok = '-';
-    if (o) ok = o.id === 'buckler' ? 'buckler' : o.id === 'tower' ? 'tower' : o.category === 'shield' ? 'shield' : o.category || '-';
+    if (o) ok = offhandKind(o);
     if (!OFFHAND[ok]) ok = '-';
     return wk + '|' + ok;
   }
