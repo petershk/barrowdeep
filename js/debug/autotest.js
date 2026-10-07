@@ -29,6 +29,8 @@
   };
 
   const m = /[?&]autotest=([a-z0-9_]+)/.exec(location.search);
+  // scenes are for screenshots: first-run hints stay out of them (except the hints scene itself)
+  if (m && m[1] !== 'hints' && BD.ui.options) BD.ui.options.all.hints = false;
   if (m) {
     const name = m[1];
     const s = document.createElement('script');

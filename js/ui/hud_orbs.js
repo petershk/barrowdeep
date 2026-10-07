@@ -61,7 +61,7 @@
     const s = BD.sim.stats.statsOf(world, p);
     const lf = Math.max(0, p.hp) / s.maxLife;
     drawOrb(life, lf, '#d02020', '#4a0606', t, lf < 0.25 && !p.dead);
-    setText(life.val, Math.ceil(Math.max(0, p.hp)) + ' / ' + s.maxLife);
+    setText(life.val, (p.dead ? 0 : Math.ceil(Math.max(0, p.hp))) + ' / ' + s.maxLife);
     setText(life.lab, 'Life');
     const kind = BD.data.classes[p.cls].resource;
     const r = p.resources;

@@ -49,7 +49,13 @@
     shownT = 9000;
   }
   function dismiss() { if (card) card.classList.remove('show'); current = null; setTimeout(next, 350); }
-  function frame(ms) { if (current && (shownT -= ms) <= 0) dismiss(); }
+  function frame(ms) {
+    if (!current || !card) return;
+    // panels own the screen: hide the card (and hold its timer) while one is open
+    const covered = BD.ui.panels.top() || BD.app.state !== 'playing';
+    card.classList.toggle('show', !covered);
+    if (!covered && (shownT -= ms) <= 0) dismiss();
+  }
   function reset() { BD.ui.meta.get().hints = {}; BD.ui.meta.save(); }
 
   function wire(bus) {
