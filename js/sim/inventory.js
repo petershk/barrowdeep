@@ -4,7 +4,7 @@
 (function (BD) {
   'use strict';
 
-  const CMD = BD.sim.commands;
+  const Commands = BD.sim.commands;
   const PACK = 30;
   const { cheb } = BD.core.util;
 
@@ -131,7 +131,7 @@
   }
 
   // ---- commands ----
-  CMD.register('Pickup', (world, c) => {
+  Commands.register('Pickup', (world, c) => {
     const p = world.player, g = world.floor.items.find((it) => it.uid === c.itemUid);
     if (!g) return false;
     if (cheb(p.x, p.y, g.x, g.y) <= 1) return pickup(world, c.itemUid);
@@ -139,9 +139,9 @@
     p.intent = { kind: 'pickup', uid: c.itemUid, path: path || [] };
     return true;
   });
-  CMD.register('Equip', (world, c) => equip(world, c.uid, c.slot), { ui: true });
-  CMD.register('Unequip', (world, c) => unequip(world, c.slot), { ui: true });
-  CMD.register('Drop', (world, c) => {
+  Commands.register('Equip', (world, c) => equip(world, c.uid, c.slot), { ui: true });
+  Commands.register('Unequip', (world, c) => unequip(world, c.slot), { ui: true });
+  Commands.register('Drop', (world, c) => {
     const p = world.player;
     const i = p.pack.findIndex((it) => it.uid === c.uid);
     if (i < 0) return false;
@@ -149,12 +149,12 @@
     BD.sim.loot.dropAt(world, p.x, p.y, { kind: 'item', item: it });
     return true;
   }, { ui: true });
-  CMD.register('Lock', (world, c) => {
+  Commands.register('Lock', (world, c) => {
     const it = world.player.pack.find((x) => x.uid === c.uid);
     if (it) it.locked = !it.locked;
     return true;
   }, { ui: true });
-  CMD.register('ReadScroll', (world, c) => (BD.sim.portal ? BD.sim.portal.read(world, c.kind) : false), { ui: true });
+  Commands.register('ReadScroll', (world, c) => (BD.sim.portal ? BD.sim.portal.read(world, c.kind) : false), { ui: true });
 
   BD.sim.inventory = { PACK, canEquip, slotFor, equip, unequip, pickup, system, material, clampResources };
   BD.sim.world.addSystem('pickups', system, 12);

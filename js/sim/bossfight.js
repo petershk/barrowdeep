@@ -4,17 +4,17 @@
 (function (BD) {
   'use strict';
 
-  const I = () => BD.sim.interact;
-  const FL = BD.data.floors;
+  const Interact = () => BD.sim.interact;
+  const FloorData = BD.data.floors;
   const COUNTDOWN = 3000;
 
   function useGate(world) {
     const f = world.floor, r = world.run;
-    if (!r.flags['key' + f.n]) { I().deny(world, 'gate_locked'); return; }
+    if (!r.flags['key' + f.n]) { Interact().deny(world, 'gate_locked'); return; }
     if (!f.gateOpen) {
       f.gateOpen = true;
       world.events.push({ type: 'gate.open', x: f.gatePos.x, y: f.gatePos.y });
-      I().announce(world, 'gate_open');
+      Interact().announce(world, 'gate_open');
     }
     enterArena(world, f.n);
   }
@@ -65,8 +65,8 @@
     world.events.push({ type: 'announce', text: BD.data.strings.t('boss_slain', { name: d.name }), style: 'boss' });
     if (malgoth) { if (BD.sim.death) BD.sim.death.onVictory(world); return; }
     // act transition: next act's waypoint, town stock moves on
-    const act = FL.byN(f.n).act;
-    const next = FL.firstOfAct(act + 1);
+    const act = FloorData.byN(f.n).act;
+    const next = FloorData.firstOfAct(act + 1);
     if (act < 4 && !r.waypoints.includes(next)) r.waypoints.push(next);
     if (act === 4) r.flags.sanctum = true;
     r.flags['act' + act + 'Done'] = true;
@@ -84,7 +84,7 @@
   }
 
   BD.sim.interact.registerObject('exit_portal', (world) => {
-    world.run.act = Math.max(world.run.act, Math.min(4, FL.byN(world.floor.n).act + 1));
+    world.run.act = Math.max(world.run.act, Math.min(4, FloorData.byN(world.floor.n).act + 1));
     BD.sim.run.travel(world, 'town', 'portal');
   });
 

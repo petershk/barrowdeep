@@ -3,9 +3,9 @@
 (function (BD) {
   'use strict';
 
-  const B = BD.data.balance;
-  const AF = () => BD.data.affixes;
-  const BS = () => BD.data.bases;
+  const Balance = BD.data.balance;
+  const Affixes = () => BD.data.affixes;
+  const Bases = () => BD.data.bases;
   const { dropCount } = BD.core.rng;
 
   /** slot words a base satisfies for affix eligibility */
@@ -34,14 +34,14 @@
   const usableShare = new Map();
   function smartP(cls) {
     if (!usableShare.has(cls)) {
-      const all = Object.values(BS());
+      const all = Object.values(Bases());
       const u = all.filter((b) => usableBy(cls, b)).length / all.length;
       usableShare.set(cls, Math.max(0, (0.65 - u) / (1 - u)));
     }
     return usableShare.get(cls);
   }
   function pickBase(rng, cls, o) {
-    let list = Object.values(BS());
+    let list = Object.values(Bases());
     if (o && o.slot) list = list.filter((b) => b.slot === o.slot || (o.slot === 'ring' && b.slot === 'ring'));
     if (cls && (o && o.usable || rng.chance(smartP(cls)))) { const u = list.filter((b) => usableBy(cls, b)); if (u.length) list = u; }
     return rng.pick(list);
@@ -51,7 +51,7 @@
   function eligible(base, band, cls, taken) {
     const tags = slotTags(base);
     const can = classesFor(base);
-    return Object.values(AF()).filter((a) => {
+    return Object.values(Affixes()).filter((a) => {
       if (a.band !== band || a.legendaryOnly) return false;
       if (taken.has(a.stat || a.id)) return false;
       if (band === 'core') return a.slots.some((s) => tags.indexOf(s) >= 0) && (!a.cls || can.indexOf(a.cls) >= 0);
@@ -92,7 +92,7 @@
   function magicName(base, affixes) {
     let pre = null, suf = null;
     for (const a of affixes) {
-      const d = AF()[a.id];
+      const d = Affixes()[a.id];
       if (!d || !d.name) continue;
       if (d.name[0] === 'prefix' && !pre) pre = d.name[1];
       if (d.name[0] === 'suffix' && !suf) suf = d.name[1];
@@ -100,8 +100,8 @@
     return (pre ? pre + ' ' : '') + base.name + (suf ? ' ' + suf : '');
   }
   function rareName(rng, base) {
-    const N = BD.data.rareNames;
-    return rng.pick(N.PRE) + rng.pick(N.SUF) + ' ' + base.name;
+    const RareNames = BD.data.rareNames;
+    return rng.pick(RareNames.PRE) + rng.pick(RareNames.SUF) + ' ' + base.name;
   }
 
   /** legendary pool unlocked for this account */
@@ -132,7 +132,7 @@
     const rarity = o.rarity || rollRarity(rng, o.mf != null ? o.mf : mfOf(world), o.min);
     if (rarity === 'legendary' && !o.slot) return makeLegendary(world, rng, o.ilvl, cls);
     if (rarity === 'legendary' && o.slot) {
-      const pool = legendaryPool(world).filter((l) => BS()[l.base].slot === o.slot);
+      const pool = legendaryPool(world).filter((l) => Bases()[l.base].slot === o.slot);
       if (pool.length) return makeLegendary(world, rng, o.ilvl, cls, rng.pick(pool).id);
     }
     const base = pickBase(rng, cls, o);
@@ -159,8 +159,8 @@
   function dropAt(world, x, y, g) {
     const f = world.floor;
     const used = new Set(f.items.map((i) => i.y * f.w + i.x));
-    const E = BD.sim.entities;
-    const spot = E.nearestFree(f, x, y, 4, (tx, ty) => !used.has(ty * f.w + tx)) || E.nearestFree(f, x, y, 4) || { x, y };
+    const Entities = BD.sim.entities;
+    const spot = Entities.nearestFree(f, x, y, 4, (tx, ty) => !used.has(ty * f.w + tx)) || Entities.nearestFree(f, x, y, 4) || { x, y };
     const gi = Object.assign({ uid: g.item ? g.item.uid : BD.sim.items.newUid(world), x: spot.x, y: spot.y }, g);
     f.items.push(gi);
     world.events.push({

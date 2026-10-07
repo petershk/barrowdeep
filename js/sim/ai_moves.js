@@ -3,9 +3,9 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const MON = BD.sim.monsters;
-  const G = BD.core.grid;
+  const Entities = BD.sim.entities;
+  const Monsters = BD.sim.monsters;
+  const Grid = BD.core.grid;
 
   /** Charge along a pre-telegraphed line. Hitting a wall/pillar = Exposed. */
   function chargeLine(world, e, tiles, mult, exposedMs) {
@@ -13,12 +13,12 @@
     let last = null, hitWall = false, victim = null;
     let px = e.x, py = e.y;
     for (const [x, y] of tiles) {
-      if (!E.walkable(f, x, y)) { hitWall = true; break; }
+      if (!Entities.walkable(f, x, y)) { hitWall = true; break; }
       const dx = x - px, dy = y - py;
-      if (dx && dy && !(E.walkable(f, px + dx, py) && E.walkable(f, px, py + dy))) { hitWall = true; break; }
-      const occ = E.occupant(f, x, y);
+      if (dx && dy && !(Entities.walkable(f, px + dx, py) && Entities.walkable(f, px, py + dy))) { hitWall = true; break; }
+      const occ = Entities.occupant(f, x, y);
       if (occ && occ !== e.id) {
-        const o = E.get(world, occ);
+        const o = Entities.get(world, occ);
         if (o && o.faction !== e.faction) { victim = o; break; }
         break;
       }
@@ -31,7 +31,7 @@
     }
     if (victim) {
       BD.sim.damage.dealDamage(world, {
-        srcId: e.id, tgtId: victim.id, amounts: MON.hitAmounts(world, e, mult), tags: ['melee', 'charge', 'heavy'],
+        srcId: e.id, tgtId: victim.id, amounts: Monsters.hitAmounts(world, e, mult), tags: ['melee', 'charge', 'heavy'],
         canCrit: false, canDodge: false, canBlock: true, mult: 1,
       });
       BD.sim.hits.knockback(world, victim, e.x, e.y, 1);
@@ -46,8 +46,8 @@
   /** a telegraphed area strike centred on tiles; returns the zone */
   function strike(world, e, tiles, armMs, mult, o) {
     o = o || {};
-    const amounts = o.element ? { [o.element]: MON.avgDmg(world, e) * mult } : MON.hitAmounts(world, e, mult);
-    if (o.element) amounts[o.element] = MON.avgDmg(world, e) * mult;
+    const amounts = o.element ? { [o.element]: Monsters.avgDmg(world, e) * mult } : Monsters.hitAmounts(world, e, mult);
+    if (o.element) amounts[o.element] = Monsters.avgDmg(world, e) * mult;
     return BD.sim.zones.create(world, {
       tiles, cx: o.cx != null ? o.cx : tiles[0][0], cy: o.cy != null ? o.cy : tiles[0][1], armMs, faction: 'monster', srcId: e.id,
       school: o.school || 'blood', heavy: mult >= 1.5, kind: o.kind || 'strike', label: o.label || null,
@@ -58,11 +58,11 @@
     });
   }
 
-  const circle = (cx, cy, r) => G.shapeOffsets('circle', r).map(([dx, dy]) => [cx + dx, cy + dy]);
-  const ring = (cx, cy, r) => G.shapeOffsets('ring', r).map(([dx, dy]) => [cx + dx, cy + dy]);
-  const cross = (cx, cy, r) => G.shapeOffsets('cross', r || 1).map(([dx, dy]) => [cx + dx, cy + dy]);
-  const square = (cx, cy, r) => G.shapeOffsets('square', r).map(([dx, dy]) => [cx + dx, cy + dy]);
-  const diamond = (cx, cy, r) => G.shapeOffsets('diamond', r).map(([dx, dy]) => [cx + dx, cy + dy]);
+  const circle = (cx, cy, r) => Grid.shapeOffsets('circle', r).map(([dx, dy]) => [cx + dx, cy + dy]);
+  const ring = (cx, cy, r) => Grid.shapeOffsets('ring', r).map(([dx, dy]) => [cx + dx, cy + dy]);
+  const cross = (cx, cy, r) => Grid.shapeOffsets('cross', r || 1).map(([dx, dy]) => [cx + dx, cy + dy]);
+  const square = (cx, cy, r) => Grid.shapeOffsets('square', r).map(([dx, dy]) => [cx + dx, cy + dy]);
+  const diamond = (cx, cy, r) => Grid.shapeOffsets('diamond', r).map(([dx, dy]) => [cx + dx, cy + dy]);
 
   BD.sim.ai_moves = { chargeLine, strike, circle, ring, cross, square, diamond };
 })(globalThis.BD);

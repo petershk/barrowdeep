@@ -53,9 +53,9 @@
       d.mods[k] = (d.mods[k] || 0) + b.implicit[k];
       d.lines.push({ key: k, value: b.implicit[k], implicit: true });
     }
-    const AF = BD.data.affixes;
+    const Affixes = BD.data.affixes;
     for (const a of item.affixes || []) {
-      const af = AF && AF[a.id];
+      const af = Affixes && Affixes[a.id];
       if (!af) continue;
       if (af.stat === 'skill_plus' || af.special) {
         const value = a.skill ? (a.n || 1) : 0;

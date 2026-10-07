@@ -4,11 +4,11 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const MD = () => BD.data.monsters;
-  const CM = () => BD.data.championMods;
+  const Entities = BD.sim.entities;
+  const MonsterData = () => BD.data.monsters;
+  const ChampionMods = () => BD.data.championMods;
 
-  function defOf(e) { return MD()[e.def] || (BD.data.bosses && BD.data.bosses[e.def]) || null; }
+  function defOf(e) { return MonsterData()[e.def] || (BD.data.bosses && BD.data.bosses[e.def]) || null; }
   function family(e) { const d = defOf(e); return d ? d.family : ''; }
   function hasBehaviour(e, id) { const d = defOf(e); return !!(d && d.behaviours && d.behaviours.some((b) => b.id === id)); }
   function behaviour(e, id) { const d = defOf(e); return d && d.behaviours ? d.behaviours.find((b) => b.id === id) || null : null; }
@@ -17,8 +17,8 @@
 
   /** Create a monster entity (not yet placed). m: plan member {def, x, y, rank, mods, name, keeper, packLeader} */
   function create(world, f, id, m, pack) {
-    const d = MD()[m.def] || BD.data.bosses[m.def];
-    const e = E.makeEntity(id, 'monster', m.def, m.x, m.y, {
+    const d = MonsterData()[m.def] || BD.data.bosses[m.def];
+    const e = Entities.makeEntity(id, 'monster', m.def, m.x, m.y, {
       rank: m.rank || 'normal', mods: (m.mods || []).slice(), packId: m.packId != null ? m.packId : pack ? pack.id : null, al: m.al || f.al,
       name: m.name || null, keeper: !!m.keeper, faction: 'monster', palOverride: m.palOverride || null, hpMult: m.hpMult || 1,
       hpBase: m.hpBase || null, dmgMult: m.dmgMult || 1, signature: m.signature || null, eventId: m.eventId || null,
@@ -37,7 +37,7 @@
   function spawn(world, def, x, y, o) {
     const f = world.floor;
     // runtime spawns only land on tiles reachable from the level's entrance (never in sealed pockets)
-    const spot = E.nearestFree(f, x, y, 4, f.reach ? (sx, sy) => f.reach[sy * f.w + sx] >= 0 : null);
+    const spot = Entities.nearestFree(f, x, y, 4, f.reach ? (sx, sy) => f.reach[sy * f.w + sx] >= 0 : null);
     if (!spot) return null;
     const id = world.nextId++;
     const spec = Object.assign({ def, x: spot.x, y: spot.y, al: f.al, rank: 'normal' }, o || {});
@@ -45,14 +45,14 @@
     e.runtime = true;
     e.home = { x: spot.x, y: spot.y };
     f.entities.set(id, e);
-    E.occupy(f, e);
+    Entities.occupy(f, e);
     world.events.push({ type: 'spawn', id, def, x: spot.x, y: spot.y, rank: e.rank });
     if (o && o.alert !== false && BD.sim.ai) BD.sim.ai.alert(world, e, world.player, true);
     return e;
   }
   /** zone payload helper: spawn one def on each tile */
   function spawnAt(world, sp, tiles, srcId) {
-    const owner = E.get(world, srcId);
+    const owner = Entities.get(world, srcId);
     for (const [x, y] of tiles) {
       spawn(world, sp.def, x, y, { noLoot: true, noXp: true, packId: owner ? owner.packId : null, spawnedBy: srcId });
     }
@@ -61,7 +61,7 @@
   /** derived-stat contributions from mods (called by statsOf) */
   function modStats(world, e, s, add) {
     for (const id of e.mods) {
-      const m = CM()[id];
+      const m = ChampionMods()[id];
       if (!m) continue;
       if (m.dmgMult) { s.dmgLo *= m.dmgMult; s.dmgHi *= m.dmgMult; }
       if (m.dr) add('dr_pct', m.dr, m.name);
@@ -69,7 +69,7 @@
     }
     if (e.ai && e.ai.state === 'dormant') add('dr_pct', 40, 'Dormant');
     // Fanatic: the whole pack attacks faster
-    if (e.packId != null && packHasMod(world, e.packId, 'fanatic')) s.attackCycleMs /= CM().fanatic.packIas;
+    if (e.packId != null && packHasMod(world, e.packId, 'fanatic')) s.attackCycleMs /= ChampionMods().fanatic.packIas;
   }
   function packHasMod(world, packId, mod) {
     const f = world.floor;
@@ -84,7 +84,7 @@
   }
   function speedMult(world, e) {
     let k = 1;
-    for (const id of e.mods) { const m = CM()[id]; if (m && m.speedMult) k *= m.speedMult; }
+    for (const id of e.mods) { const m = ChampionMods()[id]; if (m && m.speedMult) k *= m.speedMult; }
     if (world.run.ascension >= 2) k *= 1.1;
     if (e.bossSpeed) k *= e.bossSpeed;
     return k;
@@ -97,7 +97,7 @@
     const v = (s.dmgLo + world.rng.next() * (s.dmgHi - s.dmgLo)) * (mult || 1);
     const out = {};
     out[d.element || 'phys'] = v;
-    for (const id of e.mods) { const m = CM()[id]; if (m && m.addElement) out[m.addElement] = (out[m.addElement] || 0) + v * m.addPct; }
+    for (const id of e.mods) { const m = ChampionMods()[id]; if (m && m.addElement) out[m.addElement] = (out[m.addElement] || 0) + v * m.addPct; }
     return out;
   }
   /** average damage of one basic hit (for zone multipliers and traps) */

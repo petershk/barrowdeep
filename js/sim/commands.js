@@ -8,7 +8,7 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
+  const Entities = BD.sim.entities;
 
   /** @type {Record<string, (world:any, cmd:any)=>any>} */
   const handlers = {};
@@ -59,7 +59,7 @@
   });
   register('Stop', (world) => { world.player.intent = { kind: 'idle' }; });
   register('Engage', (world, c) => {
-    const t = E.get(world, c.entityId);
+    const t = Entities.get(world, c.entityId);
     if (!t || t.faction === 'player') return;
     world.player.intent = { kind: 'engage', targetId: c.entityId, hold: !!c.hold };
     world.player.lockId = c.entityId;

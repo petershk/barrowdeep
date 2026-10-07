@@ -5,9 +5,9 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const MON = BD.sim.monsters;
-  const B = BD.data.balance;
+  const Entities = BD.sim.entities;
+  const Monsters = BD.sim.monsters;
+  const Balance = BD.data.balance;
   const { within, cheb, dirOf } = BD.core.util;
 
   /** @type {Record<string, any>} behaviour id → { decide?, resolve?, onHit?, onDeath?, passive? } */
@@ -37,7 +37,7 @@
     if (ai.state === 'idle' || ai.state === 'dormant') {
       const wasDormant = ai.state === 'dormant';
       ai.state = 'alert';
-      ai.timer = force ? 0 : B.monsters.reactionMs;
+      ai.timer = force ? 0 : Balance.monsters.reactionMs;
       ai.targetId = src && src.faction === 'player' ? src.id : world.player.id;
       ai.lastSeenMs = world.time;
       if (wasDormant) BD.sim.stats.bump(e);
@@ -57,8 +57,8 @@
     const ai = e.ai;
     // taunt overrides
     const t = BD.sim.status.has(e, 'taunted');
-    if (t && t.sourceId != null) { const tt = E.get(world, t.sourceId); if (tt && !tt.dead) return tt; }
-    let tgt = ai.targetId != null ? E.get(world, ai.targetId) : null;
+    if (t && t.sourceId != null) { const tt = Entities.get(world, t.sourceId); if (tt && !tt.dead) return tt; }
+    let tgt = ai.targetId != null ? Entities.get(world, ai.targetId) : null;
     if (!tgt || tgt.dead || tgt.hp <= 0 || tgt.faction === e.faction) { tgt = world.player; ai.targetId = tgt.id; }
     return tgt;
   }
@@ -68,7 +68,7 @@
     const allies = world.floor.allies || [];
     let pick = world.player;
     for (const id of allies) {
-      const a = E.get(world, id);
+      const a = Entities.get(world, id);
       if (!a || a.dead || !a.decoy) continue;
       if (cheb(a.x, a.y, e.x, e.y) > 8) continue;
       if (world.rng.chance(a.decoy)) { pick = a; break; }
@@ -79,15 +79,15 @@
   function notice(world, e) {
     if (e.ai.held) return;
     const p = world.player;
-    const d = MON.defOf(e);
+    const d = Monsters.defOf(e);
     const ai = e.ai;
     if (ai.state === 'dormant') {
-      const b = MON.behaviour(e, 'dormant');
+      const b = Monsters.behaviour(e, 'dormant');
       if (b && within(e.x, e.y, p.x, p.y, b.wakeDist)) alert(world, e, p, false);
       return;
     }
     if (p.dead) return;
-    let range = (d.aggro && d.aggro.notice) || B.monsters.notice;
+    let range = (d.aggro && d.aggro.notice) || Balance.monsters.notice;
     if (BD.sim.powers) range = BD.sim.powers.noticeRange(world, p, range);
     if (BD.sim.status.has(p, 'hidden')) return;
     if (!within(e.x, e.y, p.x, p.y, range)) return;
@@ -175,7 +175,7 @@
 
   function decide(world, e) {
     const ai = e.ai;
-    const d = MON.defOf(e);
+    const d = Monsters.defOf(e);
     const tgt = targetOf(world, e);
     const ctx = { tgt, dist: Math.hypot(tgt.x - e.x, tgt.y - e.y), adj: cheb(tgt.x, tgt.y, e.x, e.y) <= 1, los: null };
     ctx.hasLos = () => (ctx.los === null ? (ctx.los = BD.sim.targeting.hasLOS(world, e.x, e.y, tgt.x, tgt.y)) : ctx.los);
@@ -184,9 +184,9 @@
     // fear / flee
     if (BD.sim.status.has(e, 'feared') || ai.fleeMs > world.time) { ai.timer = flee(world, e, ctx); return; }
     // leash: home if too far and the player hasn't been seen for 4 s
-    const leash = (d.aggro && d.aggro.leash) || B.monsters.leash;
+    const leash = (d.aggro && d.aggro.leash) || Balance.monsters.leash;
     if (ctx.hasLos() && ctx.dist <= 12) ai.lastSeenMs = world.time;
-    const lostSight = world.time - ai.lastSeenMs > B.monsters.leashLostMs;
+    const lostSight = world.time - ai.lastSeenMs > Balance.monsters.leashLostMs;
     if (!e.keeper && e.rank !== 'boss' && cheb(e.x, e.y, e.home.x, e.home.y) > leash && lostSight) {
       ai.timer = goHome(world, e); return;
     }
@@ -218,7 +218,7 @@
   }
   /** chase the target; phasing monsters go straight through walls */
   function chase(world, e, tgt) {
-    if (MON.hasBehaviour(e, 'phase')) {
+    if (Monsters.hasBehaviour(e, 'phase')) {
       if (e.immobile) return null;
       const st = BD.sim.pathing.phaseStep(world, e, tgt.x, tgt.y);
       if (!st) return null;
@@ -227,7 +227,7 @@
       const f = world.floor;
       e.move = { fromX: e.x, fromY: e.y, toX: st[0], toY: st[1], elapsed: 0, dur: ms };
       e.dir = dirOf(st[0] - e.x, st[1] - e.y);
-      E.relocate(f, e, st[0], st[1]);
+      Entities.relocate(f, e, st[0], st[1]);
       return ms;
     }
     if (tgt.kind === 'player') return stepAlong(world, e, BD.sim.pathing.chaseField(world), false);
@@ -261,11 +261,11 @@
   // reactive behaviour hooks
   BD.sim.damage.onHitHooks.push((world, src, tgt, pk, res) => {
     if (tgt.kind === 'monster') {
-      const d = MON.defOf(tgt);
+      const d = Monsters.defOf(tgt);
       for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onHit) BEH[b.id].onHit(world, tgt, b, src, res, pk);
     }
     if (src && src.kind === 'monster' && !pk.isDot) {
-      const d = MON.defOf(src);
+      const d = Monsters.defOf(src);
       for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onDealt) BEH[b.id].onDealt(world, src, b, tgt, res, pk);
       for (const oh of (d && d.onHit) || []) {
         if (!world.rng.chance(oh.chance)) continue;
@@ -274,7 +274,7 @@
     }
   });
   BD.sim.damage.onKillHooks.push((world, victim, killer, info) => {
-    const d = MON.defOf(victim);
+    const d = Monsters.defOf(victim);
     for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onDeath) BEH[b.id].onDeath(world, victim, b, killer, info);
   });
 

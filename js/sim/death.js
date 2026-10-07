@@ -4,7 +4,7 @@
 (function (BD) {
   'use strict';
 
-  const CMD = BD.sim.commands;
+  const Commands = BD.sim.commands;
 
   /** souls = round((base + bonus) × difficultyMult × (1 + 0.15 × ascension)) × gear bonus */
   function souls(world, sacrifice) {
@@ -44,7 +44,7 @@
   }
 
   /** Bargain: roll; success → revive in town at full life, lose 50% gold, portal back */
-  CMD.register('Bargain', (world) => {
+  Commands.register('Bargain', (world) => {
     const r = world.run, p = world.player;
     if (!r.dead || r.bargainsUsed >= 3 || r.harvested) return null;
     const chance = bargainChance(world);
@@ -72,7 +72,7 @@
     world.events.push({ type: 'revive', id: p.id, x: p.x, y: p.y });
     return true;
   }, { ui: true, whileDead: true });
-  CMD.register('Harvest', (world) => harvest(world), { ui: true, whileDead: true });
+  Commands.register('Harvest', (world) => harvest(world), { ui: true, whileDead: true });
 
   function harvest(world) {
     const r = world.run;

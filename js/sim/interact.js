@@ -4,7 +4,7 @@
   'use strict';
 
   const { T } = BD.data.tiles;
-  const S = () => BD.data.strings;
+  const Strings = () => BD.data.strings;
 
   /** Object (chest, shrine, lever, pile…) at a tile, if any and still interactable. */
   function objectAt(world, x, y) {
@@ -20,10 +20,10 @@
   function registerObject(kind, fn) { objectHandlers[kind] = fn; }
 
   function announce(world, key, extra) {
-    world.events.push(Object.assign({ type: 'announce', key, text: S() ? S().t(key) : key }, extra || {}));
+    world.events.push(Object.assign({ type: 'announce', key, text: Strings() ? Strings().t(key) : key }, extra || {}));
   }
   function deny(world, key) {
-    world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: S() ? S().t(key) : key });
+    world.events.push({ type: 'ability.reject', id: world.player.id, abilityId: 'interact', reason: Strings() ? Strings().t(key) : key });
   }
 
   /** Interact with whatever is at (x,y). The player is adjacent (or on it). */

@@ -4,8 +4,8 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const H = () => BD.sim.hits;
+  const Entities = BD.sim.entities;
+  const Hits = () => BD.sim.hits;
   const { cheb, within, dirOf } = BD.core.util;
   /** deployable/summon kinds register their tick here */
   const kinds = {};
@@ -14,11 +14,11 @@
   // ---------------- entity allies (clones, spirits) ----------------
   function spawnAlly(world, owner, o) {
     const f = world.floor;
-    const spot = E.nearestFree(f, o.x, o.y, 3);
+    const spot = Entities.nearestFree(f, o.x, o.y, 3);
     if (!spot) return null;
     const id = world.nextId++;
     const ownerStats = BD.sim.stats.statsOf(world, owner);
-    const a = E.makeEntity(id, 'ally', o.kind, spot.x, spot.y, {
+    const a = Entities.makeEntity(id, 'ally', o.kind, spot.x, spot.y, {
       faction: 'player', ownerId: owner.id, ownerEquip: owner.equip, art: o.art, palOverride: o.pal || null, allyKind: o.kind,
       lifeMs: o.lifeMs, mult: o.mult, decoy: o.decoy || 0, rank: 'normal', runtime: true, abilityRank: o.rank || 1,
       maxLifeOwn: Math.round(ownerStats.maxLife * (o.lifePct || 0.5)), cd: 0, javelinCd: 0, throws: !!o.throws,
@@ -26,7 +26,7 @@
     a.hp = a.maxLifeOwn;
     a.dir = owner.dir;
     f.entities.set(id, a);
-    E.occupy(f, a);
+    Entities.occupy(f, a);
     f.allies = f.allies || [];
     f.allies.push(id);
     world.events.push({ type: 'ally.spawn', id, kind: o.kind, x: a.x, y: a.y });
@@ -53,7 +53,7 @@
     a.cd -= dt; a.javelinCd -= dt;
     if (a.cd > 0) return;
     // pick the nearest enemy near the owner (the locked target first)
-    let t = owner.lockId != null ? E.get(world, owner.lockId) : null;
+    let t = owner.lockId != null ? Entities.get(world, owner.lockId) : null;
     if (!t || t.dead || t.hp <= 0 || !within(t.x, t.y, owner.x, owner.y, 9)) {
       t = BD.sim.targeting.nearestEnemy(world, a.x, a.y, 8, 'player', null);
     }
@@ -73,7 +73,7 @@
     }
     if (cheb(a.x, a.y, t.x, t.y) <= 1) {
       a.dir = dirOf(t.x - a.x, t.y - a.y);
-      const h = H().computeHit(world, owner, { tags: ['melee'] }, { source: 'weapon', mult: a.mult }, 1, { rng: world.rng });
+      const h = Hits().computeHit(world, owner, { tags: ['melee'] }, { source: 'weapon', mult: a.mult }, 1, { rng: world.rng });
       BD.sim.damage.dealDamage(world, {
         srcId: a.id, tgtId: t.id, amounts: h.amounts, tags: ['melee', 'ally'],
         canCrit: true, canDodge: true, canBlock: true, mult: 1, abilityId: 'ally',
@@ -94,7 +94,7 @@
     const f = world.floor;
     if (a.dead) return;
     a.dead = true;
-    E.vacate(f, a);
+    Entities.vacate(f, a);
     f.entities.delete(a.id);
     f.allies = (f.allies || []).filter((id) => id !== a.id);
     world.events.push({ type: 'ally.end', id: a.id, kind: a.allyKind, x: a.x, y: a.y });
@@ -102,7 +102,7 @@
   function alliesOf(world, kind) {
     const out = [];
     for (const id of world.floor.allies || []) {
-      const a = E.get(world, id);
+      const a = Entities.get(world, id);
       if (a && !a.dead && (!kind || a.allyKind === kind)) out.push(a);
     }
     return out;
@@ -128,7 +128,7 @@
     const f = world.floor;
     if (f.allies && f.allies.length) {
       for (const id of f.allies.slice()) {
-        const a = E.get(world, id);
+        const a = Entities.get(world, id);
         if (a && !a.dead) allyStep(world, a, dt);
       }
     }

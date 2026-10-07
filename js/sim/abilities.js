@@ -4,11 +4,11 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const TG = BD.sim.targeting;
-  const R = () => BD.sim.resources;
-  const ST = () => BD.sim.stats;
-  const B = BD.data.balance;
+  const Entities = BD.sim.entities;
+  const Targeting = BD.sim.targeting;
+  const Resources = () => BD.sim.resources;
+  const Stats = () => BD.sim.stats;
+  const Balance = BD.data.balance;
   const { within, cheb, dirOf } = BD.core.util;
 
   /** all ability defs by id (skills register into BD.data.skills) */
@@ -19,7 +19,7 @@
     if (id === 'attack') return 1;
     const hard = p.skills[id] || 0;
     if (!hard) return 0;
-    const s = ST().statsOf(world, p);
+    const s = Stats().statsOf(world, p);
     return Math.min(8, hard + (s['skill_plus_' + id] || 0) + (s.all_skills || 0));
   }
   /** universal rank scaling 1 + 0.2(r−1), or perRank */
@@ -50,7 +50,7 @@
 
   /** basic attack specialised to the equipped weapon */
   function basicFor(world, p) {
-    const s = ST().statsOf(world, p);
+    const s = Stats().statsOf(world, p);
     const w = s.weapon;
     const ab = Object.assign({}, BD.data.basicAttack);
     if (w.projectile) {
@@ -71,7 +71,7 @@
     return p.cooldowns[ab.id] || 0;
   }
   function cdTime(world, p, ab) {
-    const s = ST().statsOf(world, p);
+    const s = Stats().statsOf(world, p);
     let ms = ab.cooldownMs || 0;
     const cfn = BD.sim.effects.scripts[ab.id + '.cooldown'];
     if (cfn) ms = cfn(world, p, ab, ms);
@@ -86,11 +86,11 @@
 
   /** timing: weapon cycle with impact at 40%, or spell cast with impact at the end */
   function timing(world, p, ab) {
-    const s = ST().statsOf(world, p);
+    const s = Stats().statsOf(world, p);
     if (ab.castMs != null) { const c = ab.castMs / (ab.noIas ? 1 : 1 + s.ias / 100); return { windup: c, recover: ab.recoverMs || 0 }; }
     if (ab.isSpell) return { windup: s.spellCastMs, recover: 0 };
     const cyc = s.attackCycleMs;
-    return { windup: cyc * B.player.impactFrac, recover: cyc * (1 - B.player.impactFrac) };
+    return { windup: cyc * Balance.player.impactFrac, recover: cyc * (1 - Balance.player.impactFrac) };
   }
 
   function reject(world, p, ab, reason, extra) {
@@ -102,22 +102,22 @@
   function resolveTarget(world, p, ab, aim) {
     const t = ab.targeting || { mode: 'self' };
     if (t.mode === 'self') return { x: p.x, y: p.y, self: true };
-    if (aim === 'auto' || !aim) aim = TG.autoAim(world, p, t.range || 1);
+    if (aim === 'auto' || !aim) aim = Targeting.autoAim(world, p, t.range || 1);
     if (t.mode === 'unit') {
-      let e = aim.entityId != null ? E.get(world, aim.entityId) : null;
+      let e = aim.entityId != null ? Entities.get(world, aim.entityId) : null;
       if (e && (e.dead || e.hp <= 0 || e.faction === 'player')) e = null;
       if (!e && aim.x != null) {
         const f = world.floor;
         const id = f.occ[aim.y * f.w + aim.x];
-        const o = id ? E.get(world, id) : null;
+        const o = id ? Entities.get(world, id) : null;
         if (o && o.faction !== 'player') e = o;
-        else e = TG.nearestEnemy(world, aim.x, aim.y, 1.5, 'player', null);
+        else e = Targeting.nearestEnemy(world, aim.x, aim.y, 1.5, 'player', null);
       }
       if (!e) return null;
       return { entity: e, x: e.x, y: e.y };
     }
     let x = aim.x, y = aim.y;
-    let ent = aim.entityId != null ? E.get(world, aim.entityId) : null;
+    let ent = aim.entityId != null ? Entities.get(world, aim.entityId) : null;
     if (ent && (ent.dead || ent.faction === 'player')) ent = null;
     if (ent) { x = ent.x; y = ent.y; }
     if (x == null) return null;
@@ -125,7 +125,7 @@
       // a clicked enemy is approached; otherwise swing toward the cursor from where we stand
       if (!ent) {
         const f = world.floor, id = f.occ[y * f.w + x];
-        const o = id && id !== p.id ? E.get(world, id) : null;
+        const o = id && id !== p.id ? Entities.get(world, id) : null;
         if (o && o.faction !== 'player') ent = o;
       }
       if (ent && cheb(p.x, p.y, ent.x, ent.y) <= (t.range || 1)) return { x: ent.x, y: ent.y, entity: ent };
@@ -145,7 +145,7 @@
     if (p.attack && p.attack.phase === 'channel' && ab.id !== p.attack.abilityId) return reject(world, p, ab, 'not_ready');
     if (cooldownLeft(p, ab) > 0) return reject(world, p, ab, ab.charges ? 'no_charges' : 'not_ready');
     const res = ab.resource || { type: 'none', cost: 0 };
-    if (!R().canPay(p, res.type, res.cost, res.minStart)) return reject(world, p, ab, 'no_resource', { res: res.type });
+    if (!Resources().canPay(p, res.type, res.cost, res.minStart)) return reject(world, p, ab, 'no_resource', { res: res.type });
     if (ab.requires && !ab.requires(world, p)) return reject(world, p, ab, 'not_ready');
     if (t.mode !== 'self') {
       const range = t.range || 1;
@@ -153,7 +153,7 @@
         ? cheb(p.x, p.y, tgt.x, tgt.y) <= Math.max(1, Math.round(range))
         : within(p.x, p.y, tgt.x, tgt.y, range);
       const needLOS = t.requiresLOS !== false;
-      const los = !needLOS || TG.hasLOS(world, p.x, p.y, tgt.x, tgt.y);
+      const los = !needLOS || Targeting.hasLOS(world, p.x, p.y, tgt.x, tgt.y);
       if (!inRange || !los) {
         if (t.outOfRange === 'approach' && (tgt.entity || t.mode !== 'unit')) return { approach: true };
         return reject(world, p, ab, !los ? 'no_los' : 'out_of_range');
@@ -201,7 +201,7 @@
 
   function commit(world, p, ab, rank, tgt, opts) {
     const res = ab.resource || { type: 'none', cost: 0 };
-    const spent = res.type && res.type !== 'none' && res.cost ? R().spend(world, p, res.type, res.cost) : 0;
+    const spent = res.type && res.type !== 'none' && res.cost ? Resources().spend(world, p, res.type, res.cost) : 0;
     const cd = cdTime(world, p, ab);
     if (ab.charges) {
       p.charges = p.charges || {};
@@ -211,7 +211,7 @@
     } else if (cd > 0) p.cooldowns[ab.id] = cd;
     if (tgt.x !== p.x || tgt.y !== p.y) p.dir = dirOf(tgt.x - p.x, tgt.y - p.y);
     const tm = timing(world, p, ab);
-    const comboHeld = R().combo(p);
+    const comboHeld = Resources().combo(p);
     p.attack = {
       abilityId: ab.id, rank, phase: ab.channel ? 'channel' : 'windup',
       remaining: ab.channel ? ab.channel.tickMs : tm.windup, recover: tm.recover,
@@ -224,7 +224,7 @@
     if (ab.isSpell && res.cost && res.type === 'mana') p.lastCastMs = world.time;
     world.events.push({
       type: 'ability.cast', id: p.id, abilityId: ab.id, x: p.x, y: p.y, tx: tgt.x, ty: tgt.y,
-      windupMs: tm.windup, weapon: ST().statsOf(world, p).weapon.fx,
+      windupMs: tm.windup, weapon: Stats().statsOf(world, p).weapon.fx,
     });
     if (ab.selfTelegraph) {
       const tiles = BD.sim.targeting.areaTiles(ab.area, p.x, p.y, p.x, p.y, p.dir);
@@ -251,7 +251,7 @@
     }
     if (a.phase === 'windup') {
       const ab = def(a.abilityId);
-      if (a.spent) R().refund(world, p, a.spentType, a.spent);
+      if (a.spent) Resources().refund(world, p, a.spentType, a.spent);
       if (ab && ab.charges && p.charges[ab.id]) p.charges[ab.id].n++;
       else if (a.cdSet) p.cooldowns[a.abilityId] = 0;
       world.events.push({ type: 'ability.cancel', id: p.id, abilityId: a.abilityId, why });
@@ -272,8 +272,8 @@
       if (a.remaining <= 0) {
         const ab = resolved(def(a.abilityId), a.rank, p);
         const cost = (ab.channel.costPerSec * ab.channel.tickMs) / 1000;
-        if (a.heldMs > 260 || !R().canPay(p, ab.resource.type, cost)) { cancel(world, p, 'released'); return; }
-        R().spend(world, p, ab.resource.type, cost);
+        if (a.heldMs > 260 || !Resources().canPay(p, ab.resource.type, cost)) { cancel(world, p, 'released'); return; }
+        Resources().spend(world, p, ab.resource.type, cost);
         a.remaining += ab.channel.tickMs;
         BD.sim.effects.impact(world, p, ab, a.rank, a);
       }

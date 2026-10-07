@@ -4,9 +4,9 @@
 (function (BD) {
   'use strict';
 
-  const U = BD.core.util;
-  const E = BD.sim.entities;
-  const I = () => BD.sim.interact;
+  const Util = BD.core.util;
+  const Entities = BD.sim.entities;
+  const Interact = () => BD.sim.interact;
 
   // ---------------- Keeper → Seal / Gate Key ----------------
   BD.sim.damage.onKillHooks.push((world, e) => {
@@ -27,7 +27,7 @@
     } else {
       world.run.flags['key' + f.n] = true;
       world.events.push({ type: 'key.pickup', x: g.x, y: g.y });
-      I().announce(world, 'key_pickup');
+      Interact().announce(world, 'key_pickup');
     }
   }
 
@@ -44,7 +44,7 @@
     if (f.keeperId) {
       const after = world.run.flags.wayfinder ? 180000 : 360000;
       if (f.timeOnFloor >= after) {
-        const k = E.get(world, f.keeperId);
+        const k = Entities.get(world, f.keeperId);
         // the marker follows the Keeper every 2 s
         if (k && !k.dead && (!f.keeperPing || world.time >= f.keeperPing.at + 2000)) {
           if (!f.keeperPing) world.events.push({ type: 'keeper.ping', x: k.x, y: k.y });
@@ -88,16 +88,16 @@
     }
     for (const id of f.genIds || []) if (!alive.has(id)) dead.push(id);
     return {
-      explored: U.rleEncode(f.explored), seen: U.rleEncode(f.seen), deadIds: dead,
+      explored: Util.rleEncode(f.explored), seen: Util.rleEncode(f.seen), deadIds: dead,
       objects: f.objects
         .map((o, i) => (o.opened || o.used || o.disarmed || o.visible
           ? { i, opened: !!o.opened, used: !!o.used, disarmed: !!o.disarmed, visible: !!o.visible }
           : null))
         .filter(Boolean),
-      extraObjects: f.objects.filter((o) => o.runtime && o.kind !== 'portal').map((o) => U.clone(o)),
-      droppedItems: f.items.map((g) => U.clone(g)), sealBroken: !!f.sealBroken, gateOpen: !!f.gateOpen, bossDead: !!f.bossDead,
+      extraObjects: f.objects.filter((o) => o.runtime && o.kind !== 'portal').map((o) => Util.clone(o)),
+      droppedItems: f.items.map((g) => Util.clone(g)), sealBroken: !!f.sealBroken, gateOpen: !!f.gateOpen, bossDead: !!f.bossDead,
       hidden: f.hidden.slice(), keeperRevealed: !!f.keeperRevealed, fullyExplored: !!f.fullyExplored, timeOnFloor: f.timeOnFloor,
-      event: f.event ? U.clone(f.event) : null, survivors,
+      event: f.event ? Util.clone(f.event) : null, survivors,
     };
   }
   function leave(world) {
@@ -112,23 +112,23 @@
     const d = world.floorDeltas[f.key];
     if (!d) return;
     const N = f.w * f.h;
-    f.explored = U.rleDecode(d.explored, N); f.seen = U.rleDecode(d.seen, N);
+    f.explored = Util.rleDecode(d.explored, N); f.seen = Util.rleDecode(d.seen, N);
     f.seenCount = 0; for (let i = 0; i < N; i++) if (f.seen[i]) f.seenCount++;
-    for (const id of d.deadIds) { const e = f.entities.get(id); if (e) E.remove(world, e); }
+    for (const id of d.deadIds) { const e = f.entities.get(id); if (e) Entities.remove(world, e); }
     for (const s of d.survivors) {
       const e = f.entities.get(s.id);
       if (!e) continue;
-      E.vacate(f, e);
+      Entities.vacate(f, e);
       e.hp = s.hp; e.statuses = s.statuses || [];
-      if (E.isFree(f, s.x, s.y)) { e.x = s.x; e.y = s.y; }
-      E.occupy(f, e);
+      if (Entities.isFree(f, s.x, s.y)) { e.x = s.x; e.y = s.y; }
+      Entities.occupy(f, e);
     }
     for (const o of d.objects) {
       const ob = f.objects[o.i];
       if (ob) Object.assign(ob, { opened: o.opened, used: o.used, disarmed: o.disarmed, visible: o.visible });
     }
     for (const o of d.extraObjects || []) f.objects.push(o);
-    f.items = d.droppedItems.map((g) => U.clone(g));
+    f.items = d.droppedItems.map((g) => Util.clone(g));
     f.sealBroken = d.sealBroken; f.gateOpen = d.gateOpen; f.bossDead = d.bossDead;
     f.keeperRevealed = d.keeperRevealed; f.fullyExplored = d.fullyExplored; f.timeOnFloor = d.timeOnFloor || 0;
     if (d.hidden) {
@@ -136,9 +136,9 @@
       for (const k of f.hidden) if (!keep.has(k)) f.tiles[k] = BD.data.tiles.T.FLOOR;
       f.hidden = d.hidden.slice();
     }
-    if (d.event) f.event = U.clone(d.event);
+    if (d.event) f.event = Util.clone(d.event);
     if (f.bossDead) {
-      for (const e of [...f.entities.values()]) if (E.isBoss(e)) E.remove(world, e);
+      for (const e of [...f.entities.values()]) if (Entities.isBoss(e)) Entities.remove(world, e);
       if (BD.sim.bossfight && f.arena) BD.sim.bossfight.placeExit(world);
     }
     f.exploreDirty = true;

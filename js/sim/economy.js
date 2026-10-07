@@ -4,9 +4,9 @@
 (function (BD) {
   'use strict';
 
-  const EC = () => BD.data.economy;
-  const CMD = BD.sim.commands;
-  const I = () => BD.sim.interact;
+  const EconomyData = () => BD.data.economy;
+  const Commands = BD.sim.commands;
+  const Interact = () => BD.sim.interact;
 
   function townState(world) {
     const r = world.run;
@@ -21,26 +21,26 @@
   const al = (world) => world.run.townAl || 1;
 
   function price(item) { return BD.sim.items.derive(item).value; }
-  function sellPrice(item) { return Math.max(1, Math.floor(price(item) / EC().sellDiv)); }
+  function sellPrice(item) { return Math.max(1, Math.floor(price(item) / EconomyData().sellDiv)); }
 
   /** costs (view models read these through describe-style helpers, never re-derive them) */
   function costs(world) {
     const r = world.run, t = townState(world);
     return {
-      reroll: t.freeReroll ? 0 : EC().reroll(al(world), t.rerolls),
-      reforge: EC().reforge(al(world)),
-      gamble: EC().gamble(al(world)),
-      blessing: EC().blessing(al(world)),
-      flask: EC().flaskUpgrade(Math.min(4, r.act)),
-      respec: EC().respec(world.player.level, t.respecs),
-      portal: EC().portalScroll(Math.min(4, r.act)),
+      reroll: t.freeReroll ? 0 : EconomyData().reroll(al(world), t.rerolls),
+      reforge: EconomyData().reforge(al(world)),
+      gamble: EconomyData().gamble(al(world)),
+      blessing: EconomyData().blessing(al(world)),
+      flask: EconomyData().flaskUpgrade(Math.min(4, r.act)),
+      respec: EconomyData().respec(world.player.level, t.respecs),
+      portal: EconomyData().portalScroll(Math.min(4, r.act)),
     };
   }
-  function enhanceCost(world, item) { return EC().enhance(al(world), (item.enhance || 0) + 1); }
+  function enhanceCost(world, item) { return EconomyData().enhance(al(world), (item.enhance || 0) + 1); }
 
   function pay(world, n) {
     const p = world.player;
-    if (p.gold < n) { I().deny(world, 'not_enough_gold'); return false; }
+    if (p.gold < n) { Interact().deny(world, 'not_enough_gold'); return false; }
     p.gold -= n;
     return true;
   }
@@ -58,10 +58,10 @@
   function rollStock(world) {
     const t = townState(world), rng = world.lootRng, p = world.player;
     const stock = [];
-    const n = EC().smithStock;
-    let rareDone = !rng.chance(EC().smithRareChance);
+    const n = EconomyData().smithStock;
+    let rareDone = !rng.chance(EconomyData().smithRareChance);
     for (let i = 0; i < n; i++) {
-      const usable = i < EC().smithUsable;
+      const usable = i < EconomyData().smithUsable;
       let rarity = i === 0 ? 'magic' : rng.chance(0.5) ? 'magic' : 'common';
       if (!rareDone && i === n - 1) { rarity = 'rare'; rareDone = true; }
       stock.push(BD.sim.loot.rollItem(world, rng, { ilvl: al(world), rarity, cls: p.cls, usable }));
@@ -71,20 +71,20 @@
   }
 
   // ---------------- commands ----------------
-  CMD.register('Buy', (world, c) => {
+  Commands.register('Buy', (world, c) => {
     const t = townState(world), p = world.player;
     const list = c.from === 'buyback' ? t.buyback : t.stock;
     const it = list[c.idx];
     if (!it) return false;
     const cost = c.from === 'buyback' ? sellPrice(it) : price(it);
-    if (p.pack.length >= BD.sim.inventory.PACK) { I().deny(world, 'pack_full'); return false; }
+    if (p.pack.length >= BD.sim.inventory.PACK) { Interact().deny(world, 'pack_full'); return false; }
     if (!pay(world, cost)) return false;
     list.splice(c.idx, 1);
     p.pack.push(it);
     world.events.push({ type: 'shop.buy', uid: it.uid, cost });
     return true;
   }, { ui: true });
-  CMD.register('Sell', (world, c) => {
+  Commands.register('Sell', (world, c) => {
     const t = townState(world), p = world.player;
     const i = p.pack.findIndex((x) => x.uid === c.uid);
     if (i < 0 || p.pack[i].locked) return false;
@@ -92,11 +92,11 @@
     const gain = sellPrice(it);
     p.gold += gain;
     t.buyback.unshift(it);
-    if (t.buyback.length > EC().buyback) t.buyback.pop();
+    if (t.buyback.length > EconomyData().buyback) t.buyback.pop();
     world.events.push({ type: 'shop.sell', uid: it.uid, gain });
     return true;
   }, { ui: true });
-  CMD.register('Reroll', (world) => {
+  Commands.register('Reroll', (world) => {
     const t = townState(world);
     const cost = costs(world).reroll;
     if (!pay(world, cost)) return false;
@@ -105,16 +105,16 @@
     world.events.push({ type: 'reroll', cost });
     return true;
   }, { ui: true });
-  CMD.register('Enhance', (world, c) => {
+  Commands.register('Enhance', (world, c) => {
     const it = findItem(world, c.uid);
-    if (!it || (it.enhance || 0) >= EC().enhanceMax) return false;
+    if (!it || (it.enhance || 0) >= EconomyData().enhanceMax) return false;
     if (!pay(world, enhanceCost(world, it))) return false;
     it.enhance = (it.enhance || 0) + 1;
     BD.sim.stats.bump(world.player);
     world.events.push({ type: 'enhance', uid: it.uid, level: it.enhance });
     return true;
   }, { ui: true });
-  CMD.register('Reforge', (world, c) => {
+  Commands.register('Reforge', (world, c) => {
     const it = findItem(world, c.uid);
     if (!it || it.rarity !== 'rare' || !it.affixes[c.affixIdx]) return false;
     if (!pay(world, costs(world).reforge)) return false;
@@ -137,25 +137,25 @@
     world.events.push({ type: 'reforge', uid: it.uid });
     return true;
   }, { ui: true });
-  CMD.register('Gamble', (world, c) => {
+  Commands.register('Gamble', (world, c) => {
     const p = world.player;
-    if (p.pack.length >= BD.sim.inventory.PACK) { I().deny(world, 'pack_full'); return false; }
+    if (p.pack.length >= BD.sim.inventory.PACK) { Interact().deny(world, 'pack_full'); return false; }
     if (!pay(world, costs(world).gamble)) return false;
-    const r = world.lootRng.next(), o = EC().gambleOdds;
+    const r = world.lootRng.next(), o = EconomyData().gambleOdds;
     const rarity = r < o.legendary ? 'legendary' : r < o.legendary + o.rare ? 'rare' : 'magic';
     const it = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: al(world), rarity, slot: c.slot, cls: p.cls });
     p.pack.push(it);
     world.events.push({ type: 'gamble', uid: it.uid, rarity: it.rarity });
     return it.uid;
   }, { ui: true });
-  CMD.register('BuyScroll', (world, c) => {
+  Commands.register('BuyScroll', (world, c) => {
     const p = world.player;
     if (!pay(world, costs(world).portal)) return false;
     p.pouch[c.kind || 'portal'] = (p.pouch[c.kind || 'portal'] || 0) + 1;
     world.events.push({ type: 'shop.buy', scroll: c.kind || 'portal' });
     return true;
   }, { ui: true });
-  CMD.register('Bless', (world, c) => {
+  Commands.register('Bless', (world, c) => {
     const t = townState(world);
     if (!t.blessOffer.includes(c.id) || world.run.blessing) return false;
     if (!pay(world, costs(world).blessing)) return false;
@@ -164,7 +164,7 @@
     world.events.push({ type: 'blessing', id: c.id });
     return true;
   }, { ui: true });
-  CMD.register('FlaskUpgrade', (world) => {
+  Commands.register('FlaskUpgrade', (world) => {
     const t = townState(world), p = world.player;
     if (t.flaskUpgradedAct >= world.run.act || p.flask.permMax >= BD.data.balance.player.flaskPermMax) return false;
     if (!pay(world, costs(world).flask)) return false;
@@ -173,7 +173,7 @@
     world.events.push({ type: 'flask.upgrade', max: p.flask.max });
     return true;
   }, { ui: true });
-  CMD.register('Respec', (world) => {
+  Commands.register('Respec', (world) => {
     const t = townState(world), p = world.player;
     if (!pay(world, costs(world).respec)) return false;
     t.respecs++;
@@ -190,7 +190,7 @@
     world.events.push({ type: 'respec' });
     return true;
   }, { ui: true });
-  CMD.register('Rest', (world) => {
+  Commands.register('Rest', (world) => {
     const p = world.player;
     const s = BD.sim.stats.statsOf(world, p);
     p.hp = s.maxLife; p.flask.charges = p.flask.max;
@@ -202,7 +202,7 @@
     return true;
   }, { ui: true });
   // account-wide stash: the app attaches meta.stash as world.stash (tabs of 20)
-  CMD.register('Stash', (world, c) => {
+  Commands.register('Stash', (world, c) => {
     const p = world.player, tabs = world.stash;
     if (!tabs) return false;
     const tab = tabs[c.tab || 0];
@@ -213,7 +213,7 @@
     world.events.push({ type: 'stash' });
     return true;
   }, { ui: true });
-  CMD.register('Unstash', (world, c) => {
+  Commands.register('Unstash', (world, c) => {
     const p = world.player, tabs = world.stash;
     if (!tabs) return false;
     const tab = tabs[c.tab || 0];

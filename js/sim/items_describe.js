@@ -4,9 +4,9 @@
 (function (BD) {
   'use strict';
 
-  const REG = BD.data.stats.defs;
+  const StatDefs = BD.data.stats.defs;
   const fmtVal = (key, v) => {
-    const d = REG[key];
+    const d = StatDefs[key];
     const n = Math.abs(v) >= 100 || Number.isInteger(v) ? String(Math.round(v)) : String(Math.round(v * 10) / 10);
     if (!d) return n;
     if (key === 'momentum_thresh') return n;
@@ -26,7 +26,7 @@
     }
     if (l.proc) return { text: BD.data.affixes[l.affix].text, kind: 'proc' };
     const af = l.affix ? BD.data.affixes[l.affix] : null;
-    const label = af && af.band === 'hook' ? af.text : REG[l.key] ? REG[l.key].label : l.key;
+    const label = af && af.band === 'hook' ? af.text : StatDefs[l.key] ? StatDefs[l.key].label : l.key;
     if (l.key === 'all_attr') return { text: fmtVal('str', l.value) + ' to all attributes', kind: 'core' };
     return { text: fmtVal(l.key, l.value) + ' ' + label, kind: af && af.band === 'hook' ? 'hook' : l.implicit ? 'implicit' : 'core' };
   }
@@ -40,7 +40,7 @@
       value: d.value, ilvl: item.ilvl, enhance: item.enhance || 0,
     };
     let typeSuffix = '';
-    if (b.slot === 'weapon') typeSuffix = (b.hands === 2 ? ', two-handed' : ', one-handed') + ' · ' + REG[b.wield].label;
+    if (b.slot === 'weapon') typeSuffix = (b.hands === 2 ? ', two-handed' : ', one-handed') + ' · ' + StatDefs[b.wield].label;
     else if (b.weight) typeSuffix = ' · ' + b.weight;
     v.type = (CAT[d.category] || b.slot) + typeSuffix;
     if (d.dmg) {
@@ -52,7 +52,7 @@
     for (const l of d.lines) v.lines.push(lineFor(l));
     if (d.req) {
       const s = BD.sim.stats.statsOf(world, p);
-      v.req = { text: 'Requires ' + d.req.value + ' ' + REG[d.req.attr].label, met: s[d.req.attr] >= d.req.value };
+      v.req = { text: 'Requires ' + d.req.value + ' ' + StatDefs[d.req.attr].label, met: s[d.req.attr] >= d.req.value };
     }
     if (!BD.sim.loot.usableBy(p.cls, b)) v.perm = BD.data.classes[p.cls].name + 's cannot use this';
     else if (d.cls && d.cls !== p.cls) v.perm = 'Its power belongs to the ' + BD.data.classes[d.cls].name;
@@ -102,7 +102,7 @@
       for (const k of COMPARE_KEYS) {
         const isRes = k === 'res_fire' || k === 'res_cold' || k === 'res_light' || k === 'res_pois';
         const a = isRes ? s.res[k.slice(4)] - cur.res[k.slice(4)] : (s[k] || 0) - (cur[k] || 0);
-        if (Math.abs(a) >= 0.05) rows.push({ label: LABELS[k] || (REG[k] ? REG[k].label : k), delta: Math.round(a * 10) / 10 });
+        if (Math.abs(a) >= 0.05) rows.push({ label: LABELS[k] || (StatDefs[k] ? StatDefs[k].label : k), delta: Math.round(a * 10) / 10 });
       }
       if (s.maxLife !== cur.maxLife) rows.unshift({ label: 'Maximum life', delta: s.maxLife - cur.maxLife });
       out.push({ slot, rows, dps: dps(s) - dps(cur), ehp: ehp(world, s) - ehp(world, cur), equipped: p.equip[slot] || null });

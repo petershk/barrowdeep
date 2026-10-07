@@ -4,11 +4,11 @@
 (function (BD) {
   'use strict';
 
-  const E = BD.sim.entities;
-  const MON = BD.sim.monsters;
-  const AI = BD.sim.ai;
-  const CMD = BD.sim.commands;
-  const ED = () => BD.data.floorEvents;
+  const Entities = BD.sim.entities;
+  const Monsters = BD.sim.monsters;
+  const Ai = BD.sim.ai;
+  const Commands = BD.sim.commands;
+  const FloorEvents = () => BD.data.floorEvents;
   const { within, cheb } = BD.core.util;
 
   function actSpecies(world, barred) {
@@ -28,13 +28,13 @@
         const free = [];
         for (let yy = room.y; yy < room.y + room.h; yy++) {
           for (let xx = room.x; xx < room.x + room.w; xx++) {
-            if (E.isFree(f, xx, yy) && cheb(xx, yy, world.player.x, world.player.y) >= 2) free.push([xx, yy]);
+            if (Entities.isFree(f, xx, yy) && cheb(xx, yy, world.player.x, world.player.y) >= 2) free.push([xx, yy]);
           }
         }
         if (!free.length) return;
         [x, y] = world.rng.pick(free);
       }
-      const e = MON.spawn(world, def, x, y, { eventId: tag, noLoot: true });
+      const e = Monsters.spawn(world, def, x, y, { eventId: tag, noLoot: true });
       if (e) e.eventId = tag;
     }
   }
@@ -53,16 +53,16 @@
     ev.state = 'active';
     ev.wave = 0;
     ev.nextWave = world.time + 500;
-    ev.endAt = world.time + ED().cursed_chest.waves * ED().cursed_chest.waveMs;
+    ev.endAt = world.time + FloorEvents().cursed_chest.waves * FloorEvents().cursed_chest.waveMs;
     // bar the room's exits
     const r = ev.room; ev.blocked = [];
     for (let x = r.x - 1; x <= r.x + r.w; x++) for (let y = r.y - 1; y <= r.y + r.h; y++) {
       if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) continue;
-      if (E.walkable(f, x, y) && !E.occupant(f, x, y)) { f.block[y * f.w + x] = 1; ev.blocked.push([x, y]); }
+      if (Entities.walkable(f, x, y) && !Entities.occupant(f, x, y)) { f.block[y * f.w + x] = 1; ev.blocked.push([x, y]); }
     }
     f.blockVer = (f.blockVer || 0) + 1;
     world.events.push({ type: 'event.start', id: 'cursed_chest', x: o.x, y: o.y, tiles: ev.blocked });
-    world.events.push({ type: 'announce', text: ED().cursed_chest.line, style: 'keeper' });
+    world.events.push({ type: 'announce', text: FloorEvents().cursed_chest.line, style: 'keeper' });
   }
 
   // ---------------- Shrine ----------------
@@ -71,7 +71,7 @@
     if (!o.offer) o.offer = world.lootRng.shuffle(BD.data.shrineBuffs.map((b) => b.id)).slice(0, 2);
     world.events.push({ type: 'shrine.offer', x: o.x, y: o.y, options: o.offer });
   }
-  CMD.register('ShrineChoose', (world, c) => {
+  Commands.register('ShrineChoose', (world, c) => {
     const o = world.floor.objects.find((x) => x.kind === 'shrine' && !x.used && cheb(x.x, x.y, world.player.x, world.player.y) <= 2);
     if (!o || !o.offer || !o.offer.includes(c.id)) return false;
     const b = BD.data.shrineBuffs.find((x) => x.id === c.id);
@@ -87,7 +87,7 @@
     const p = world.player;
     if (o.used) return;
     o.used = true;
-    const cost = Math.floor(p.hp * ED().blood_altar.lifePct);
+    const cost = Math.floor(p.hp * FloorEvents().blood_altar.lifePct);
     p.hp -= cost;
     world.events.push({
       type: 'damage', srcId: null, tgtId: p.id, total: cost, parts: { phys: cost },
@@ -99,23 +99,23 @@
   });
 
   // ---------------- the Hoarder ----------------
-  AI.registerBehaviour('hoard', {
+  Ai.registerBehaviour('hoard', {
     decide(world, e, b, ctx) {
       const ev = world.floor.event;
       if (ev && ev.id === 'hoarder' && ev.state === 'idle') {
         ev.state = 'active';
-        ev.endAt = world.time + ED().hoarder.escapeMs;
+        ev.endAt = world.time + FloorEvents().hoarder.escapeMs;
         world.events.push({ type: 'announce', text: 'The Hoarder flees with its gold!', style: 'keeper' });
       }
       if (world.rng.chance(0.25)) {
         BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, 0.6) });
       }
-      const c = AI.stepAlong(world, e, BD.sim.pathing.chaseField(world), true);
-      return c != null ? c : AI.chase(world, e, ctx.tgt) || 300;
+      const c = Ai.stepAlong(world, e, BD.sim.pathing.chaseField(world), true);
+      return c != null ? c : Ai.chase(world, e, ctx.tgt) || 300;
     },
   });
   BD.sim.damage.onKillHooks.push((world, e) => {
-    if (e.def !== ED().hoarder.monster) return;
+    if (e.def !== FloorEvents().hoarder.monster) return;
     for (let i = 0; i < 6; i++) {
       BD.sim.loot.dropAt(world, e.x, e.y, { kind: 'gold', amount: BD.sim.loot.goldOf(world, world.floor.al, 4) });
     }
@@ -132,7 +132,7 @@
   const TICK = {
     cursed_chest(world, ev) {
       if (ev.state !== 'active') return;
-      const f = world.floor, d = ED().cursed_chest;
+      const f = world.floor, d = FloorEvents().cursed_chest;
       if (world.time >= ev.nextWave && ev.wave < d.waves) {
         ev.wave++;
         ev.nextWave = world.time + d.waveMs;
@@ -151,8 +151,8 @@
     hoarder(world, ev) {
       if (ev.state !== 'active' || world.time < ev.endAt) return;
       for (const e of [...world.floor.entities.values()]) {
-        if (e.def !== ED().hoarder.monster || e.dead) continue;
-        E.remove(world, e);
+        if (e.def !== FloorEvents().hoarder.monster || e.dead) continue;
+        Entities.remove(world, e);
         world.events.push({ type: 'blink', id: e.id, fromX: e.x, fromY: e.y, x: e.x, y: e.y });
       }
       ev.state = 'done';
@@ -160,7 +160,7 @@
     },
     restless_dead(world, ev, dt) {
       if (!ev.tiles) return;
-      const p = world.player, d = ED().restless_dead;
+      const p = world.player, d = FloorEvents().restless_dead;
       const inside = ev.tiles.some(([x, y]) => x === p.x && y === p.y) || within(p.x, p.y, ev.x, ev.y, 2);
       if (ev.state === 'idle' && inside) {
         ev.state = 'active'; ev.t = 0; ev.nextWave = 0;
