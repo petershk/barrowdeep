@@ -5,20 +5,33 @@
 (function (BD) {
   'use strict';
 
-  const P = 'bd2_';
+  const KEY_PREFIX = 'bd2_';
   function read(key) {
-    try { const raw = localStorage.getItem(P + key); return raw ? JSON.parse(raw) : null; }
-    catch (e) { BD.core.util.warnOnce('storage read ' + key, e); return null; }
+    try {
+      const raw = localStorage.getItem(KEY_PREFIX + key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      BD.core.util.warnOnce('storage read ' + key, e);
+      return null;
+    }
   }
   function write(key, val) {
-    try { localStorage.setItem(P + key, JSON.stringify(val)); return true; }
-    catch (e) {
+    try {
+      localStorage.setItem(KEY_PREFIX + key, JSON.stringify(val));
+      return true;
+    } catch (e) {
       BD.core.util.warnOnce('storage write ' + key, e);
       BD.app.bus.emit({ type: 'save.fail', key, error: String(e && e.name) });
       return false;
     }
   }
-  function remove(key) { try { localStorage.removeItem(P + key); } catch (e) { BD.core.util.warnOnce('storage remove', e); } }
+  function remove(key) {
+    try {
+      localStorage.removeItem(KEY_PREFIX + key);
+    } catch (e) {
+      BD.core.util.warnOnce('storage remove', e);
+    }
+  }
 
   // ---------------- characters ----------------
   function list() { return read('index') || []; }
@@ -52,7 +65,10 @@
   function markDead(id) {
     const idx = list();
     const e = idx.find((c) => c.id === id);
-    if (e) { e.alive = false; write('index', idx); }
+    if (e) {
+      e.alive = false;
+      write('index', idx);
+    }
   }
 
   // ---------------- meta (souls, unlocks, stash, hints) ----------------
@@ -63,7 +79,13 @@
     return metaCache;
   }
   function saveMeta() { write('meta', meta()); }
-  function addSouls(n) { const m = meta(); m.souls += n; m.soulsTotal += n; m.runs++; saveMeta(); }
+  function addSouls(n) {
+    const m = meta();
+    m.souls += n;
+    m.soulsTotal += n;
+    m.runs++;
+    saveMeta();
+  }
 
   // ---------------- export / import ----------------
   function exportAll() {
@@ -74,12 +96,15 @@
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'barrowdeep-characters.json';
-    document.body.appendChild(a); a.click(); a.remove();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   function importFile(onDone) {
     const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.type = 'file';
+    inp.accept = '.json,application/json';
     inp.addEventListener('change', () => {
       const f = inp.files && inp.files[0];
       if (!f) return;
@@ -92,9 +117,15 @@
           const idx = list();
           for (const e of data.index || []) if (!idx.some((c) => c.id === e.id)) idx.push(e);
           write('index', idx);
-          if (data.meta) { metaCache = Object.assign({}, META_DEFAULT, data.meta); saveMeta(); }
+          if (data.meta) {
+            metaCache = Object.assign({}, META_DEFAULT, data.meta);
+            saveMeta();
+          }
           onDone && onDone(true);
-        } catch (e) { BD.core.util.warnOnce('import failed', e); onDone && onDone(false, String(e)); }
+        } catch (e) {
+          BD.core.util.warnOnce('import failed', e);
+          onDone && onDone(false, String(e));
+        }
       };
       rd.readAsText(f);
     });

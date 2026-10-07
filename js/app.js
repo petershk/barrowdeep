@@ -14,14 +14,17 @@
       if (BD.ui.panels && BD.ui.panels.pausesWorld()) return true;
       return !!(app.world && app.world.run.paused);
     },
-    togglePause() { app.tactical = !app.tactical; bus.emit({ type: 'ui.pause', on: app.tactical }); },
+    togglePause() {
+      app.tactical = !app.tactical;
+      bus.emit({ type: 'ui.pause', on: app.tactical });
+    },
     userGesture() { if (BD.audio.audio) BD.audio.audio.resume(); },
     /** request a presentation-level freeze (≤70 ms, at most once per 240 ms) */
     hitstop(ms) {
-      const B = BD.data.balance.combat;
-      if (app.realNow - app.lastHitstopAt < B.hitstopMinGapMs) return;
+      const CombatBalance = BD.data.balance.combat;
+      if (app.realNow - app.lastHitstopAt < CombatBalance.hitstopMinGapMs) return;
       app.lastHitstopAt = app.realNow;
-      app.hitstopMs = Math.min(B.hitstopMaxMs, ms);
+      app.hitstopMs = Math.min(CombatBalance.hitstopMaxMs, ms);
     },
   };
   BD.app = app;
@@ -38,7 +41,16 @@
   function stepSim(ms) {
     const w = app.world;
     let n = Math.round(ms / STEP_MS);
-    while (n-- > 0) { BD.sim.world.step(w, STEP_MS); dispatch(w); }
+    while (n-- > 0) {
+      BD.sim.world.step(w, STEP_MS);
+      dispatch(w);
+    }
+  }
+
+  /** the 'slowmo' option plays the world at 70% speed */
+  function slowmoFactor() {
+    if (!BD.ui.options) return 1;
+    return BD.ui.options.get('slowmo') ? 0.7 : 1;
   }
 
   let acc = 0, last = 0;
@@ -54,7 +66,7 @@
       if (BD.input.gamepad) BD.input.gamepad.frame(real);
       if (!app.paused()) {
         if (app.hitstopMs > 0) app.hitstopMs -= real;
-        else acc += real * (BD.ui.options ? (BD.ui.options.get('slowmo') ? 0.7 : 1) : 1) * (app.timeScale || 1);
+        else acc += real * slowmoFactor() * (app.timeScale || 1);
         let guard = 0;
         while (acc >= STEP_MS && guard++ < 20 * (app.timeScale || 1)) {
           BD.sim.world.step(w, STEP_MS);
@@ -88,13 +100,21 @@
     gr.addColorStop(0, 'rgb(' + Math.round(70 * fl) + ',' + Math.round(34 * fl) + ',14)');
     gr.addColorStop(0.5, '#120a07');
     gr.addColorStop(1, '#030202');
-    g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = gr;
+    g.fillRect(0, 0, c.width, c.height);
   }
 
   function newSeed() {
     const a = new Uint32Array(2);
     crypto.getRandomValues(a);
     return a[0].toString(36) + a[1].toString(36).slice(0, 4);
+  }
+
+  /** the gold-ledger tier unlocked in the meta progression (0 = none) */
+  function ledgerLevel(u) {
+    if (u.ledger3) return 3;
+    if (u.ledger2) return 2;
+    return u.ledger1 ? 1 : 0;
   }
 
   /** Start a run (from character creation or debug). */
@@ -105,12 +125,19 @@
     const meta = BD.ui.meta ? BD.ui.meta.get() : null;
     if (meta) {
       const u = meta.unlocks || {};
-      world.run.flags.ledger = u.ledger3 ? 3 : u.ledger2 ? 2 : u.ledger1 ? 1 : 0;
+      world.run.flags.ledger = ledgerLevel(u);
       world.run.flags.wayfinder = !!u.wayfinder;
       world.run.flags.championLore = !!u.champion_lore;
       world.run.flags.merchantsFavor = !!u.merchants_favor;
-      if (u.deep_flask) { world.player.flask.permMax = 5; world.player.flask.max += 1; world.player.flask.charges += 1; }
-      world.run.flags.stashTabs = 1 + (u.stash2 ? 1 : 0) + (u.stash3 ? 1 : 0);
+      if (u.deep_flask) {
+        world.player.flask.permMax = 5;
+        world.player.flask.max += 1;
+        world.player.flask.charges += 1;
+      }
+      let stashTabs = 1;
+      if (u.stash2) stashTabs++;
+      if (u.stash3) stashTabs++;
+      world.run.flags.stashTabs = stashTabs;
     }
     if (BD.sim.economy && BD.sim.economy.onRunStart) BD.sim.economy.onRunStart(world, opts);
     if (BD.sim.run) BD.sim.run.begin(world, opts);
@@ -137,22 +164,22 @@
   /** The view and audio layers declare what they need from their host; the app provides it. */
   function hostLayers() {
     const live = (obj, key, get) => Object.defineProperty(obj, key, { get, configurable: true });
-    const VH = BD.view.host;
-    if (BD.ui.options) live(VH, 'prefs', () => BD.ui.options.all);
-    if (BD.input.mouse) live(VH, 'pointer', () => BD.input.mouse);
-    live(VH, 'showLabels', () => app.showLabels);
-    live(VH, 'showBars', () => app.showBars);
-    VH.paused = () => app.paused();
-    VH.world = () => app.world;
-    VH.hitstop = (ms) => app.hitstop(ms);
-    const AH = BD.audio.host;
+    const ViewHost = BD.view.host;
+    if (BD.ui.options) live(ViewHost, 'prefs', () => BD.ui.options.all);
+    if (BD.input.mouse) live(ViewHost, 'pointer', () => BD.input.mouse);
+    live(ViewHost, 'showLabels', () => app.showLabels);
+    live(ViewHost, 'showBars', () => app.showBars);
+    ViewHost.paused = () => app.paused();
+    ViewHost.world = () => app.world;
+    ViewHost.hitstop = (ms) => app.hitstop(ms);
+    const AudioHost = BD.audio.host;
     if (BD.ui.options) {
       const VOLUMES = ['master', 'effects', 'music', 'ambience'];
-      AH.volume = (k) => BD.ui.options.get(k);
-      AH.onVolumeChange = (fn) => BD.ui.options.onChange((k) => { if (VOLUMES.includes(k)) fn(); });
+      AudioHost.volume = (k) => BD.ui.options.get(k);
+      AudioHost.onVolumeChange = (fn) => BD.ui.options.onChange((k) => { if (VOLUMES.includes(k)) fn(); });
     }
-    AH.world = () => app.world;
-    AH.playing = () => app.state === 'playing';
+    AudioHost.world = () => app.world;
+    AudioHost.playing = () => app.state === 'playing';
   }
 
   function boot() {
@@ -167,8 +194,14 @@
     if (BD.ui.wire) BD.ui.wire(bus);
     if (BD.input.gamepad) BD.input.gamepad.wire(bus);
     bus.on('save.request', (ev) => saveNow(ev.why || 'travel'));
-    bus.on('stash', () => { if (BD.ui.meta) BD.ui.meta.save(); saveNow('stash'); });
-    bus.on('run.death', () => { saveNow('death'); setTimeout(() => BD.ui.panels.open('death'), 1200); });
+    bus.on('stash', () => {
+      if (BD.ui.meta) BD.ui.meta.save();
+      saveNow('stash');
+    });
+    bus.on('run.death', () => {
+      saveNow('death');
+      setTimeout(() => BD.ui.panels.open('death'), 1200);
+    });
     bus.on('run.harvest', (ev) => {
       if (BD.ui.meta) BD.ui.meta.addSouls(ev.souls);
       if (app.world && BD.ui.saves) BD.ui.saves.markDead(app.world.run.charId);
@@ -196,7 +229,10 @@
     if (app.debug) loadDebug();
     if (BD.ui.menu) BD.ui.menu.open();
     else startRun({ cls: 'fighter', name: 'Wanderer' });
-    requestAnimationFrame((t) => { last = t; frame(t); });
+    requestAnimationFrame((t) => {
+      last = t;
+      frame(t);
+    });
   }
 
   function loadDebug() {

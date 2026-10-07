@@ -57,8 +57,16 @@
   };
 
   let card = null, shownT = 0, queue = [], current = null;
-  const seen = () => { const m = BD.ui.meta.get(); m.hints = m.hints || {}; return m.hints; };
-  function enabled() { const o = BD.ui.options; return !o || o.get('hints') !== false; }
+  /** the hint ids already shown, kept in meta so they survive across characters */
+  function seen() {
+    const m = BD.ui.meta.get();
+    m.hints = m.hints || {};
+    return m.hints;
+  }
+  function enabled() {
+    const o = BD.ui.options;
+    return !o || o.get('hints') !== false;
+  }
 
   function show(id) {
     if (!enabled() || seen()[id] || current === id || queue.includes(id)) return;
@@ -67,12 +75,19 @@
   }
   function next() {
     current = queue.shift() || null;
-    if (!current) { if (card) card.classList.remove('show'); return; }
+    if (!current) {
+      if (card) card.classList.remove('show');
+      return;
+    }
     const hn = HINTS[current];
-    seen()[current] = 1; BD.ui.meta.save();
+    seen()[current] = 1;
+    BD.ui.meta.save();
     if (!card) {
       card = h('div.hint');
-      card.addEventListener('mousedown', (e) => { e.stopPropagation(); dismiss(); });
+      card.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        dismiss();
+      });
       root().appendChild(card);
     }
     card.textContent = '';
@@ -82,7 +97,11 @@
     card.classList.add('show');
     shownT = 9000;
   }
-  function dismiss() { if (card) card.classList.remove('show'); current = null; setTimeout(next, 350); }
+  function dismiss() {
+    if (card) card.classList.remove('show');
+    current = null;
+    setTimeout(next, 350);
+  }
   function frame(ms) {
     if (!current || !card) return;
     // panels own the screen: hide the card (and hold its timer) while one is open
@@ -90,25 +109,40 @@
     card.classList.toggle('show', !covered);
     if (!covered && (shownT -= ms) <= 0) dismiss();
   }
-  function reset() { BD.ui.meta.get().hints = {}; BD.ui.meta.save(); }
+  function reset() {
+    BD.ui.meta.get().hints = {};
+    BD.ui.meta.save();
+  }
 
   function wire(bus) {
-    const P = () => BD.app.world && BD.app.world.player;
+    const currentPlayer = () => BD.app.world && BD.app.world.player;
     bus.on('monster.alert', () => show('enemy'));
-    bus.on('loot.drop', (ev) => { if (ev.kind === 'item') show('loot'); });
+    bus.on('loot.drop', (ev) => {
+      if (ev.kind === 'item') show('loot');
+    });
     bus.on('levelup', () => show('level'));
-    bus.on('ability.cast', (ev) => { const p = P(); if (p && ev.id === p.id && ev.abilityId !== 'attack') show('resource'); });
-    bus.on('telegraph.start', (ev) => { if (!ev.friendly) show('telegraph'); });
+    bus.on('ability.cast', (ev) => {
+      const p = currentPlayer();
+      if (p && ev.id === p.id && ev.abilityId !== 'attack') show('resource');
+    });
+    bus.on('telegraph.start', (ev) => {
+      if (!ev.friendly) show('telegraph');
+    });
     bus.on('damage', (ev) => {
-      const p = P();
+      const p = currentPlayer();
       if (p && ev.tgtId === p.id && p.hp < BD.sim.stats.statsOf(BD.app.world, p).maxLife * 0.5) show('flask');
     });
     bus.on('keeper.reveal', () => show('keeper'));
-    bus.on('monster.alert', (ev) => { if (ev.keeper) show('keeper'); });
+    bus.on('monster.alert', (ev) => {
+      if (ev.keeper) show('keeper');
+    });
     bus.on('seal.break', () => show('seal'));
     bus.on('town.arrive', () => show('town'));
     bus.on('run.death', () => show('death'));
-    bus.on('app.world', () => { queue = []; if (current) dismiss(); });
+    bus.on('app.world', () => {
+      queue = [];
+      if (current) dismiss();
+    });
   }
 
   BD.ui.hints = { HINTS, show, reset, frame, wire, get current() { return current; } };

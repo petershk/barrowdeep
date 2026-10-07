@@ -20,7 +20,8 @@
   }
 
   function mount() {
-    life = orb('life'); res = orb('res');
+    life = orb('life');
+    res = orb('res');
     xp = { bar: h('div.xp-fill'), wrap: null };
     xp.wrap = h('div.xp', [xp.bar]);
     flask = { el: h('div.flask', { title: 'Healing Flask (Q)' }, [h('div.flask-glass'), h('div.flask-n'), h('div.key', 'Q')]) };
@@ -37,23 +38,45 @@
     const W = 96, R = 44;
     g.clearRect(0, 0, W, W);
     g.save();
-    g.beginPath(); g.arc(48, 48, R, 0, Math.PI * 2); g.clip();
-    g.fillStyle = '#0b0807'; g.fillRect(0, 0, W, W);
+    g.beginPath();
+    g.arc(48, 48, R, 0, Math.PI * 2);
+    g.clip();
+    g.fillStyle = '#0b0807';
+    g.fillRect(0, 0, W, W);
+    // liquid with a wavy surface
     const top = 48 + R - frac * 2 * R;
     const gr = g.createLinearGradient(0, top, 0, 96);
-    gr.addColorStop(0, colTop); gr.addColorStop(1, colBot);
+    gr.addColorStop(0, colTop);
+    gr.addColorStop(1, colBot);
     g.fillStyle = gr;
-    g.beginPath(); g.moveTo(0, 96);
+    g.beginPath();
+    g.moveTo(0, 96);
     for (let x = 0; x <= W; x += 4) g.lineTo(x, top + Math.sin(x / 9 + t / 260) * (frac > 0.02 && frac < 0.98 ? 2 : 0));
-    g.lineTo(W, 96); g.closePath(); g.fill();
-    if (pulse) { g.fillStyle = `rgba(255,255,255,${0.12 + 0.1 * Math.sin(t / 95)})`; g.fillRect(0, 0, W, W); }
+    g.lineTo(W, 96);
+    g.closePath();
+    g.fill();
+    if (pulse) {
+      g.fillStyle = `rgba(255,255,255,${0.12 + 0.1 * Math.sin(t / 95)})`;
+      g.fillRect(0, 0, W, W);
+    }
     // glass highlight
     const hl = g.createRadialGradient(34, 30, 2, 40, 36, 40);
-    hl.addColorStop(0, 'rgba(255,255,255,0.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = hl; g.fillRect(0, 0, W, W);
+    hl.addColorStop(0, 'rgba(255,255,255,0.35)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl;
+    g.fillRect(0, 0, W, W);
     g.restore();
-    g.strokeStyle = '#5a4a28'; g.lineWidth = 3; g.beginPath(); g.arc(48, 48, R + 1, 0, Math.PI * 2); g.stroke();
-    g.strokeStyle = '#000'; g.lineWidth = 1; g.beginPath(); g.arc(48, 48, R + 3, 0, Math.PI * 2); g.stroke();
+    ring(g, '#5a4a28', 3, R + 1);
+    ring(g, '#000', 1, R + 3);
+  }
+
+  /** a circular rim around the orb */
+  function ring(g, color, width, radius) {
+    g.strokeStyle = color;
+    g.lineWidth = width;
+    g.beginPath();
+    g.arc(48, 48, radius, 0, Math.PI * 2);
+    g.stroke();
   }
 
   let t = 0;
@@ -67,6 +90,29 @@
     setText(life.val, (p.dead ? 0 : Math.ceil(Math.max(0, p.hp))) + ' / ' + s.maxLife);
     setText(life.lab, 'Life');
     const kind = BD.data.classes[p.cls].resource;
+    const { frac, txt, lab, pulse } = resourceReadout(p, kind);
+    const c = RES_COL[kind];
+    drawOrb(res, frac, c[0], c[1], t, pulse);
+    setText(res.val, txt);
+    setText(res.lab, lab);
+    // xp
+    const need = BD.sim.progression.xpToNext(p.level);
+    xp.bar.style.width = (p.level >= 30 ? 100 : Math.min(100, (p.xp / need) * 100)).toFixed(2) + '%';
+    xp.wrap.title = 'Level ' + p.level + (p.level < 30 ? ' — ' + Math.floor(p.xp) + ' / ' + need + ' experience' : '');
+    // flask
+    setText(flask.el.querySelector('.flask-n'), p.flask.charges + '/' + p.flask.max);
+    flask.el.classList.toggle('empty', p.flask.charges <= 0);
+    flask.el.style.setProperty('--fill', String(p.flask.charges / Math.max(1, p.flask.max)));
+    // pouch
+    const pt = 'Portal ' + (p.pouch.portal || 0) + (p.pouch.reveal ? ' · Revelation ' + p.pouch.reveal : '');
+    setText(pouch, pt);
+    // status chips (real names for every buff)
+    chipFrame(world, p);
+    pipsFrame(world, p);
+  }
+
+  /** fill fraction, number text, label and pulse for the resource orb */
+  function resourceReadout(p, kind) {
     const r = p.resources;
     let frac = 0, txt = '', lab = '', pulse = false;
     if (kind === 'rage') {
@@ -88,23 +134,7 @@
       txt = r.focus.n + ' / 5';
       lab = 'Focus';
     }
-    const c = RES_COL[kind];
-    drawOrb(res, frac, c[0], c[1], t, pulse);
-    setText(res.val, txt); setText(res.lab, lab);
-    // xp
-    const need = BD.sim.progression.xpToNext(p.level);
-    xp.bar.style.width = (p.level >= 30 ? 100 : Math.min(100, (p.xp / need) * 100)).toFixed(2) + '%';
-    xp.wrap.title = 'Level ' + p.level + (p.level < 30 ? ' — ' + Math.floor(p.xp) + ' / ' + need + ' experience' : '');
-    // flask
-    setText(flask.el.querySelector('.flask-n'), p.flask.charges + '/' + p.flask.max);
-    flask.el.classList.toggle('empty', p.flask.charges <= 0);
-    flask.el.style.setProperty('--fill', String(p.flask.charges / Math.max(1, p.flask.max)));
-    // pouch
-    const pt = 'Portal ' + (p.pouch.portal || 0) + (p.pouch.reveal ? ' · Revelation ' + p.pouch.reveal : '');
-    setText(pouch, pt);
-    // status chips (real names for every buff)
-    chipFrame(world, p);
-    pipsFrame(world, p);
+    return { frac, txt, lab, pulse };
   }
 
   function chipFrame(world, p) {
@@ -127,17 +157,27 @@
     });
   }
 
+  /** how many pips are lit and how many there are: combo points, else focus, else none */
+  function pipCount(world, p, r) {
+    if (r.combo) return { n: r.combo.n, max: BD.sim.resources.comboMax(world, p) };
+    if (r.focus) return { n: r.focus.n, max: 5 };
+    return { n: 0, max: 0 };
+  }
+
   /** combo / focus pips above the player */
   function pipsFrame(world, p) {
     const r = p.resources;
-    const n = r.combo ? r.combo.n : r.focus ? r.focus.n : 0;
-    const max = r.combo ? BD.sim.resources.comboMax(world, p) : r.focus ? 5 : 0;
-    if (!max || BD.app.state !== 'playing' || BD.ui.panels.top()) { pips.style.display = 'none'; return; }
+    const { n, max } = pipCount(world, p, r);
+    if (!max || BD.app.state !== 'playing' || BD.ui.panels.top()) {
+      pips.style.display = 'none';
+      return;
+    }
     pips.style.display = '';
     const key = n + '/' + max;
     if (pips.dataset.key !== key) {
       BD.ui.dom.clear(pips);
-      for (let i = 0; i < max; i++) pips.appendChild(h('div.pip' + (i < n ? '.on' : '') + (r.focus ? '.focus' : '')));
+      const kindSel = r.focus ? '.focus' : '';
+      for (let i = 0; i < max; i++) pips.appendChild(h('div.pip' + (i < n ? '.on' : '') + kindSel));
       pips.dataset.key = key;
     }
     const iso = BD.view.iso, v = iso.view;

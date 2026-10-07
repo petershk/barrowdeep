@@ -15,7 +15,10 @@
     const here = w.floor.key === 'town' ? 0 : w.floor.n;
     for (const [n, name] of entries) {
       const on = n === 0 || n === 13 || r.waypoints.includes(n);
-      list.appendChild(h('div.choice' + (on ? '' : '.locked') + (n === here ? '.sel' : ''), {
+      let tag = 'div.choice';
+      if (!on) tag += '.locked';
+      if (n === here) tag += '.sel';
+      list.appendChild(h(tag, {
         data: { action: on && n !== here ? 'go' : '', n },
       }, [h('b', name), on ? null : h('span.muted', ' — not yet attuned')]));
     }
@@ -40,9 +43,11 @@
     for (const c of chars) {
       const cls = BD.data.classes[c.cls];
       const where = c.floor ? 'floor ' + c.floor : 'Brennor';
-      const status = c.alive ? where : c.victory ? 'Victorious' : 'Fallen';
+      let status = where;
+      if (!c.alive) status = c.victory ? 'Victorious' : 'Fallen';
       const summary = 'Level ' + c.level + ' ' + cls.name + ' · ' + BD.data.difficulties[c.difficulty].name + ' · ' + status;
-      list.appendChild(h('div.choice.load-row' + (c.alive ? '' : '.locked'), { data: { action: c.alive ? 'load' : '', id: c.id } }, [
+      const rowTag = 'div.choice.load-row' + (c.alive ? '' : '.locked');
+      list.appendChild(h(rowTag, { data: { action: c.alive ? 'load' : '', id: c.id } }, [
         h('img.load-art', { src: BD.view.sprites.dataURL(cls.art, 2), alt: '' }),
         h('div', [h('b', c.name), h('div.muted', summary)]),
         c.alive
@@ -75,8 +80,15 @@
         BD.ui.saves.markDead(t.dataset.id);
         BD.ui.panels.rebuild('load');
       },
-      forget: (t, ev) => { ev.stopPropagation(); BD.ui.saves.deleteChar(t.dataset.id); BD.ui.panels.rebuild('load'); },
-      back: () => { BD.ui.panels.close('load'); BD.ui.menu.open(); },
+      forget: (t, ev) => {
+        ev.stopPropagation();
+        BD.ui.saves.deleteChar(t.dataset.id);
+        BD.ui.panels.rebuild('load');
+      },
+      back: () => {
+        BD.ui.panels.close('load');
+        BD.ui.menu.open();
+      },
       export: () => BD.ui.saves.exportAll(),
       import: () => BD.ui.saves.importFile(() => BD.ui.panels.rebuild('load')),
     });

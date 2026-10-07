@@ -7,7 +7,10 @@
   function add(w) { widgets.push(w); }
 
   function frame(world, realMs) {
-    if (BD.app.state !== 'playing' || !world.floor) { document.body.classList.add('no-hud'); return; }
+    if (BD.app.state !== 'playing' || !world.floor) {
+      document.body.classList.add('no-hud');
+      return;
+    }
     document.body.classList.remove('no-hud');
     if (BD.ui.minimap) BD.ui.minimap.frame(world);
     for (const w of widgets) w.frame(world, realMs);

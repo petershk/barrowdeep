@@ -35,11 +35,26 @@
     BD.ui.dom.delegate(el, {
       bargain: () => {
         const ok = BD.sim.commands.apply(w, { type: 'Bargain' });
-        if (ok) { BD.ui.panels.close('death'); BD.app.dispatch(w); BD.app.saveNow('bargain'); }
-        else { BD.app.dispatch(w); finish(w, 'The Ferryman takes his due.'); }
+        if (ok) {
+          BD.ui.panels.close('death');
+          BD.app.dispatch(w);
+          BD.app.saveNow('bargain');
+        } else {
+          BD.app.dispatch(w);
+          finish(w, 'The Ferryman takes his due.');
+        }
       },
-      harvest: () => { BD.sim.commands.apply(w, { type: 'Harvest' }); BD.app.dispatch(w); finish(w, null); },
+      harvest: () => {
+        BD.sim.commands.apply(w, { type: 'Harvest' });
+        BD.app.dispatch(w);
+        finish(w, null);
+      },
     });
+  }
+
+  function returnToMenu() {
+    BD.ui.panels.closeAll();
+    BD.app.toMenu();
   }
 
   function finish(w, line) {
@@ -54,7 +69,7 @@
     el.appendChild(h('div.row', { style: 'justify-content:center' }, [
       h('button.btn.primary', { data: { action: 'menu' } }, 'Return to the menu'),
     ]));
-    BD.ui.dom.delegate(el, { menu: () => { BD.ui.panels.closeAll(); BD.app.toMenu(); } });
+    BD.ui.dom.delegate(el, { menu: returnToMenu });
   }
 
   function buildVictory(el, arg) {
@@ -71,7 +86,7 @@
     el.appendChild(h('div.row', { style: 'justify-content:center;margin-top:12px' }, [
       h('button.btn.primary', { data: { action: 'menu' } }, 'Return to the menu'),
     ]));
-    BD.ui.dom.delegate(el, { menu: () => { BD.ui.panels.closeAll(); BD.app.toMenu(); } });
+    BD.ui.dom.delegate(el, { menu: returnToMenu });
   }
 
   BD.ui.panels.register({ id: 'death', build: buildDeath, closeOnEsc: false });

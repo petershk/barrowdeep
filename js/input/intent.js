@@ -5,7 +5,8 @@
   'use strict';
 
   const { T, PROPS } = BD.data.tiles;
-  const C = () => BD.sim.commands;
+  const Commands = () => BD.sim.commands;
+  const Grid = BD.core.grid;
   const app = () => BD.app;
 
   const hold = { left: false, right: false, keys: {}, sinceMs: 0, lockId: null, lastIssue: 0 };
@@ -15,10 +16,10 @@
     const f = world.floor;
     const enemy = BD.input.mouse.entityAt(world, screen, tile);
     if (enemy) return { kind: 'enemy', id: enemy.id, x: enemy.x, y: enemy.y };
-    if (tile.x >= 0 && tile.y >= 0 && tile.x < f.w && tile.y < f.h && f.explored[tile.y * f.w + tile.x]) {
+    if (tile.x >= 0 && tile.y >= 0 && tile.x < f.w && tile.y < f.h && f.explored[Grid.idx(f, tile.x, tile.y)]) {
       const obj = BD.sim.interact && BD.sim.interact.objectAt(world, tile.x, tile.y);
       if (obj) return { kind: 'object', x: tile.x, y: tile.y, obj };
-      const t = f.tiles[tile.y * f.w + tile.x];
+      const t = f.tiles[Grid.idx(f, tile.x, tile.y)];
       if (PROPS[t].interact) return { kind: 'object', x: tile.x, y: tile.y };
       const item = (f.items || []).find((it) => it.x === tile.x && it.y === tile.y);
       if (item) return { kind: 'item', uid: item.uid, x: tile.x, y: tile.y };
@@ -26,16 +27,28 @@
     return { kind: 'tile', x: tile.x, y: tile.y };
   }
 
-  function issue(cmd) { const w = app().world; if (w) C().issue(w, cmd); }
+  function issue(cmd) {
+    const w = app().world;
+    if (w) Commands().issue(w, cmd);
+  }
 
   function leftDown(tile, screen, shift) {
     const w = app().world;
     if (!w || app().paused()) return;
-    hold.left = true; hold.sinceMs = 0; hold.lockId = null;
-    if (shift) { issue({ type: 'ForceAttack', x: tile.x, y: tile.y }); hold.force = true; return; }
+    hold.left = true;
+    hold.sinceMs = 0;
+    hold.lockId = null;
+    if (shift) {
+      issue({ type: 'ForceAttack', x: tile.x, y: tile.y });
+      hold.force = true;
+      return;
+    }
     hold.force = false;
     const t = pick(w, tile, screen);
-    if (t.kind === 'enemy') { hold.lockId = t.id; issue({ type: 'Engage', entityId: t.id, hold: true }); }
+    if (t.kind === 'enemy') {
+      hold.lockId = t.id;
+      issue({ type: 'Engage', entityId: t.id, hold: true });
+    }
     else if (t.kind === 'object') issue({ type: 'Interact', x: t.x, y: t.y });
     else if (t.kind === 'item') issue({ type: 'Pickup', itemUid: t.uid, x: t.x, y: t.y });
     else issue({ type: 'Move', x: t.x, y: t.y });
@@ -46,12 +59,18 @@
     hold.lockId = null;
   }
 
+  /** skill aim: the enemy under the cursor, else the cursor tile, else let the sim pick */
+  function skillAim(enemy, tile) {
+    if (enemy) return { entityId: enemy.id, x: enemy.x, y: enemy.y };
+    return tile ? { x: tile.x, y: tile.y, cursor: true } : 'auto';
+  }
+
   /** skill use: slot = 'rmb' | 's1'..'s4' */
   function skill(slot, tile, screen, isHold) {
     const w = app().world;
     if (!w || app().paused()) return;
     const enemy = screen ? BD.input.mouse.entityAt(w, screen, tile, 1.5) : null;
-    const aim = enemy ? { entityId: enemy.id, x: enemy.x, y: enemy.y } : tile ? { x: tile.x, y: tile.y, cursor: true } : 'auto';
+    const aim = skillAim(enemy, tile);
     issue({ type: 'UseSkill', slot, aim, hold: !!isHold });
   }
 

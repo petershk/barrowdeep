@@ -10,7 +10,8 @@
   function mount() {
     bar = h('div.bossbar.hidden', [h('div.bb-name'), h('div.bb-track', [h('div.bb-fill'), h('div.bb-notches')])]);
     plate = h('div.nameplate.hidden', [h('div.np-name'), h('div.np-sub'), h('div.np-track', [h('div.np-fill')]), h('div.np-mods')]);
-    root().appendChild(bar); root().appendChild(plate);
+    root().appendChild(bar);
+    root().appendChild(plate);
   }
 
   function frame(world) {
@@ -29,7 +30,11 @@
       const d = BD.sim.monsters.defOf(boss);
       const st = boss.ai.boss || { phase: 0 };
       let hp = boss.hp, max = BD.sim.stats.statsOf(world, boss).maxLife;
-      if (shades.length > 1) { hp = 0; for (const s of shades) hp += Math.max(0, s.hp); max = boss.shadeMax || max; }
+      if (shades.length > 1) {
+        hp = 0;
+        for (const s of shades) hp += Math.max(0, s.hp);
+        max = boss.shadeMax || max;
+      }
       const phName = st.phase > 0 && d.phases ? ' — ' + d.phases[st.phase - 1].name.toUpperCase() : '';
       setText(bar.querySelector('.bb-name'), d.name + ' · level ' + ((boss.al || f.al) + 2) + phName);
       bar.querySelector('.bb-fill').style.width = Math.max(0, (hp / max) * 100).toFixed(2) + '%';
@@ -43,7 +48,10 @@
     // nameplate for hover or lock
     const m = BD.input.mouse;
     const t = m.hoverEntity || (world.player.lockId != null ? BD.sim.entities.get(world, world.player.lockId) : null);
-    if (!t || t.dead || t.faction === 'player' || t === boss) { plate.classList.add('hidden'); return; }
+    if (!t || t.dead || t.faction === 'player' || t === boss) {
+      plate.classList.add('hidden');
+      return;
+    }
     plate.classList.remove('hidden');
     const d = BD.sim.monsters.defOf(t);
     const max = BD.sim.stats.statsOf(world, t).maxLife;
