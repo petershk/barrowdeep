@@ -49,9 +49,13 @@
     const cmp = BD.sim.itemsDescribe.compare(w, p, item);
     const cur = BD.sim.stats.statsOf(w, p);
     const d0 = BD.sim.itemsDescribe.dps(cur), e0 = BD.sim.itemsDescribe.ehp(w, cur);
+    // casters are scored by spell power (Magic, spell% and their main element), not weapon DPS
+    const sp = (s) => (1 + 0.03 * (s.mag || 0)) * (1 + ((s.spell_pct || 0) + (s.fire_pct || 0)) / 100) * (1 + (Math.min(60, s.critChance || 0) / 100) * ((s.critMult || 1.75) - 1));
+    const caster = p.cls === 'magician', sp0 = caster ? sp(cur) : 0;
     let best = null;
     for (const c of cmp) {
-      const score = c.dps / Math.max(1, d0) + 0.8 * (c.ehp / Math.max(1, e0)) + (c.rows.find((r) => r.label === 'Magic Find') ? 0.002 : 0);
+      const off = caster ? sp(BD.sim.itemsDescribe.wearing(w, p, item, c.slot)) / sp0 - 1 : c.dps / Math.max(1, d0);
+      const score = off + 0.8 * (c.ehp / Math.max(1, e0)) + (c.rows.find((r) => r.label === 'Magic Find') ? 0.002 : 0);
       if (score > 0.02 && (!best || score > best.score)) best = { slot: c.slot, score };
     }
     return best;
@@ -196,11 +200,19 @@
       return;
     }
     if (f.key === 'town') return townRoutine(bot);
-    const near = visibleEnemies(w, 9);
+    // enemies we've given up on (unreachable) don't count: loot, chests and exploring carry on
+    const near = visibleEnemies(w, 9).filter((e) => !(bot.unreach && bot.unreach.get(e.id) > w.time));
     if (near.length) { fight(bot, near); return; }
     // loot
     bot.ignore = bot.ignore || new Set();
-    const g = f.items.find((it) => !bot.ignore.has(it.uid) && !(it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) && (it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold' || (it.kind === 'orb' && p.flask.charges < p.flask.max)) && within(it.x, it.y, p.x, p.y, 12));
+    // the nearest wanted item, committed to until picked up (8 s, then ignored) so the bot never oscillates
+    const wanted = (it) => !bot.ignore.has(it.uid) && !(it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) && (it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold' || (it.kind === 'orb' && p.flask.charges < p.flask.max)) && within(it.x, it.y, p.x, p.y, 12);
+    let g = bot.lootUid != null ? f.items.find((it) => it.uid === bot.lootUid && wanted(it)) : null;
+    if (!g) {
+      let bd = 1e9;
+      for (const it of f.items) if (wanted(it)) { const d = U.dist2(it.x, it.y, p.x, p.y); if (d < bd) { bd = d; g = it; } }
+      if (g) { bot.lootUid = g.uid; bot.lootSince = w.time; }
+    } else if (w.time - bot.lootSince > 8000) { bot.ignore.add(g.uid); bot.lootUid = null; g = null; }
     if (g && (g.kind !== 'item' || p.pack.length < 29)) {
       if (g.kind === 'item') CMD(w, { type: 'Pickup', itemUid: g.uid });
       else CMD(w, { type: 'Move', x: g.x, y: g.y });

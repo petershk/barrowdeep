@@ -54,6 +54,8 @@
     const back = r.deathFloor;
     r.dead = false;
     p.dead = false;
+    p.dying = false;   // the kill flag too, or no later death could ever be processed
+    if (world.pendingDeaths) world.pendingDeaths = world.pendingDeaths.filter((d) => d.id !== p.id);
     p.gold = Math.floor(p.gold / 2);
     p.statuses = [];
     // a portal back to the floor's up stairs (or beside the boss gate after an arena death)

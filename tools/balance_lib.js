@@ -21,7 +21,11 @@ function makeBD() {
 const med = (a) => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y); return s.length % 2 ? s[s.length >> 1] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2; };
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 
-/** on-curve hero on floor n (cleared of monsters unless keep) */
+// bot-curve snapshots (tools/curve_snapshot.js): the hero the bot actually is at each floor's entry
+let CURVE = null;
+try { if (process.env.BAL_CURVE !== 'synthetic') CURVE = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, 'curve.json'), 'utf8')); } catch (e) { CURVE = null; }
+
+/** on-curve hero on floor n (cleared of monsters unless keep): the bot-curve snapshot, else synthetic */
 function onCurve(BD, cls, n, seed, o) {
   o = o || {};
   const fl = BD.data.floors.byN(n);
@@ -30,6 +34,19 @@ function onCurve(BD, cls, n, seed, o) {
   w.run.charId = 'bal'; w.stash = [[], [], []];
   BD.sim.run.travel(w, n, 'spawn');
   const p = w.player;
+  const snap = CURVE && CURVE[cls] && (CURVE[cls][n] || CURVE[cls][n - 1]);
+  if (snap) {
+    p.level = snap.level; p.attrs = Object.assign({}, snap.attrs); p.skills = Object.assign({}, snap.skills); p.bar = Object.assign({}, snap.bar);
+    p.unspent.attr = 0; p.unspent.skill = 0;
+    for (const k in p.equip) p.equip[k] = snap.equip[k] ? JSON.parse(JSON.stringify(snap.equip[k])) : null;
+    if (snap.flaskMax) { p.flask.max = snap.flaskMax; p.flask.charges = snap.flaskMax; }
+    BD.sim.stats.bump(p);
+    const s0 = BD.sim.stats.statsOf(w, p);
+    p.hp = s0.maxLife;
+    if (p.resources.mana) p.resources.mana.cur = s0.maxMana;
+    if (!o.keep) clearFloor(BD, w);
+    return { w, p, bot: BD.debug.bot.make(w, {}), al };
+  }
   const B = BD.data.balance.player;
   const L = Math.min(B.levelCap, al + 1);
   p.unspent.attr += (L - p.level) * B.attrPerLevel;
@@ -65,7 +82,7 @@ function gear(BD, w, p, ilvl, samples, seed) {
     if (!pool.length) continue;
     const score = slot === 'weapon' ? wdps : value;
     pool.sort((a, b) => score(a) - score(b));
-    const it = pool[pool.length >> 1];
+    const it = pool[Math.min(pool.length - 1, Math.floor(pool.length * (+(process.env.BAL_PCT || 0.5))))];
     p.pack.push(it);
     BD.sim.commands.apply(w, { type: 'Equip', uid: it.uid, slot: slot === 'ring' ? (p.equip.ring1 ? 'ring2' : 'ring1') : undefined });
   }

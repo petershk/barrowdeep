@@ -156,4 +156,19 @@ module.exports = (T) => {
     BD.sim.world.step(w, STEP);
     T.ok(pr.x !== x0 || pr.y !== m.y, 'projectile moved');
   });
+
+  T.test('a won Bargain fully revives: the hero can die again afterwards', () => {
+    const w = newWorld('bargain', 'fighter', 2);
+    const p = w.player, m = firstMonster(w);
+    BD.sim.damage.kill(w, p, m, { tags: ['melee'], amounts: { phys: 99 } });
+    BD.sim.world.step(w, STEP);
+    T.ok(p.dead && w.run.dead, 'hero died');
+    let ok = false;
+    for (let i = 0; i < 20 && !ok; i++) { w.run.bargainsUsed = 0; w.run.harvested = false; w.run.dead = true; p.dead = true; ok = BD.sim.commands.apply(w, { type: 'Bargain' }) === true; }
+    T.ok(ok, 'bargain succeeded within 20 tries');
+    T.ok(!p.dying && !p.dead && p.hp > 0 && w.floor.key === 'town', 'alive in town, kill flag cleared');
+    BD.sim.damage.kill(w, p, null, { tags: [], amounts: { phys: 1 } });
+    BD.sim.world.step(w, STEP);
+    T.ok(p.dead, 'a later death is processed');
+  });
 };
