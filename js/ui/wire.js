@@ -6,6 +6,7 @@
   function wire(bus) {
     BD.ui.tooltip.init();
     const L = BD.ui.log;
+    if (BD.ui.hints) BD.ui.hints.wire(bus);
     bus.on('announce', (ev) => L.announce(ev.text, ev.style));
     bus.on('ability.reject', (ev) => L.denied(ev.reason));
     bus.on('levelup', (ev) => { L.line('You reached level ' + ev.level + '. Spend your points: C attributes, K skills.', 'gold'); BD.ui.panels.markDirty('character'); BD.ui.panels.markDirty('skills'); });

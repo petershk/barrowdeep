@@ -254,3 +254,8 @@ body.save-failed .minimap { border-color: var(--bad); }
 .shrine-perk.owned { border-color: #5a4a28; background: rgba(80, 60, 20, 0.2); }
 .shrine-perk.locked { opacity: 0.5; }
 @media (max-width: 900px) { .shop-cols, .shrine-list { grid-template-columns: 1fr; } }
+.hint { position: absolute; bottom: 130px; left: 50%; transform: translate(-50%, 12px); max-width: min(520px, 90vw); background: linear-gradient(var(--panel-a), var(--panel-b)); border: 1px solid var(--gold); box-shadow: 0 0 0 1px #000, 0 6px 30px rgba(0,0,0,0.8); padding: 10px 16px 8px; border-radius: 3px; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; z-index: 20; cursor: pointer; }
+.hint.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.hint-title { color: var(--gold); font-variant: small-caps; letter-spacing: 0.06em; font-size: 1.05rem; margin-bottom: 4px; }
+.hint-text { color: var(--bone); font-size: 0.95rem; line-height: 1.35; }
+.hint-close { color: #8a7a60; font-size: 0.75rem; text-align: right; margin-top: 4px; font-variant: small-caps; }

@@ -63,6 +63,7 @@
       BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
     }
     if (BD.ui.hud && w) BD.ui.hud.frame(w, real);
+    if (BD.ui.hints) BD.ui.hints.frame(real);
     else if (!w) document.body.classList.add('no-hud');
     if (BD.ui.panels) BD.ui.panels.frame(real);
     if (BD.audio.music) BD.audio.music.frame(real);
