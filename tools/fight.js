@@ -29,7 +29,11 @@ function fight(difficulty, packId, seed) {
   const w = BD.sim.world.createWorld({ seed, cls, name: 'Sim', difficulty, firstSkill: plan[0] });
   BD.sim.run.travel(w, FLOOR, 'spawn');
   const p = w.player;
-  if (LEVEL > 1) BD.sim.progression.gainXp(w, p, BD.sim.progression.xpForLevel ? BD.sim.progression.xpForLevel(LEVEL) : 0, 'sim');
+  // XP to go from level 1 to LEVEL (points are spent below, like the bot would)
+  let xp = 0;
+  for (let L = 1; L < LEVEL; L++) xp += BD.sim.progression.xpToNext(L);
+  if (xp > 0) BD.sim.progression.gainXp(w, p, xp, 'sim');
+  if (p.level !== LEVEL) throw new Error('could not reach level ' + LEVEL + ' (got ' + p.level + ')');
   const bot = BD.debug.bot.make(w, { maxFloor: FLOOR });
   BD.debug.bot.spendPoints(bot);
   // an empty floor, then one pack a few tiles away, all awake
