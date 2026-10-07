@@ -112,3 +112,23 @@ On top of that, difficulty modes only scale numbers, and Grulk's difficulty swin
    - The bot's 1.5 s retry lock halves Magician cantrip use.
    - The bot plays one build per class, so Lightning Sentry, Whirlwind, Brace, Second Wind and Valkyrie's Call
      never get measured.
+
+## Status (2026-10-07)
+
+Recommendations 1–3 are done; the details and the spec departures are in the spec's `DECISIONS.md`
+("Early game rework after the design review").
+
+- **1. Tiers** unlock at levels 1 / 4 / 8 / 13. The bot's skill plans take each tier when it opens.
+- **2. Build and spend:**
+  - Assassin: Tiger Strike is free; energy (10/s) pays for finishers.
+  - Valkyrie: Multishot 0.8×; Aimed Shot needs 2 focus, follows attack speed, 1.0× + 0.6× per focus.
+  - Magician: cantrips back at spec damage, cast in 450 ms. A new left-click slot holds a free builder
+    or cantrip, and the Magician's first cantrip starts there.
+  - Fighter: unchanged; its spenders now arrive at level 8.
+- **3. XP:** early levels are discounted (0.3× at level 1, full price from level 13). Arrival levels on
+  floors 2–6 are 4 / 7 / 10 / 12 / 14 (target 4 / 7 / 9 / 11 / 13). Late game unchanged.
+- **Retune:** the balance suite passes again (every class within 20% of the median trash TTK in every
+  act; elites, packs and the four act bosses in band). Grulk now lasts about 60 s.
+- **Tooling (part of 8):** the bot counts casts, not attempts, and no longer locks out a skill it just cast.
+
+Still open: 4 (Grulk's gap-closer, damage mix), 5 (difficulty behaviour), 6, 7 and the rest of 8.

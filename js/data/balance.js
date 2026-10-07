@@ -33,7 +33,7 @@
       manaRegenBase: 1.5, manaRegenPerMag: 0.04, surgeDelayMs: 2500, surgeMult: 3,
       rageMax: 100, rageBasicGen: 6, rageDecay: 8, rageDecayDelayMs: 3000,
       momentumThresh: 50, momentumDmg: 10, momentumIas: 10,
-      energyMax: 100, energyRegen: 18,
+      energyMax: 100, energyRegen: 10,                // energy pays for finishers and utility; builders are free
       comboMax: 3, comboWindowMs: 6000, comboBasicBonus: 0.4,
       focusMax: 5, focusStillMs: 1000, focusLoseMs: 4000, focusSameTargetGapMs: 500, focusCritPer: 4,
       lifeRegenPct: 0.4, oocRegenPct: 3, oocDelayMs: 4000,
@@ -63,17 +63,19 @@
         malgoth: { hp: 160, dmg: 1.0, xp: 0, boss: true, fearless: true, steady: true },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 0.92, 2: 1.0, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
+      actDmg: { 1: 0.98, 2: 1.1, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },
       keeperAct: { 1: 1, 2: 0.88, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
       trashXpBase: 10,                                  // xp of a normal monster at AL 1 (grows by xpGrowth per AL)
       dormantDrPct: 40,                                 // statues take this much less damage until they wake
     },
-    xp: { base: 290, growth: 1.13, fullClearKills: 5 },
+    // xpToNext(L) = base × growth^(L−1) × ramp(L): ramp rises linearly from earlyMult at level 1 to 1 at
+    // level 1 + earlyLevels, so the first floors give ~3 levels each (arrive at level ≈ AL + 1, 05 §1)
+    xp: { base: 290, growth: 1.13, earlyMult: 0.3, earlyLevels: 12, fullClearKills: 5 },
     skills: {
       maxRank: 5, keystoneTier: 4,                      // skill points buy this many ranks per skill; the tier-4 keystone has one
-      tierLevel: { 1: 1, 2: 6, 3: 12, 4: 18 },          // character level that unlocks each skill tier
+      tierLevel: { 1: 1, 2: 4, 3: 8, 4: 13 },           // character level that unlocks each skill tier
       rankCap: 8,                                       // bought + gear (+skill) ranks are capped here
       rankScaleStep: 0.2,                               // each rank above 1 adds this fraction of the base value
       cdrCapPct: 40,                                    // cooldown reduction never exceeds this percent

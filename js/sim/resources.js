@@ -40,7 +40,7 @@
   }
   function canPay(p, type, cost, minStart) {
     if (type === 'none' || !type) return true;
-    if (cost === 'all') return true;
+    if (cost === 'all') return amount(p, type) >= (minStart || 0);
     return amount(p, type) >= Math.max(cost, minStart || 0);
   }
   /** spend; returns what was spent (for refunds) */

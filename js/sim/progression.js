@@ -10,7 +10,12 @@
 
   const DEFAULT_MONSTER_XP = 10;               // XP weight of a monster def that names none
 
-  const xpToNext = (L) => Math.round(Balance.xp.base * Math.pow(Balance.xp.growth, L - 1));
+  /** XP from level L to L+1: geometric, discounted over the first levels (balance.xp) */
+  function xpToNext(L) {
+    const x = Balance.xp;
+    const ramp = Math.min(1, x.earlyMult + ((1 - x.earlyMult) * (L - 1)) / x.earlyLevels);
+    return Math.round(x.base * Math.pow(x.growth, L - 1) * ramp);
+  }
 
   /** XP of a monster kill (05 §3): def.xpW × 1.12^(AL−1) × rank.xp × diff.xp */
   function xpFor(world, e) {
@@ -95,15 +100,11 @@
     p.skills[c.id] = (p.skills[c.id] || 0) + 1;
     p.unspent.skill--;
     BD.sim.stats.bump(p);
-    // auto-slot a newly learned active skill into the first free slot
+    // auto-slot a newly learned active skill (cantrips onto a free left click, else the first free slot)
     const ab = BD.data.skills[c.id];
     if (p.skills[c.id] === 1 && !ab.passive && !Object.values(p.bar).includes(c.id)) {
-      for (const k of ['rmb', 's1', 's2', 's3', 's4']) {
-        if (!p.bar[k]) {
-          p.bar[k] = c.id;
-          break;
-        }
-      }
+      const slot = BD.sim.abilities.defaultSlot(p, ab);
+      if (slot) p.bar[slot] = c.id;
     }
     if (ab.charges) {
       p.charges = p.charges || {};
@@ -116,6 +117,7 @@
     const p = world.player;
     if (c.id && !p.skills[c.id]) return false;
     if (c.id && BD.data.skills[c.id] && BD.data.skills[c.id].passive) return false;
+    if (c.slot === 'lmb' && c.id && !BD.sim.abilities.canBePrimary(BD.data.skills[c.id])) return false;
     for (const k in p.bar) if (p.bar[k] === c.id) p.bar[k] = null;
     p.bar[c.slot] = c.id || null;
     world.events.push({ type: 'bar.change' });

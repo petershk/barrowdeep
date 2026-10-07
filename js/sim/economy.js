@@ -204,7 +204,7 @@
     p.skills = {};
     p.unspent.skill += pts;
     p.charges = {};
-    p.bar = { rmb: null, s1: null, s2: null, s3: null, s4: null };
+    p.bar = { lmb: null, rmb: null, s1: null, s2: null, s3: null, s4: null };
     BD.sim.stats.bump(p);
     BD.sim.inventory.clampResources(world, p);
     world.events.push({ type: 'respec' });

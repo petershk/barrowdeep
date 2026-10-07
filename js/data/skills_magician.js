@@ -12,9 +12,9 @@
   // ---------------- Pyromancy ----------------
   sk({
     id: 'firebolt', branch: 'pyro', tier: 1, name: 'Firebolt', icon: 'firebolt', school: 'fire',
-    tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
+    tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'projectile', projectile: 'firebolt' },
-    effects: [{ type: 'damage', source: 'spell', base: [6, 13], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [6, 10], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'firebolt', pierce: 1 } }, text: 'Pierces 1 target.' },
       { rank: 5, set: { splitOnHit: 2 }, text: 'Splits into 2 bolts on hit.' },
@@ -51,10 +51,10 @@
   // ---------------- Frost ----------------
   sk({
     id: 'ice_shard', branch: 'frost', tier: 1, name: 'Ice Shard', icon: 'ice_shard', school: 'cold',
-    tags: ['spell', 'projectile', 'cold', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
+    tags: ['spell', 'projectile', 'cold', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 7, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'ice_shard', count: 3, spread: 20, extraFromStat: true, eachLands: false },
-    effects: [{ type: 'damage', source: 'spell', base: [3, 4], element: 'cold', canCrit: true }, { type: 'status', id: 'chilled', needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'cold', canCrit: true }, { type: 'status', id: 'chilled', needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true } }, text: '4 shards.' },
       { rank: 5, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true, pierce: 'all' } }, text: 'Shards pierce.' },
@@ -90,10 +90,10 @@
   // ---------------- Storm ----------------
   sk({
     id: 'spark', branch: 'storm', tier: 1, name: 'Spark', icon: 'spark', school: 'storm',
-    tags: ['spell', 'projectile', 'lightning', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
+    tags: ['spell', 'projectile', 'lightning', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 6, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'spark', count: 3, spread: 30, extraFromStat: true, maxDist: 6 },
-    effects: [{ type: 'damage', source: 'spell', base: [2, 4], element: 'light', canCrit: true }, { type: 'status', id: 'shocked', chance: 0.1, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [2, 6], element: 'light', canCrit: true }, { type: 'status', id: 'shocked', chance: 0.1, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'spark', count: 4, spread: 30, extraFromStat: true, maxDist: 6 } }, text: '4 sparks.' },
       { rank: 5, set: { sparkChain: true }, text: 'Sparks chain once.' },

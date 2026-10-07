@@ -1,12 +1,12 @@
 // @ts-check
-// Skill bar: RMB + 1–4 + Evade. Recharge mask recedes upward with a bright edge; a 320 ms "ready"
-// flash; combo/focus pips on the bar. Clicking a slot casts with smart aim ('auto').
+// Skill bar: LMB + RMB + 1–4 + Evade (an empty LMB slot shows the basic attack). Recharge mask recedes upward
+// with a bright edge; a 320 ms "ready" flash; combo/focus pips on the bar. Clicking a slot casts with smart aim ('auto').
 (function (BD) {
   'use strict';
 
   const { h, setText } = BD.ui.dom;
-  const SLOTS = ['rmb', 's1', 's2', 's3', 's4'];
-  const KEYS = { rmb: 'RMB', s1: '1', s2: '2', s3: '3', s4: '4' };
+  const SLOTS = ['lmb', 'rmb', 's1', 's2', 's3', 's4'];
+  const KEYS = { lmb: 'LMB', rmb: 'RMB', s1: '1', s2: '2', s3: '3', s4: '4' };
   let el = null;
   const slots = {};
   const flashes = {};
@@ -40,6 +40,14 @@
       BD.ui.tooltip.bind(box, (c, shift) => {
         const w = BD.app.world;
         const id = s === 'evade' ? null : w.player.bar[s];
+        if (!id && s === 'lmb') {
+          BD.ui.dom.append(c, [
+            h('div.tt-title', 'Attack'),
+            h('div.tt-desc', 'Left click on an enemy: your basic attack. '
+              + 'Place a free builder or cantrip here in the Skills panel (K) to cast it instead.'),
+          ]);
+          return;
+        }
         if (!id) {
           BD.ui.dom.append(c, s === 'evade'
             ? [
@@ -67,9 +75,10 @@
       if (sl.id !== id) {
         sl.id = id;
         const ab = id && id !== 'evade' ? BD.data.skills[id] : null;
-        const iconId = id === 'evade' ? 'evade' : ab && ab.icon;
-        sl.icon.src = id ? BD.view.icons.url(iconId) : '';
-        sl.icon.style.visibility = id ? 'visible' : 'hidden';
+        let iconId = id === 'evade' ? 'evade' : ab && ab.icon;
+        if (!id && s === 'lmb') iconId = BD.data.basicAttack.icon;
+        sl.icon.src = iconId ? BD.view.icons.url(iconId) : '';
+        sl.icon.style.visibility = iconId ? 'visible' : 'hidden';
       }
       let frac = 0, label = '';
       if (id === 'evade') {

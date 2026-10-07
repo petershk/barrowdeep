@@ -20,6 +20,20 @@
   /** all ability defs by id (skills register into BD.data.skills) */
   function def(id) { return id === 'attack' ? BD.data.basicAttack : BD.data.skills[id]; }
 
+  const SKILL_SLOTS = ['rmb', 's1', 's2', 's3', 's4'];
+
+  /** can this skill sit on the left-click slot? a free, aimed skill with no cooldown (a builder or cantrip) */
+  function canBePrimary(ab) {
+    if (!ab || ab.passive || ab.channel || ab.charges || ab.cooldownMs) return false;
+    const cost = ab.resource ? ab.resource.cost : 0;
+    return (cost === 0 || cost == null) && !!ab.targeting && ab.targeting.mode !== 'self';
+  }
+  /** where a newly learned skill goes: a cantrip takes the free left click, anything else the first free slot */
+  function defaultSlot(p, ab) {
+    if (ab.tags.includes('cantrip') && canBePrimary(ab) && !p.bar.lmb) return 'lmb';
+    return SKILL_SLOTS.find((k) => !p.bar[k]) || null;
+  }
+
   /** hard + soft ranks; soft ranks only on skills with ≥1 hard point; total capped at 8 */
   function rankOf(world, p, id) {
     if (id === 'attack') return 1;
@@ -379,6 +393,7 @@
   }
 
   BD.sim.abilities = {
+    canBePrimary, defaultSlot,
     def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing,
     tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods,
   };

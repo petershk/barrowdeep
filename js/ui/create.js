@@ -60,8 +60,9 @@
 
   /** the line under a skill card's name: tier, plus the level that unlocks it */
   function skillSubtitle(ab, pick) {
-    if (ab.keystone) return 'Keystone · level 18';
-    return 'Tier ' + ab.tier + (pick ? '' : ' · level ' + { 2: 6, 3: 12 }[ab.tier]);
+    const level = BD.data.balance.skills.tierLevel[ab.tier];
+    if (ab.keystone) return 'Keystone · level ' + level;
+    return 'Tier ' + ab.tier + (pick ? '' : ' · level ' + level);
   }
 
   function buildSkillCard(ab, fake) {
@@ -90,8 +91,8 @@
       for (const ab of list) col.appendChild(buildSkillCard(ab, fake));
       cols.appendChild(col);
     }
-    body.appendChild(h('div.muted',
-      'Choose your first skill. It starts at rank 1 on the right mouse button. Every branch stays open to you.'));
+    body.appendChild(h('div.muted', 'Choose your first skill. It starts at rank 1: a cantrip on the left mouse button, '
+      + 'any other skill on the right. Every branch stays open to you.'));
     body.appendChild(cols);
   }
 

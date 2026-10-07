@@ -68,6 +68,7 @@
     el.appendChild(h('h2', 'Controls'));
     el.appendChild(h('div.muted',
       'Mouse: left click to move, attack and interact (hold to keep moving; hold on an enemy to keep attacking). '
+      + 'A skill on the left-mouse slot replaces the basic attack. '
       + 'Right click: the right-mouse skill. Shift + left click: attack in place. Wheel: zoom.'));
     const grid = h('div.bind-grid');
     for (const k in Bindings.DEFAULTS) {

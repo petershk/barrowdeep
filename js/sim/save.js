@@ -91,6 +91,7 @@
       }
     }
     for (const k in p.bar || {}) if (p.bar[k] && !D.skills[p.bar[k]]) p.bar[k] = null;
+    if (p.bar && !('lmb' in p.bar)) p.bar.lmb = null;          // saves from before the left-click slot
     p.statuses = (p.statuses || []).filter((st) => D.statuses[st.id]);
     if (p.background && !D.backgrounds[p.background]) {
       fixed.push('background ' + p.background);

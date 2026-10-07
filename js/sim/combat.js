@@ -13,7 +13,15 @@
 
   const AIR_SWING_SNAP_RADIUS = 1.5;   // a force-attack near an enemy snaps onto it
 
+  /** what a left click on an enemy casts: the skill on the left-click slot, else the basic attack */
+  function primaryId(world, p) {
+    const id = p.bar.lmb;
+    return id && p.skills[id] && Abilities().canBePrimary(BD.data.skills[id]) ? id : 'attack';
+  }
+
   function basicRange(world, p) {
+    const id = primaryId(world, p);
+    if (id !== 'attack') return BD.data.skills[id].targeting.range || 1;
     const w = BD.sim.stats.statsOf(world, p).weapon;
     if (w.projectile) return w.range;
     return w.reachLine ? w.reachLine : 1;
@@ -22,7 +30,7 @@
   /** Engage intent fires this when in range. */
   function playerBasicAttack(world, p, t) {
     if (p.attack) return false;
-    return Abilities().tryCast(world, p, 'attack', { entityId: t.id, x: t.x, y: t.y }) === 'cast';
+    return Abilities().tryCast(world, p, primaryId(world, p), { entityId: t.id, x: t.x, y: t.y }) === 'cast';
   }
 
   /** Shift+click: attack the tile in place (no movement). */
@@ -31,8 +39,15 @@
     const f = world.floor;
     const occ = f.occ[Grid.idx(f, x, y)];
     const t = occ && occ !== p.id ? Entities.get(world, occ) : null;
+    const id = primaryId(world, p);
     if (t && t.faction !== 'player') {
-      Abilities().tryCast(world, p, 'attack', { entityId: t.id });
+      Abilities().tryCast(world, p, id, { entityId: t.id, x: t.x, y: t.y });
+      return;
+    }
+    // a left-click skill aimed at the ground: a swing toward the tile, or a shot at it when in range (never a walk)
+    const tg = id === 'attack' ? null : BD.data.skills[id].targeting;
+    if (tg && (tg.mode === 'direction' || (tg.mode === 'point' && BD.core.util.within(p.x, p.y, x, y, tg.range)))) {
+      Abilities().tryCast(world, p, id, { x, y });
       return;
     }
     // swing at the air toward the tile
@@ -110,7 +125,7 @@
     }
   }
 
-  BD.sim.combat = { basicRange, playerBasicAttack, forceAttack, drinkFlask, queueSystem, corpseSystem };
+  BD.sim.combat = { primaryId, basicRange, playerBasicAttack, forceAttack, drinkFlask, queueSystem, corpseSystem };
   BD.sim.world.addSystem('queue', queueSystem, 9);
   BD.sim.world.addSystem('corpses', corpseSystem, 40);
 })(globalThis.BD);

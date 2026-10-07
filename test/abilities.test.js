@@ -104,4 +104,42 @@ module.exports = (T) => {
     T.near(BD.sim.abilities.scale({ mult: 1.25 }, 5), 2.25, 1e-9);
     T.near(BD.sim.abilities.scale({ mult: 3.2 }, 5), 5.76, 1e-9);
   });
+
+  T.test('the left-click slot: a cantrip starts there and a click on an enemy casts it; costly or cooldown skills are refused', () => {
+    const w = BD.sim.world.createWorld({ seed: 'lmb', cls: 'magician', name: 't', firstSkill: 'firebolt' });
+    BD.sim.run.travel(w, 1, 'spawn');
+    const p = w.player;
+    T.eq(p.bar.lmb, 'firebolt');
+    T.eq(p.bar.rmb, null);
+    T.eq(BD.sim.combat.primaryId(w, p), 'firebolt');
+    T.ok(BD.sim.combat.basicRange(w, p) === BD.data.skills.firebolt.targeting.range, 'engage range follows the left-click skill');
+    p.level = 20;
+    p.skills.fireball = 1;
+    p.skills.teleport = 1;
+    T.ok(!BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: 'fireball' }), 'a mana spell is refused');
+    T.ok(!BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: 'teleport' }), 'a cooldown skill is refused');
+    BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: null });
+    T.eq(BD.sim.combat.primaryId(w, p), 'attack');
+    // a fighter's Bash may go there; it doesn't by default
+    const f = BD.sim.world.createWorld({ seed: 'lmb2', cls: 'fighter', name: 't', firstSkill: 'bash' });
+    T.eq(f.player.bar.rmb, 'bash');
+    T.ok(BD.sim.commands.apply(f, { type: 'SetBar', slot: 'lmb', id: 'bash' }), 'Bash is a free builder');
+  });
+
+  T.test('Aimed Shot needs 2 focus; Tiger Strike is free', () => {
+    const w = setup('valkyrie', 'aimed_shot', 1);
+    const p = w.player;
+    p.resources.focus.n = 1;
+    T.ok(!BD.sim.resources.canPay(p, 'focus', 'all', BD.data.skills.aimed_shot.resource.minStart));
+    p.resources.focus.n = 2;
+    T.ok(BD.sim.resources.canPay(p, 'focus', 'all', BD.data.skills.aimed_shot.resource.minStart));
+    T.eq(BD.data.skills.tiger_strike.resource.cost, 0);
+  });
+
+  T.test('XP curve: early levels are discounted, later ones follow base × growth^(L−1)', () => {
+    const X = BD.data.balance.xp, xp = BD.sim.progression.xpToNext;
+    T.eq(xp(1), Math.round(X.base * X.earlyMult));
+    T.eq(xp(1 + X.earlyLevels), Math.round(X.base * Math.pow(X.growth, X.earlyLevels)));
+    for (let L = 1; L < 29; L++) T.ok(xp(L + 1) > xp(L), 'xpToNext rises at ' + L);
+  });
 };

@@ -1,12 +1,14 @@
 // @ts-check
 // Skills panel (K): three branch columns drawn as a tree (tier rows + connectors), rank pips,
-// learn (+), assign to RMB / 1–4, breakpoints highlighted, "Now / Next" via tooltip (Shift).
+// learn (+), assign to LMB (free builders and cantrips) / RMB / 1–4, breakpoints highlighted, "Now / Next" via tooltip (Shift).
 (function (BD) {
   'use strict';
 
   const { h } = BD.ui.dom;
   const Commands = () => BD.sim.commands;
-  const TIER_LVL = { 1: 1, 2: 6, 3: 12, 4: 18 };
+  const TIER_LVL = BD.data.balance.skills.tierLevel;
+  const SLOT_LABEL = { lmb: 'L', rmb: 'R' };
+  const SLOT_TITLE = { lmb: 'left mouse (free builders and cantrips)', rmb: 'right mouse' };
 
   function build(el) {
     const w = BD.app.world, p = w.player;
@@ -59,12 +61,12 @@
     }
     const slotBtn = (s) => h('button.slot-btn' + (p.bar[s] === ab.id ? '.on' : ''), {
       data: { action: 'assign', slot: s, id: ab.id },
-      disabled: !hard,
-      title: 'Place on ' + (s === 'rmb' ? 'right mouse' : 'slot ' + s[1]),
-    }, s === 'rmb' ? 'R' : s[1]);
+      disabled: !hard || (s === 'lmb' && !BD.sim.abilities.canBePrimary(ab)),
+      title: 'Place on ' + (SLOT_TITLE[s] || 'slot ' + s[1]),
+    }, SLOT_LABEL[s] || s[1]);
     const slotBtns = ab.passive
       ? h('div.slot-btns', h('span.muted.small', 'Keystone'))
-      : h('div.slot-btns', ['rmb', 's1', 's2', 's3', 's4'].map(slotBtn));
+      : h('div.slot-btns', ['lmb', 'rmb', 's1', 's2', 's3', 's4'].map(slotBtn));
     const sub = (ab.keystone ? 'Keystone' : 'Tier ' + ab.tier)
       + (locked ? ' · level ' + TIER_LVL[ab.tier] : '')
       + (rank > hard ? ' · +' + (rank - hard) : '');

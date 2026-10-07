@@ -26,15 +26,15 @@
   BD.data.bosses = {};
 
   boss('grulk', 1, {
-    hpMult: 1.0, dmgMult: 0.95,
+    hpMult: 1.3, dmgMult: 1.2,
     name: 'Grulk the Gravewaker', title: 'Lord of the Church Crypt', sprite: 'zombie', family: 'undead', arena: 'crypt',
     pal: { G: '#8a9a6a', g: '#5a6a44', B: '#5a3a2a', b: '#3a2418' },
     kit: [
-      { move: 'leap_stomp', weight: 3, minRange: 3, maxRange: 8, cdMs: 9000, mult: 7, armMs: 1000, exposedMs: 1400, knockback: 2 },
+      { move: 'leap_stomp', weight: 3, minRange: 3, maxRange: 8, cdMs: 9000, mult: 8.5, armMs: 1000, exposedMs: 1400, knockback: 2 },
       // bone_cone: rows fire rowMs apart and stay marked rowArmScale x rowMs; twinOffset: radians either side
       // of the target for the doubled sweep
       {
-        move: 'bone_cone', weight: 3, minRange: 1, maxRange: 5, cdMs: 7000, mult: 1.5, rowMs: 180, length: 5, angle: 70,
+        move: 'bone_cone', weight: 3, minRange: 1, maxRange: 5, cdMs: 7000, mult: 1.8, rowMs: 180, length: 5, angle: 70,
         twinOffset: 0.5, rowArmScale: 1.5,
       },
       { move: 'raise_dead', weight: 2, minRange: 0, maxRange: 99, cdMs: 14000, armMs: 1200, count: 2, add: 'skeleton', cap: 2, scatter: 4, windupMs: 700 },
@@ -45,7 +45,7 @@
   });
 
   boss('mortis', 2, {
-    hpMult: 1.55, dmgMult: 1.1,
+    hpMult: 1.9, dmgMult: 1.1,
     name: 'Mortis the Hollow King', title: 'Throne of the Catacombs', sprite: 'wraith', family: 'undead', arena: 'throne',
     pal: { R: '#9a90b8', r: '#6a6088', W: '#e0e8ff', Y: '#9fc3ff' },
     kit: [

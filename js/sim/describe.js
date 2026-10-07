@@ -35,7 +35,7 @@
       if (r.gen) return 'Builds ' + r.gen + ' ' + r.type;
       return r.combo === 'build' ? 'Builds 1 combo' : 'Free';
     }
-    if (r.cost === 'all') return 'All ' + r.type;
+    if (r.cost === 'all') return 'All ' + r.type + (r.minStart ? ' (' + r.minStart + ' to start)' : '');
     return r.cost + ' ' + r.type;
   }
 

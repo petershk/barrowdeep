@@ -11,14 +11,14 @@
   // ---------------- Martial Arts ----------------
   sk({
     id: 'tiger_strike', branch: 'martial', tier: 1, name: 'Tiger Strike', icon: 'tiger_strike', school: 'ki',
-    tags: ['melee', 'builder', 'physical'], resource: { type: 'energy', cost: 8, combo: 'build' }, cooldownMs: 0, usesAttackSpeed: true,
+    tags: ['melee', 'builder', 'physical'], resource: { type: 'energy', cost: 0, combo: 'build' }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.42, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.2, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { critPerCombo: 10 }, text: '+10% critical strike chance per combo charge held.' },
       { rank: 5, set: { arcAt3: true }, text: 'At 3 charges, Tiger Strike hits the 3 tiles in front.' },
     ],
-    desc: 'A fast strike that builds a combo charge when it lands.',
+    desc: 'A free, fast strike that builds a combo charge when it lands. Spend charges with finishers.',
   });
   sk({
     id: 'dragon_talon', branch: 'martial', tier: 2, name: 'Dragon Talon', icon: 'dragon_talon', school: 'ki',

@@ -19,7 +19,7 @@
     const attrs = Object.assign({}, Balance.player.attrBase[cls] || Balance.player.attrBase.fighter);
     const p = Entities.makeEntity(1, 'player', cls, 0, 0, {
       cls, name: opts.name || 'Wanderer', background: opts.background || 'wanderer', level: 1, xp: 0, attrs,
-      unspent: { attr: 0, skill: 0 }, skills: {}, bar: { rmb: null, s1: null, s2: null, s3: null, s4: null },
+      unspent: { attr: 0, skill: 0 }, skills: {}, bar: { lmb: null, rmb: null, s1: null, s2: null, s3: null, s4: null },
       resources: {}, equip: { weapon: null, offhand: null, chest: null, helm: null, cloak: null, amulet: null, ring1: null, ring2: null },
       pack: [], pouch: { portal: 1, reveal: 0 },
       flask: { charges: Balance.player.flaskBase, max: Balance.player.flaskBase, permMax: Balance.player.flaskBase }, gold: 0,
@@ -37,7 +37,7 @@
     }
     if (opts.firstSkill && BD.data.skills && BD.data.skills[opts.firstSkill]) {
       p.skills[opts.firstSkill] = 1;
-      p.bar.rmb = opts.firstSkill;
+      p.bar[BD.sim.abilities.defaultSlot(p, BD.data.skills[opts.firstSkill])] = opts.firstSkill;
     }
     const diff = BD.data.difficulties[opts.difficulty || 'penitent'];
     const bg = BD.data.backgrounds[opts.background] || {};

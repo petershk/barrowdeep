@@ -14,29 +14,30 @@
   const ATTR_PLAN = {
     fighter: { str: 3, vit: 2 }, assassin: { dex: 3, vit: 2 }, magician: { mag: 3, vit: 2 }, valkyrie: { dex: 3, vit: 2 },
   };
+  // each plan takes the next tier as soon as it unlocks (balance.skills.tierLevel: 1 / 4 / 8 / 13)
   const SKILL_PLAN = {
     fighter: [
-      'bash', 'bash', 'charge', 'bash', 'bash', 'war_cry', 'bash', 'war_cry', 'charge', 'berserk_strike',
+      'bash', 'bash', 'charge', 'war_cry', 'bash', 'bash', 'war_cry', 'berserk_strike', 'bash', 'charge',
       'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'warlord',
       'bloodlust', 'earthshaker', 'berserk_strike', 'war_cry', 'charge', 'brace', 'brace', 'second_wind',
       'second_wind', 'war_cry', 'earthshaker', 'avalanche_leap', 'juggernaut'
     ],
     assassin: [
-      'tiger_strike', 'tiger_strike', 'fire_blast', 'tiger_strike', 'tiger_strike', 'dragon_talon', 'dragon_talon',
-      'dragon_talon', 'shadowstep', 'phoenix_strike', 'phoenix_strike', 'phoenix_strike', 'dragon_talon',
+      'tiger_strike', 'tiger_strike', 'fire_blast', 'dragon_talon', 'tiger_strike', 'tiger_strike', 'dragon_talon',
+      'phoenix_strike', 'dragon_talon', 'shadowstep', 'phoenix_strike', 'phoenix_strike', 'dragon_talon',
       'phoenix_strike', 'phoenix_strike', 'endless_flurry', 'dragon_talon', 'lightning_sentry', 'lightning_sentry',
       'fire_blast', 'fire_blast', 'smoke_bomb', 'shadowstep', 'lightning_sentry', 'death_sentry', 'shadow_master',
       'shadow_master', 'fire_blast', 'smoke_bomb', 'unseen'
     ],
     magician: [
-      'firebolt', 'firebolt', 'firebolt', 'frost_nova', 'firebolt', 'fireball', 'fireball', 'fireball', 'frost_nova',
-      'fireball', 'fireball', 'meteor', 'meteor', 'meteor', 'meteor', 'meteor', 'pyre', 'teleport', 'teleport',
+      'firebolt', 'firebolt', 'firebolt', 'fireball', 'frost_nova', 'fireball', 'fireball', 'meteor', 'firebolt',
+      'fireball', 'fireball', 'meteor', 'meteor', 'meteor', 'meteor', 'frost_nova', 'pyre', 'teleport', 'teleport',
       'frost_nova', 'frost_nova', 'ice_shard', 'blizzard', 'blizzard', 'spark', 'chain_lightning', 'chain_lightning',
       'blizzard', 'chain_lightning', 'energy_shield'
     ],
     valkyrie: [
-      'multishot', 'aimed_shot', 'multishot', 'multishot', 'multishot', 'vault', 'aimed_shot', 'aimed_shot',
-      'multishot', 'aimed_shot', 'aimed_shot', 'rain_of_arrows', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot',
+      'multishot', 'aimed_shot', 'multishot', 'vault', 'aimed_shot', 'multishot', 'aimed_shot', 'rain_of_arrows',
+      'multishot', 'aimed_shot', 'aimed_shot', 'multishot', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot',
       'rain_of_arrows', 'rain_of_arrows', 'deadeye', 'javelin', 'vault', 'pinning_shot', 'pinning_shot',
       'piercing_shot', 'piercing_shot', 'sky_spear', 'sky_spear', 'valkyries_call', 'valkyries_call', 'javelin',
       'wind_dancer'
@@ -174,7 +175,6 @@
     if (!p.attack && bot.tries[id] != null && w.time - bot.tries[id] < 1500) return false;
     bot.tries[id] = w.time;
     issue(w, { type: 'UseSkill', slot, aim: aim || (t ? { entityId: t.id, x: t.x, y: t.y } : 'auto') });
-    bot.skillUse[id] = (bot.skillUse[id] || 0) + 1;
     return true;
   }
   const ROTATION = {
@@ -195,7 +195,7 @@
       if (c >= 3 && en >= 40 && near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length >= 2 && useSkill(bot, 's2', t)) return true;
       if (c >= 2 && en >= 30 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
       if (cheb(t.x, t.y, p.x, p.y) >= 3 && en >= 20 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && en >= 8 && useSkill(bot, 'rmb', t)) return true;
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;   // out of energy: basic attacks spend the charges
       return false;
     },
     magician(bot, t, near) {
@@ -222,9 +222,10 @@
       const adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length, hurt = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.5;
       if (cheb(t.x, t.y, p.x, p.y) <= 1 && (adj >= 2 || hurt) && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
       if (f >= 4 && near.length >= 3 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
-      if (f >= 2 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
+      // Aimed Shot needs 2 focus; hold for 4 while nothing is in melee range (hits knock focus off)
+      if ((f >= 4 || (f >= 2 && adj > 0)) && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 's4', t, { x: t.x, y: t.y })) return true;
-      if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
+      if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;   // Multishot builds focus (same-target hits, 3+ arrows)
       return false;
     },
   };
@@ -607,6 +608,11 @@
       else if (ev.type === 'gold') bot.stats.goldEarned += ev.amount;
       else if (ev.type === 'boss.defeat') bot.stats.bossTimes[ev.def] = (w.time - (bot.bossStart || w.time)) / 1000;
       else if (ev.type === 'boss.wake') bot.bossStart = w.time;
+      else if (ev.type === 'ability.cast' && ev.id === p.id) {
+        // count casts that started (not attempts), and let a cast skill be tried again right away
+        bot.skillUse[ev.abilityId] = (bot.skillUse[ev.abilityId] || 0) + 1;
+        if (bot.tries) delete bot.tries[ev.abilityId];
+      }
     }
     const key = w.floor.key;
     if (key !== bot.lastFloor) {
