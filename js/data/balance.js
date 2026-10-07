@@ -47,7 +47,7 @@
       },
       projectileSpeed: 6, flowRadius: 30,
       actDmg: { 1: 1.0, 2: 1.08, 3: 0.73, 4: 0.56 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
-      actHp: { 1: 2.25, 2: 3.0, 3: 6.4, 4: 4.3 },    // per-act life correction (tuned by the balance bot, 05 §4)
+      actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
     },
     xp: { base: 280, growth: 1.12, fullClearKills: 5 },

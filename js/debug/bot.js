@@ -36,9 +36,12 @@
     while (p.unspent.attr > 0 && guard++ < 50) {
       for (const k in plan) { if (p.unspent.attr <= 0) break; BD.sim.commands.apply(w, { type: 'SpendAttr', key: k, n: Math.min(plan[k], p.unspent.attr) }); }
     }
+    // the plan is an ordered list of picks: the k-th mention of a skill means "raise it to rank k"
+    const want = {};
     for (const id of SKILL_PLAN[p.cls]) {
       if (p.unspent.skill <= 0) break;
-      if (BD.sim.progression.canLearn(w, p, id).ok) BD.sim.commands.apply(w, { type: 'SpendSkill', id });
+      want[id] = (want[id] || 0) + 1;
+      if ((p.skills[id] || 0) < want[id] && BD.sim.progression.canLearn(w, p, id).ok) BD.sim.commands.apply(w, { type: 'SpendSkill', id });
     }
     for (const slot in BAR[p.cls]) { const id = BAR[p.cls][slot]; if (p.skills[id] && p.bar[slot] !== id) BD.sim.commands.apply(w, { type: 'SetBar', slot, id }); }
   }
@@ -216,13 +219,15 @@
     // loot
     bot.ignore = bot.ignore || new Set();
     // the nearest wanted item, committed to until picked up (8 s, then ignored) so the bot never oscillates
-    const wanted = (it) => !bot.ignore.has(it.uid) && !(it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) && (it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold' || (it.kind === 'orb' && p.flask.charges < p.flask.max)) && within(it.x, it.y, p.x, p.y, 12);
-    let g = bot.lootUid != null ? f.items.find((it) => it.uid === bot.lootUid && wanted(it)) : null;
+    const quest = (it) => it.kind === 'seal' || it.kind === 'key';   // always wanted, at any distance, never written off
+    const wanted = (it) => quest(it) || !bot.ignore.has(it.uid) && !(it.kind === 'item' && it.item.rarity === 'common' && p.pack.length >= 15) && (it.kind === 'item' || it.kind === 'scroll' || it.kind === 'seal' || it.kind === 'key' || it.kind === 'gold' || (it.kind === 'orb' && p.flask.charges < p.flask.max)) && within(it.x, it.y, p.x, p.y, 12);
+    // quest items first
+    let g = f.items.find(quest) || (bot.lootUid != null ? f.items.find((it) => it.uid === bot.lootUid && wanted(it)) : null);
     if (!g) {
       let bd = 1e9;
       for (const it of f.items) if (wanted(it)) { const d = U.dist2(it.x, it.y, p.x, p.y); if (d < bd) { bd = d; g = it; } }
       if (g) { bot.lootUid = g.uid; bot.lootSince = w.time; }
-    } else if (w.time - bot.lootSince > 8000) { bot.ignore.add(g.uid); bot.lootUid = null; g = null; }
+    } else if (!quest(g) && w.time - bot.lootSince > 8000) { bot.ignore.add(g.uid); bot.lootUid = null; g = null; }
     if (g && (g.kind !== 'item' || p.pack.length < 29)) {
       if (g.kind === 'item') CMD(w, { type: 'Pickup', itemUid: g.uid });
       else CMD(w, { type: 'Move', x: g.x, y: g.y });

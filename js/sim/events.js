@@ -11,13 +11,15 @@
   const ED = () => BD.data.floorEvents;
   const { within, cheb } = BD.core.util;
 
-  function actSpecies(world) {
+  function actSpecies(world, barred) {
     const act = Math.min(4, world.floor.n ? BD.data.floors.byN(world.floor.n).act : 1);
-    return Object.values(BD.data.monsters).filter((m) => m.act === act && !m.spawner && !m.spawnOnly && m.role !== 'bomber');
+    // a barred room can't hold monsters that blink or phase out of it (the event would never end)
+    const leaves = (m) => (m.behaviours || []).some((b) => /blink|teleport|phase|burrow/.test(b.id));
+    return Object.values(BD.data.monsters).filter((m) => m.act === act && !m.spawner && !m.spawnOnly && m.role !== 'bomber' && !(barred && leaves(m)));
   }
   /** spawn a wave; with a room, every monster lands inside it (the doors may be barred) */
   function spawnWave(world, cx, cy, n, tag, room) {
-    const sp = actSpecies(world), f = world.floor;
+    const sp = actSpecies(world, !!room), f = world.floor;
     for (let i = 0; i < n; i++) {
       const def = world.rng.pick(sp).id;
       let x = cx + world.rng.int(-3, 3), y = cy + world.rng.int(-3, 3);
@@ -113,7 +115,8 @@
         world.events.push({ type: 'event.wave', id: 'cursed_chest', n: ev.wave });
       }
       const alive = Array.from(f.entities.values()).some((e) => e.eventId === 'cursed' && !e.dead);
-      if (ev.wave >= ED().cursed_chest.waves && !alive) {
+      // fail-safe: the bars lift 30 s after the last wave was due even if a straggler lives
+      if (ev.wave >= ED().cursed_chest.waves && (!alive || world.time > ev.endAt + 30000)) {
         ev.state = 'done';
         for (const [x, y] of ev.blocked || []) f.block[y * f.w + x] = 0;
         f.blockVer = (f.blockVer || 0) + 1;
