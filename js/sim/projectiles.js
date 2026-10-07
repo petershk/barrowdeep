@@ -89,8 +89,8 @@
     ctx.srcId = pr.srcId; ctx.combo = pl.combo; ctx.focus = pl.focus; ctx.forceCrit = pl.forceCrit; ctx.critAdd = pl.critAdd || 0; ctx.packetMult = pl.packetMult || 1;
     ctx.cx = pr.x - pr.dx; ctx.cy = pr.y - pr.dy; ctx.centerId = tgt.id; ctx.projectile = pr;
     if (pr.returning && rab.returnMult) ctx.packetMult *= rab.returnMult;
-    const res = BD.sim.hits.applyEffects(world, ctx, rab.effects, [tgt]);
-    if (rab.delivery && rab.delivery.explode) explode(world, pr, tgt.x, tgt.y, rab, ctx);
+    // an exploding projectile damages the struck target through its explosion only (never twice)
+    const res = rab.delivery && rab.delivery.explode ? explode(world, pr, tgt.x, tgt.y, rab, ctx) || [] : BD.sim.hits.applyEffects(world, ctx, rab.effects, [tgt]);
     BD.sim.effects.special(world, caster, rab, pl.rank, 'projectileHit', { pr, tgt, res, ctx });
     if (caster.kind === 'player' && (pl.idx === 0 || (rab.delivery && rab.delivery.eachLands))) BD.sim.effects.afterHits(world, caster, rab, pl.rank, null, res);
   }
@@ -102,8 +102,9 @@
     const area = rab.delivery.explode;
     world.events.push({ type: 'ability.explode', abilityId: rab.id, x, y, area, kind: pr.kind });
     const c2 = Object.assign({}, ctx, { centerId: null });
-    BD.sim.effects.areaAt(world, c2, rab, x, y, area, rab.explodeEffects || rab.effects);
+    const res = BD.sim.effects.areaAt(world, c2, rab, x, y, area, rab.explodeEffects || rab.effects);
     BD.sim.effects.special(world, caster, rab, pl.rank, 'explode', { x, y, ctx: c2, pr });
+    return res;
   }
 
   function system(world, dt) {
