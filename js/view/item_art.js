@@ -3,12 +3,12 @@
 // shadow, G gold, g gold shadow, L leather, l leather shadow, C cloth, c cloth shadow, R gem, B blue.
 (function (BD) {
   'use strict';
-  const A = BD.view.art;
+  const Art = BD.view.art;
   const PAL = {
     S: '#d0d6de', s: '#7c8694', W: '#9a6a3a', w: '#5e3c1a', G: '#e8c050', g: '#9a7420', L: '#8a5a30', l: '#5a3818',
     C: '#6a5a8a', c: '#40345a', R: '#d03040', B: '#5aa0ff', P: '#c0a0ff', F: '#e02020', f: '#801010', X: '#e8e0c8'
   };
-  const icon = (id, rows) => { A['item_' + id] = { pal: PAL, frames: { idle: [rows] }, prop: true }; };
+  const icon = (id, rows) => { Art['item_' + id] = { pal: PAL, frames: { idle: [rows] }, prop: true }; };
 
   icon('blade', [
     '..........KS',

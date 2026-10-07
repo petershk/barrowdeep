@@ -40,10 +40,17 @@
   const cache = new Map();
   function rgb(hex) {
     let v = cache.get(hex);
-    if (!v) { const n = parseInt(hex.slice(1), 16); v = [(n >> 16) & 255, (n >> 8) & 255, n & 255]; cache.set(hex, v); }
+    if (!v) {
+      const n = parseInt(hex.slice(1), 16);
+      v = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+      cache.set(hex, v);
+    }
     return v;
   }
-  function rgba(hex, a) { const c = rgb(hex); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
+  function rgba(hex, a) {
+    const c = rgb(hex);
+    return `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  }
   function shade(hex, k) {
     const c = rgb(hex);
     const f = (v) => Math.max(0, Math.min(255, Math.round(v * k)));

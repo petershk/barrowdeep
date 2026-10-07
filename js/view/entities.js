@@ -25,7 +25,11 @@
   /** interpolated tile position */
   function pos(e, alpha, out) {
     const m = e.move;
-    if (!m) { out.x = e.x; out.y = e.y; return out; }
+    if (!m) {
+      out.x = e.x;
+      out.y = e.y;
+      return out;
+    }
     const t = Math.min(1, (m.elapsed + alpha * STEP) / m.dur);
     out.x = m.fromX + (m.toX - m.fromX) * t;
     out.y = m.fromY + (m.toY - m.fromY) * t;
@@ -51,10 +55,10 @@
       if (!c) {
         const base = Object.assign({}, BD.view.art[d.sprite] ? BD.view.art[d.sprite].pal : {}, pal || {});
         c = {};
-        const P = BD.view.palette;
+        const Palette = BD.view.palette;
         const tint = e.rank === 'keeper' ? [255, 200, 80] : [150, 190, 255];
         for (const k in base) {
-          const [r, g, b] = P.rgb(base[k]);
+          const [r, g, b] = Palette.rgb(base[k]);
           const l = (r + g + b) / 3 / 255;
           const mix = (t) => Math.round(Math.min(255, t * (0.35 + 0.85 * l)));
           c[k] = '#' + ((1 << 24) | (mix(tint[0]) << 16) | (mix(tint[1]) << 8) | mix(tint[2])).toString(16).slice(1);
@@ -85,17 +89,22 @@
   // ---- event hooks (subscribed by render) ----
   function onDamage(world, ev) {
     const s = stateOf(ev.tgtId);
-    s.flash = 120; s.hurt = 120;
+    s.flash = 120;
+    s.hurt = 120;
     const src = BD.sim.entities.get(world, ev.srcId), tgt = BD.sim.entities.get(world, ev.tgtId);
     if (src && tgt && !ev.isDot) {
       const dx = tgt.x - src.x, dy = tgt.y - src.y, l = Math.hypot(dx, dy) || 1;
-      s.recoil = 150; s.rx = dx / l; s.ry = dy / l;
+      s.recoil = 150;
+      s.rx = dx / l;
+      s.ry = dy / l;
     }
   }
   function onAttack(id, tx, ty, e) {
     const s = stateOf(id);
     const dx = tx - e.x, dy = ty - e.y, l = Math.hypot(dx, dy) || 1;
-    s.lunge = 80; s.lx = dx / l; s.ly = dy / l;
+    s.lunge = 80;
+    s.lx = dx / l;
+    s.ly = dy / l;
   }
 
   BD.view.entities = { vis, stateOf, clear, pos, artOf, palOf, scaleOf, tick, onDamage, onAttack, CLASS_ART };

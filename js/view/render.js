@@ -6,9 +6,10 @@
 
   const { T, PROPS } = BD.data.tiles;
   const iso = BD.view.iso;
-  const V = BD.view.entities;
-  const SP = BD.view.sprites;
-  const L = BD.view.lighting;
+  const EntityView = BD.view.entities;
+  const Sprites = BD.view.sprites;
+  const Lighting = BD.view.lighting;
+  const Grid = BD.core.grid;
 
   /** @type {HTMLCanvasElement} */ let canvas = null;
   /** @type {CanvasRenderingContext2D} */ let ctx = null;
@@ -26,10 +27,13 @@
     if (!canvas) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = window.innerWidth, h = window.innerHeight;
-    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
     iso.setScale(iso.view.Z, dpr);
-    iso.view.w = canvas.width; iso.view.h = canvas.height;
+    iso.view.w = canvas.width;
+    iso.view.h = canvas.height;
   }
   function setZoom(z) { iso.setScale(z, iso.view.dpr); }
 
@@ -40,7 +44,9 @@
     let c = flatCache.get(key);
     if (c) return c;
     const pal = BD.data.biomes[biome].pal;
-    c = document.createElement('canvas'); c.width = 32; c.height = 17;
+    c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 17;
     const g = c.getContext('2d');
     const steps = 4;
     for (let s = 0; s < steps; s++) {
@@ -55,14 +61,17 @@
     }
     if (kind === 'sealed') {
       g.fillStyle = '#c02020';
-      for (let i = -4; i <= 4; i++) { g.fillRect(16 + i * 2, 8 + i, 2, 1); g.fillRect(16 - i * 2, 8 + i, 2, 1); }
+      for (let i = -4; i <= 4; i++) {
+        g.fillRect(16 + i * 2, 8 + i, 2, 1);
+        g.fillRect(16 - i * 2, 8 + i, 2, 1);
+      }
     }
     flatCache.set(key, c);
     return c;
   }
 
   function drawArt(id, frame, fi, tx, ty, opts) {
-    const spr = SP.get(id, frame, fi, opts);
+    const spr = Sprites.get(id, frame, fi, opts);
     if (!spr) return null;
     const S = iso.view.S * (opts && opts.scale ? opts.scale : 1);
     iso.toScreen(tx, ty, tmp);
@@ -97,22 +106,16 @@
   function draw(world, alpha, realMs) {
     if (!ctx || !world || !world.floor) return;
     timeMs += realMs;
-    const f = world.floor, p = world.player, v = iso.view;
-    const biome = BD.data.biomes[f.biome];
-    const pal = biome.pal;
-    if (cutKey !== f.key + f.seed) {
-      cutKey = f.key + f.seed;
-      cutFade = new Float32Array(f.w * f.h);
-      V.clear();
-      BD.view.camera.cam.init = false;
-    }
-    V.tick(realMs);
-    const pp = V.pos(p, alpha, { x: 0, y: 0 });
+    const f = world.floor, v = iso.view;
+    resetOnFloorChange(f);
+    EntityView.tick(realMs);
+    const pp = EntityView.pos(world.player, alpha, { x: 0, y: 0 });
     const hover = BD.view.host.pointer.hoverTile;
     BD.view.camera.update(pp.x, pp.y, realMs, v.w, v.h, null);
     const cam = BD.view.camera.cam;
     const baseOx = v.ox, baseOy = v.oy;
-    v.ox += Math.round(cam.shakeX); v.oy += Math.round(cam.shakeY);
+    v.ox += Math.round(cam.shakeX);
+    v.oy += Math.round(cam.shakeY);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
@@ -120,83 +123,129 @@
     ctx.fillRect(0, 0, v.w, v.h);
     BD.view.tiles.drawFloor(ctx, f);
 
-    // visible tile window
-    const S = v.S;
-    iso.toTileF(0, 0, tmp); const a = { x: tmp.x, y: tmp.y };
-    iso.toTileF(v.w, 0, tmp); const b = { x: tmp.x, y: tmp.y };
-    iso.toTileF(0, v.h + 60 * S, tmp); const c = { x: tmp.x, y: tmp.y };
-    iso.toTileF(v.w, v.h + 60 * S, tmp); const d = { x: tmp.x, y: tmp.y };
+    const win = visibleWindow(f);
+    drawFlatFeatures(f);
+    for (const fn of hooks.underActors) fn(ctx, world, alpha, timeMs);
+    const buckets = bucketByDiagonal(world, alpha);
+    drawDiagonals(world, win, buckets, { pp, realMs, hover, alpha });
+
+    // lights from tiles and decor
+    collectStaticLights(f, win.sMin, win.sMax);
+    if (BD.view.fx) BD.view.fx.collectLights(world);
+    const R = f.fovRadius || 6;
+    Lighting.draw(ctx, f, pp, R, timeMs);
+
+    for (const fn of hooks.overlays) fn(ctx, world, alpha, timeMs, realMs);
+    v.ox = baseOx;
+    v.oy = baseOy;
+    for (const fn of hooks.fx) fn(ctx, world, alpha, timeMs, realMs);
+    for (const fn of hooks.top) fn(ctx, world, alpha, timeMs, realMs);
+  }
+
+  /** a new floor: fresh cutaway fades, entity visual state and camera */
+  function resetOnFloorChange(f) {
+    if (cutKey === f.key + f.seed) return;
+    cutKey = f.key + f.seed;
+    cutFade = new Float32Array(f.w * f.h);
+    EntityView.clear();
+    BD.view.camera.cam.init = false;
+  }
+
+  /** the on-screen tile window as diagonal ranges: s = x + y (draw order), d = x - y */
+  function visibleWindow(f) {
+    const v = iso.view, S = v.S;
+    iso.toTileF(0, 0, tmp);
+    const a = { x: tmp.x, y: tmp.y };
+    iso.toTileF(v.w, 0, tmp);
+    const b = { x: tmp.x, y: tmp.y };
+    iso.toTileF(0, v.h + 60 * S, tmp);
+    const c = { x: tmp.x, y: tmp.y };
+    iso.toTileF(v.w, v.h + 60 * S, tmp);
+    const d = { x: tmp.x, y: tmp.y };
     const sMin = Math.max(0, Math.floor(Math.min(a.x + a.y, b.x + b.y)) - 2);
     const sMax = Math.min(f.w + f.h - 2, Math.ceil(Math.max(c.x + c.y, d.x + d.y)) + 2);
     const dMin = Math.floor(Math.min(a.x - a.y, c.x - c.y)) - 2, dMax = Math.ceil(Math.max(b.x - b.y, d.x - d.y)) + 2;
+    return { sMin, sMax, dMin, dMax };
+  }
 
-    // flat features (stairs, waypoint glow plates)
+  function stairsKind(t) {
+    if (t === T.STAIRS_UP) return 'up';
+    if (t === T.STAIRS_SEALED) return 'sealed';
+    return t === T.STAIRS_DOWN ? 'down' : null;
+  }
+
+  /** flat features (stairs, waypoint glow plates) */
+  function drawFlatFeatures(f) {
+    const S = iso.view.S;
     for (const fp of flatFeatures(f)) {
-      if (!f.explored[fp.y * f.w + fp.x]) continue;
-      const t = f.tiles[fp.y * f.w + fp.x];
-      const kind = t === T.STAIRS_UP ? 'up' : t === T.STAIRS_SEALED ? 'sealed' : t === T.STAIRS_DOWN ? 'down' : null;
+      if (!f.explored[Grid.idx(f, fp.x, fp.y)]) continue;
+      const kind = stairsKind(f.tiles[Grid.idx(f, fp.x, fp.y)]);
       if (!kind) continue;
       iso.toScreen(fp.x, fp.y, tmp);
       ctx.drawImage(stairsCanvas(kind, f.biome), tmp.x - 16 * S, tmp.y - 8 * S, 32 * S, 17 * S);
     }
-    for (const fn of hooks.underActors) fn(ctx, world, alpha, timeMs);
+  }
 
-    // bucket actors / items / corpses by diagonal
+  /** visible actors, items, corpses and objects, bucketed by diagonal (x + y) */
+  function bucketByDiagonal(world, alpha) {
+    const f = world.floor;
     const buckets = new Map();
-    const put = (s, item) => { let l = buckets.get(s); if (!l) buckets.set(s, (l = [])); l.push(item); };
+    const put = (s, item) => {
+      let l = buckets.get(s);
+      if (!l) buckets.set(s, (l = []));
+      l.push(item);
+    };
     const addActor = (e) => {
-      const ep = V.pos(e, alpha, { x: 0, y: 0 });
-      const vis = e.kind === 'player' || f.visible[e.y * f.w + e.x];
+      const ep = EntityView.pos(e, alpha, { x: 0, y: 0 });
+      const vis = e.kind === 'player' || f.visible[Grid.idx(f, e.x, e.y)];
       if (!vis) return;
       const depth = e.move ? Math.max(e.move.fromX + e.move.fromY, e.move.toX + e.move.toY) : e.x + e.y;
       put(depth, { kind: 'actor', e, ep, order: 2 });
     };
-    addActor(p);
+    addActor(world.player);
     for (const e of f.entities.values()) if (!e.dead || e.dying) addActor(e);
     if (BD.view.world) BD.view.world.bucket(world, put, alpha);
+    return buckets;
+  }
 
-    for (let s = sMin; s <= sMax; s++) {
+  /** back to front, one diagonal at a time: its tall tiles and props, then its bucketed things */
+  function drawDiagonals(world, win, buckets, at) {
+    const f = world.floor;
+    for (let s = win.sMin; s <= win.sMax; s++) {
       const x0 = Math.max(0, s - (f.h - 1)), x1 = Math.min(f.w - 1, s);
       for (let x = x0; x <= x1; x++) {
         const y = s - x;
         const dd = x - y;
-        if (dd < dMin || dd > dMax) continue;
-        const i = y * f.w + x;
+        if (dd < win.dMin || dd > win.dMax) continue;
+        const i = Grid.idx(f, x, y);
         if (!f.explored[i]) continue;
-        const t = f.tiles[i];
-        if (PROPS[t].tall) drawTall(f, t, x, y, i, pp, realMs, hover);
-        else if (t === T.DECOR) drawDecor(f, x, y, i);
-        else if (t === T.WAYPOINT) drawArt('prop_waypoint', 'idle', 0, x, y);
-        else if (t === T.PORTAL_STONE) drawArt('prop_portal_stone', 'idle', 0, x, y);
-        else if (t === T.WELL) drawArt('prop_well', 'idle', 0, x, y);
+        drawTileProp(f, f.tiles[i], x, y, i, at);
       }
       const list = buckets.get(s);
       if (list) {
         list.sort((m, n) => m.order - n.order);
         for (const it of list) {
-          if (it.kind === 'actor') drawActor(world, it.e, it.ep, alpha);
+          if (it.kind === 'actor') drawActor(world, it.e, it.ep, at.alpha);
           else if (it.draw) it.draw(ctx, it);
         }
       }
     }
+  }
 
-    // lights from tiles and decor
-    collectStaticLights(f, sMin, sMax);
-    if (BD.view.fx) BD.view.fx.collectLights(world);
-    const R = f.fovRadius || 6;
-    L.draw(ctx, f, pp, R, timeMs);
-
-    for (const fn of hooks.overlays) fn(ctx, world, alpha, timeMs, realMs);
-    v.ox = baseOx; v.oy = baseOy;
-    for (const fn of hooks.fx) fn(ctx, world, alpha, timeMs, realMs);
-    for (const fn of hooks.top) fn(ctx, world, alpha, timeMs, realMs);
+  function drawTileProp(f, t, x, y, i, at) {
+    if (PROPS[t].tall) drawTall(f, t, x, y, i, at.pp, at.realMs, at.hover);
+    else if (t === T.DECOR) drawDecor(f, x, y, i);
+    else if (t === T.WAYPOINT) drawArt('prop_waypoint', 'idle', 0, x, y);
+    else if (t === T.PORTAL_STONE) drawArt('prop_portal_stone', 'idle', 0, x, y);
+    else if (t === T.WELL) drawArt('prop_well', 'idle', 0, x, y);
   }
 
   let featCache = null, featKey = '';
   function flatFeatures(f) {
     const k = f.key + f.seed;
     if (k === featKey) return featCache;
-    featKey = k; featCache = [];
+    featKey = k;
+    featCache = [];
     for (let i = 0; i < f.tiles.length; i++) {
       const t = f.tiles[i];
       if (t === T.STAIRS_UP || t === T.STAIRS_DOWN || t === T.STAIRS_SEALED) featCache.push({ x: i % f.w, y: (i / f.w) | 0 });
@@ -217,7 +266,7 @@
     if (f.town) {
       if (!f._bset) {
         f._bset = new Set();
-        for (const k in f.town.buildings) for (const [bx, by] of f.town.buildings[k]) f._bset.add(by * f.w + bx);
+        for (const k in f.town.buildings) for (const [bx, by] of f.town.buildings[k]) f._bset.add(Grid.idx(f, bx, by));
       }
       if (t === T.TOWN_DOOR) kind = 'door';
       else if (f._bset.has(i)) kind = 'building';
@@ -241,45 +290,64 @@
     for (let s = sMin; s <= sMax; s++) {
       const x0 = Math.max(0, s - (f.h - 1)), x1 = Math.min(f.w - 1, s);
       for (let x = x0; x <= x1; x++) {
-        const y = s - x, i = y * f.w + x;
+        const y = s - x, i = Grid.idx(f, x, y);
         if (!f.explored[i]) continue;
         const t = f.tiles[i];
         const pl = PROPS[t].light;
-        if (pl && (t !== T.LAVA || (x + y) % 2 === 0)) L.add(x, y, pl.radius, pl.color, pl.intensity, t === T.LAVA ? 0.3 : 0.1);
+        if (pl && (t !== T.LAVA || (x + y) % 2 === 0)) Lighting.add(x, y, pl.radius, pl.color, pl.intensity, t === T.LAVA ? 0.3 : 0.1);
         if (t === T.DECOR) {
           const dl = BD.data.decorLights[f.decor[i]];
-          if (dl) L.add(x, y, dl.radius, dl.color, dl.intensity, dl.flicker);
+          if (dl) Lighting.add(x, y, dl.radius, dl.color, dl.intensity, dl.flicker);
         }
       }
     }
   }
 
-  function drawActor(world, e, ep, alpha) {
-    const s = V.stateOf(e.id);
-    const art = V.artOf(e);
-    const flip = e.dir >= 2 && e.dir <= 5;
-    const S = iso.view.S;
+  /** which animation frame an actor shows: death, hurt, attack, walk or idle */
+  function actorFrame(e, s) {
     let frame = 'idle', fi = 0;
-    if (e.dying || e.dead) { frame = 'death'; fi = Math.min(2, Math.floor(Math.max(0, s.dieT) / 110)); }
-    else if (s.hurt > 0) frame = 'hurt';
+    if (e.dying || e.dead) {
+      frame = 'death';
+      fi = Math.min(2, Math.floor(Math.max(0, s.dieT) / 110));
+    } else if (s.hurt > 0) frame = 'hurt';
     else if (e.attack && e.attack.phase === 'windup' && e.attack.remaining < 150) frame = 'attack';
     else if (s.lunge > 0) frame = 'attack';
-    else if (e.move) { frame = 'walk'; fi = Math.floor((e.move.elapsed / e.move.dur) * 2) % 2; }
+    else if (e.move) {
+      frame = 'walk';
+      fi = Math.floor((e.move.elapsed / e.move.dur) * 2) % 2;
+    }
+    return { frame, fi };
+  }
+
+  /** screen offset from hit recoil, attack lunge, walk bob and being airborne */
+  function actorOffset(e, s) {
+    const S = iso.view.S;
     let dx = 0, dy = 0;
     const px = iso.view.Z * iso.view.dpr;
     if (s.recoil > 0) {
       const rf = s.recoil / 150, sv = screenDir(s.rx, s.ry);
-      dx += sv.x * 6 * px * rf * rf; dy += sv.y * 6 * px * rf * rf;
+      dx += sv.x * 6 * px * rf * rf;
+      dy += sv.y * 6 * px * rf * rf;
     }
     if (s.lunge > 0) {
       const lf = Math.sin((1 - s.lunge / 80) * Math.PI), sv = screenDir(s.lx, s.ly);
-      dx += sv.x * 6 * px * lf; dy += sv.y * 6 * px * lf;
+      dx += sv.x * 6 * px * lf;
+      dy += sv.y * 6 * px * lf;
     }
     if (e.move && !e.move.kind) dy -= Math.abs(Math.sin((e.move.elapsed / e.move.dur) * Math.PI)) * S;
     if (e.airborne) dy -= e.airborne * S;
-    const scale = V.scaleOf(e);
+    return { dx, dy };
+  }
+
+  function drawActor(world, e, ep, alpha) {
+    const s = EntityView.stateOf(e.id);
+    const art = EntityView.artOf(e);
+    const flip = e.dir >= 2 && e.dir <= 5;
+    const { frame, fi } = actorFrame(e, s);
+    const { dx, dy } = actorOffset(e, s);
+    const scale = EntityView.scaleOf(e);
     const opts = {
-      flip, pal: V.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''),
+      flip, pal: EntityView.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''),
       scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '',
     };
     for (const fn of actorUnder) fn(ctx, world, e, ep, s, timeMs);
@@ -292,25 +360,34 @@
         drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ffffff', palKey: 'white' }));
         ctx.globalAlpha = 1;
       }
-      if (e.attack && e.attack.telegraph && e.attack.phase === 'windup') {
-        const pulse = 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
-        const late = e.attack.remaining < 250;
-        const jx = late ? (Math.random() * 2 - 1) * 3.5 * iso.view.Z : 0, jy = late ? (Math.random() * 2 - 1) * 1.6 * iso.view.Z : 0;
-        ctx.globalAlpha = pulse;
-        const redOpts = Object.assign({}, opts, { tint: '#ff3020', palKey: 'red', dx: opts.dx + jx, dy: opts.dy + jy });
-        drawArt(art, frame, fi, ep.x, ep.y, redOpts);
-        ctx.globalAlpha = 1;
-      }
+      if (e.attack && e.attack.telegraph && e.attack.phase === 'windup') drawWindupTint(e, ep, art, frame, fi, opts);
       e._box = box;
     }
     for (const fn of actorOver) fn(ctx, world, e, ep, s, timeMs, box);
+  }
+
+  /** a telegraphed attack winding up: the actor pulses red */
+  function drawWindupTint(e, ep, art, frame, fi, opts) {
+    const pulse = 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
+    const late = e.attack.remaining < 250;
+    // shake in the last 250 ms before the blow lands
+    let jx = 0, jy = 0;
+    if (late) {
+      jx = (Math.random() * 2 - 1) * 3.5 * iso.view.Z;
+      jy = (Math.random() * 2 - 1) * 1.6 * iso.view.Z;
+    }
+    ctx.globalAlpha = pulse;
+    const redOpts = Object.assign({}, opts, { tint: '#ff3020', palKey: 'red', dx: opts.dx + jx, dy: opts.dy + jy });
+    drawArt(art, frame, fi, ep.x, ep.y, redOpts);
+    ctx.globalAlpha = 1;
   }
   const actorUnder = [], actorOver = [];
   const sd = { x: 0, y: 0 };
   /** unit screen-space vector for a tile-space direction */
   function screenDir(tx, ty) {
     const x = (tx - ty) * iso.HW, y = (tx + ty) * iso.HH, l = Math.hypot(x, y) || 1;
-    sd.x = x / l; sd.y = y / l;
+    sd.x = x / l;
+    sd.y = y / l;
     return sd;
   }
 

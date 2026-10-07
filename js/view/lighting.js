@@ -5,7 +5,7 @@
   'use strict';
 
   const iso = BD.view.iso;
-  const P = BD.view.palette;
+  const Palette = BD.view.palette;
   let buf = null, img = null, acc = null, key = '';
   /** dynamic lights pushed by the renderer/FX each frame: {x,y,radius,color,intensity,flicker} */
   const frameLights = [];
@@ -15,7 +15,8 @@
     if (k === key) return;
     key = k;
     buf = document.createElement('canvas');
-    buf.width = f.w; buf.height = f.h;
+    buf.width = f.w;
+    buf.height = f.h;
     img = buf.getContext('2d').createImageData(f.w, f.h);
     acc = new Float32Array(f.w * f.h * 3);
   }
@@ -40,11 +41,13 @@
         v = Math.max(town ? 0.75 : 0.42, 1.25 - d / (R + 2.5));
       } else if (f.explored[i]) v = town ? 0.4 : 0.16;
       v = Math.max(v, f.explored[i] ? amb : 0);
-      acc[i * 3] = v; acc[i * 3 + 1] = v * 0.93; acc[i * 3 + 2] = v * 0.82;
+      acc[i * 3] = v;
+      acc[i * 3 + 1] = v * 0.93;
+      acc[i * 3 + 2] = v * 0.82;
     }
     // coloured point lights (only onto explored tiles; full strength where visible)
     for (const L of frameLights) {
-      const [cr, cg, cb] = P.rgb(L.color);
+      const [cr, cg, cb] = Palette.rgb(L.color);
       const fl = L.flicker
         ? 1 - L.flicker * 0.5 + L.flicker * 0.5 * Math.sin(timeMs / 90 + L.x * 3.1 + L.y * 1.7) * Math.sin(timeMs / 37 + L.x)
         : 1;
@@ -56,7 +59,9 @@
         const d = Math.hypot(x - L.x, y - L.y);
         if (d > r) continue;
         const k = (1 - d / r) * L.intensity * fl * (f.visible[i] ? 1 : 0.35);
-        acc[i * 3] += (cr / 255) * k; acc[i * 3 + 1] += (cg / 255) * k; acc[i * 3 + 2] += (cb / 255) * k;
+        acc[i * 3] += (cr / 255) * k;
+        acc[i * 3 + 1] += (cg / 255) * k;
+        acc[i * 3 + 2] += (cb / 255) * k;
       }
     }
     frameLights.length = 0;

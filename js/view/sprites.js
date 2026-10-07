@@ -10,7 +10,12 @@
   const derived = new Map();
 
   // ---------- grid transforms ----------
-  const W = (g) => { let m = 0; for (const r of g) if (r.length > m) m = r.length; return m; };
+  /** width of a sprite grid: its longest row */
+  const W = (g) => {
+    let m = 0;
+    for (const r of g) if (r.length > m) m = r.length;
+    return m;
+  };
   function shiftRows(g, from, dx) {
     return g.map((r, i) => {
       if (i < from) return r;
@@ -36,7 +41,11 @@
   function corpse(g) {
     const h = g.length, w = W(g);
     const rows = [];
-    for (let x = 0; x < w; x++) { let r = ''; for (let y = h - 1; y >= 0; y--) r += g[y][x]; rows.push(r); }
+    for (let x = 0; x < w; x++) {
+      let r = '';
+      for (let y = h - 1; y >= 0; y--) r += g[y][x];
+      rows.push(r);
+    }
     // keep only every other row to flatten, then pad on top to the original height
     const flat = rows.filter((_, i) => i % 2 === 0 || i === rows.length - 1);
     const pad = Math.max(0, h - flat.length);
@@ -87,10 +96,11 @@
     if (o.doll && BD.view.paperdoll) pal = Object.assign({}, BD.view.paperdoll.PAL, pal);
     const w = W(grid), h = grid.length;
     const cv = document.createElement('canvas');
-    cv.width = w; cv.height = h;
+    cv.width = w;
+    cv.height = h;
     const g = cv.getContext('2d');
     const img = g.createImageData(w, h);
-    const P = BD.view.palette;
+    const Palette = BD.view.palette;
     const dark = frame === 'corpse' ? 0.55 : 1;
     for (let y = 0; y < h; y++) {
       const row = grid[y];
@@ -98,11 +108,17 @@
         const ch = row[x];
         if (ch === '.' || ch === ' ' || ch === undefined) continue;
         let col = o.tint || (ch === 'K' ? INK : pal[ch]);
-        if (!col) { col = '#ff00ff'; BD.core.util.warnOnce('sprite ' + id + ' missing key ' + ch); }
-        const [r, gg, b] = P.rgb(col);
+        if (!col) {
+          col = '#ff00ff';
+          BD.core.util.warnOnce('sprite ' + id + ' missing key ' + ch);
+        }
+        const [r, gg, b] = Palette.rgb(col);
         const tx = o.flip ? w - 1 - x : x;
         const k = (y * w + tx) * 4;
-        img.data[k] = r * dark; img.data[k + 1] = gg * dark; img.data[k + 2] = b * dark; img.data[k + 3] = 255;
+        img.data[k] = r * dark;
+        img.data[k + 1] = gg * dark;
+        img.data[k + 2] = b * dark;
+        img.data[k + 3] = 255;
       }
     }
     g.putImageData(img, 0, 0);
@@ -116,7 +132,8 @@
     const s = get(id, 'idle', 0, o);
     if (!s) return '';
     const c = document.createElement('canvas');
-    c.width = s.w * scale; c.height = s.h * scale;
+    c.width = s.w * scale;
+    c.height = s.h * scale;
     const g = c.getContext('2d');
     g.imageSmoothingEnabled = false;
     g.drawImage(s.canvas, 0, 0, c.width, c.height);

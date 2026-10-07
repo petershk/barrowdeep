@@ -4,8 +4,8 @@
 (function (BD) {
   'use strict';
   BD.view.art = BD.view.art || {};
-  const A = BD.view.art;
-  A.fighter = {
+  const Art = BD.view.art;
+  Art.fighter = {
     pal: {S:"#d4d8df", s:"#98a1ae", d:"#5e6571", R:"#b23a2c", r:"#74221a", G:"#d2a73f", g:"#8f6f26", W:"#f1f3f6", b:"#4a3015"},
     frames: { idle: [[
       '......KRRK......',
@@ -30,7 +30,7 @@
       '....KKK...KKK...',
     ]] },
   };
-  A.thief = {
+  Art.thief = {
     pal: {
       H:"#66785a", h:"#475641", x:"#2f3a2b", W:"#d8e6c8", F:"#e3b388", f:"#b9855a",
       D:"#b8bdc6", d:"#707683", B:"#5a3d24", G:"#c9a23f", b:"#3c2a18",
@@ -56,7 +56,7 @@
       '....KKK...KKK...',
     ]] },
   };
-  A.magician = {
+  Art.magician = {
     pal: {
       P:"#8a5ae0", p:"#5e3aa6", q:"#3e2570", Y:"#ffd75a", O:"#fff3cf", F:"#ecbd8d",
       f:"#c4905e", W:"#e9e4f2", w:"#b9b2c8", B:"#6f4c2c", b:"#4a3015",
@@ -84,7 +84,7 @@
       '...KKqqqqqKK.KKK',
     ]] },
   };
-  A.valkyrie = {
+  Art.valkyrie = {
     pal: {
       A:"#8fb0d8", a:"#5e7ba0", G:"#d2a73f", g:"#8f6f26", F:"#ecbd8d", f:"#c4905e", H:"#e8c64a",
       h:"#b9962c", W:"#eef2f8", w:"#c4d0e0", B:"#8a5c34", s:"#e8e0c8", b:"#3c2a18",
@@ -110,7 +110,7 @@
       '..KKK...KKK......',
     ]] },
   };
-  A.skeleton = {
+  Art.skeleton = {
     pal: {W:"#e8e4d8", w:"#b8b2a0", R:"#8a4a2a", r:"#5e2f18"},
     frames: { idle: [[
       '....KWWWK.....',
@@ -131,7 +131,7 @@
       '...KKK..KKK...',
     ]] },
   };
-  A.zombie = {
+  Art.zombie = {
     pal: {G:"#7a9a5a", g:"#57733e", B:"#6b4a2f", b:"#46301d"},
     frames: { idle: [[
       '....KGGGK......',
@@ -150,7 +150,7 @@
       '..KKK...KKK....',
     ]] },
   };
-  A.skarcher = {
+  Art.skarcher = {
     pal: {W:"#e8e4d8", w:"#b8b2a0", B:"#7a5232", s:"#cdbb96"},
     frames: { idle: [[
       '....KWWWK......',
@@ -170,7 +170,7 @@
       '...KKK.KKK.....',
     ]] },
   };
-  A.spider = {
+  Art.spider = {
     pal: {p:"#4a3e2e", P:"#6e5c44", R:"#d03828"},
     frames: { idle: [[
       '..P...P..P...P..',
@@ -185,7 +185,7 @@
       '..P...P..P...P..',
     ]] },
   };
-  A.ghoul = {
+  Art.ghoul = {
     pal: {G:"#9ab08a", g:"#6f8463", d:"#4c5c42", R:"#c03030", W:"#dcd8cc"},
     frames: { idle: [[
       '....KKKK........',
@@ -203,7 +203,7 @@
       '..KKK.KKK.......',
     ]] },
   };
-  A.snake = {
+  Art.snake = {
     pal: {G:"#5a8a3a", g:"#3e6328", R:"#d03828", t:"#c04050"},
     frames: { idle: [[
       '........KGGGK...',
@@ -218,7 +218,7 @@
       '....KKKKKKK.....',
     ]] },
   };
-  A.ghost = {
+  Art.ghost = {
     pal: {W:"#dfe8f2", w:"#aebccf"},
     frames: { idle: [[
       '....KWWWWK......',
@@ -233,7 +233,7 @@
       '...K.K..K.K.....',
     ]] },
   };
-  A.bonemage = {
+  Art.bonemage = {
     pal: {W:"#e8e4d8", w:"#b8b2a0", Q:"#554470", q:"#3a2f4a", B:"#6f4c2c", R:"#ff7a30"},
     frames: { idle: [[
       '....KWWWK.......',
@@ -251,7 +251,7 @@
       '..KqqKKKqqK.KBK.',
     ]] },
   };
-  A.imp = {
+  Art.imp = {
     pal: {R:"#c44530", r:"#8a2a1c", Y:"#ffd75a"},
     frames: { idle: [[
       '..KK...KK...',
@@ -268,7 +268,7 @@
       '..KKK.KKK...',
     ]] },
   };
-  A.wraith = {
+  Art.wraith = {
     pal: {X:"#352c44", x:"#1f1a2a", W:"#cfe6ff"},
     frames: { idle: [[
       '....KKKK........',
@@ -285,7 +285,7 @@
       '.....K..........',
     ]] },
   };
-  A.gargoyle = {
+  Art.gargoyle = {
     pal: {S:"#8d8d96", s:"#62626c", d:"#45454e", R:"#d03828"},
     frames: { idle: [[
       '....KsK..KsK....',
@@ -303,7 +303,7 @@
       '...KKK...KKK....',
     ]] },
   };
-  A.demon = {
+  Art.demon = {
     pal: {R:"#b8412e", r:"#7e2417", W:"#ddd6c8", Y:"#ffd75a"},
     frames: { idle: [[
       '..KK.....KK.....',
@@ -323,7 +323,7 @@
       '...KKK.KKK......',
     ]] },
   };
-  A.succubus = {
+  Art.succubus = {
     pal: {x:"#2a1f33", F:"#ecc8a8", f:"#c49a78", R:"#a82838", r:"#701a26"},
     frames: { idle: [[
       '....KxxxxK......',
@@ -342,7 +342,7 @@
       '...KKK...KKK....',
     ]] },
   };
-  A.hellknight = {
+  Art.hellknight = {
     pal: {D:"#57575f", d:"#3a3a44", R:"#e03020", S:"#b8bdc6", G:"#8f6f26"},
     frames: { idle: [[
       '.KK.....KK......',
@@ -363,7 +363,7 @@
       '...KKK.KKK......',
     ]] },
   };
-  A.chaos = {
+  Art.chaos = {
     pal: {M:"#a040a0", m:"#6f2a70", Y:"#ffd75a"},
     frames: { idle: [[
       '....KMMMMK......',
@@ -377,7 +377,7 @@
       '.K....K....K....',
     ]] },
   };
-  A.chest = {
+  Art.chest = {
     pal: {B:"#8a5c34", b:"#5f3d20", d:"#3c2614", G:"#d2a73f", g:"#8f6f26"},
     frames: { idle: [[
       '...KKKKKKKK...',
@@ -392,7 +392,7 @@
       '..KKKKKKKKKK..',
     ]] },
   };
-  A.chestOpen = {
+  Art.chestOpen = {
     pal: {B:"#8a5c34", b:"#5f3d20", d:"#3c2614", G:"#d2a73f", g:"#8f6f26"},
     frames: { idle: [[
       '..KKKKKKKKKK..',
@@ -406,7 +406,7 @@
       '..KKKKKKKKKK..',
     ]] },
   };
-  A.malgoth = {
+  Art.malgoth = {
     pal: {R:"#b8412e", r:"#7e2417", d:"#581710", Y:"#ffd75a", W:"#ddd6c8", x:"#2a1018"},
     frames: { idle: [[
       '..KK..............KK.',
@@ -433,7 +433,7 @@
       '.....KKK....KKK......',
     ]] },
   };
-  A.cinderlord = {
+  Art.cinderlord = {
     pal: {H:"#181016", C:"#5a2b22", c:"#371811", R:"#c1481c", E:"#ff9a2e", Y:"#ffd75a"},
     frames: { idle: [[
       '..KK..........KK..',
