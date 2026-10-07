@@ -43,6 +43,7 @@
     last = now;
     app.realNow = now;
     const w = app.world;
+    if (app.state === 'menu') drawMenuBackdrop(real);
     if (w && app.state === 'playing') {
       BD.input.mouse.frame();
       BD.input.intent.frame(real);
@@ -61,9 +62,23 @@
       BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
     }
     if (BD.ui.hud && w) BD.ui.hud.frame(w, real);
+    else if (!w) document.body.classList.add('no-hud');
     if (BD.ui.panels) BD.ui.panels.frame(real);
     if (BD.audio.music) BD.audio.music.frame(real);
     requestAnimationFrame(frame);
+  }
+
+  /** a slow, candle-lit backdrop behind the main menu */
+  let menuT = 0;
+  function drawMenuBackdrop(real) {
+    menuT += real;
+    const c = /** @type {HTMLCanvasElement} */ (document.getElementById('world'));
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const gr = g.createRadialGradient(c.width / 2, c.height * 0.62, 10, c.width / 2, c.height * 0.6, c.height * 0.8);
+    const fl = 0.85 + 0.15 * Math.sin(menuT / 180) * Math.sin(menuT / 67);
+    gr.addColorStop(0, 'rgb(' + Math.round(70 * fl) + ',' + Math.round(34 * fl) + ',14)'); gr.addColorStop(0.5, '#120a07'); gr.addColorStop(1, '#030202');
+    g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
   }
 
   function newSeed() {
@@ -120,6 +135,13 @@
     }
   }
 
-  Object.assign(app, { boot, startRun, setWorld, stepSim, dispatch, newSeed });
+  function toMenu() {
+    app.world = null;
+    app.state = 'menu';
+    app.tactical = false;
+    if (BD.ui.menu) BD.ui.menu.open();
+  }
+
+  Object.assign(app, { boot, startRun, setWorld, stepSim, dispatch, newSeed, toMenu });
   BD.boot = boot;
 })(globalThis.BD);

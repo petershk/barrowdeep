@@ -112,7 +112,9 @@
     if (eff.chance != null && !world.rng.chance(eff.chance * (eff.type === 'status' ? ST().statsOf(world, caster).statusChanceMult : 1))) return null;
     switch (eff.type) {
       case 'damage': {
-        const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, { combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: (ctx.packetMult || 1) * (eff.areaFalloff && tgt.id !== ctx.centerId ? eff.areaFalloff : 1), fixed: ctx.fixed });
+        let xm = (ctx.packetMult || 1) * (eff.areaFalloff && tgt.id !== ctx.centerId ? eff.areaFalloff : 1);
+        if (eff.missingLife) { const mx = ST().statsOf(world, tgt).maxLife; xm *= 1 + Math.min(eff.missingLife, Math.max(0, 1 - tgt.hp / mx)); }
+        const h = computeHit(world, caster, ctx.ab, eff, ctx.rank, { combo: ctx.combo, focus: ctx.focus, rng: world.rng, extraMult: xm, fixed: ctx.fixed });
         const tags = (ctx.tags || ctx.ab.tags || []).slice();
         if (ctx.aoe && tags.indexOf('aoe') < 0) tags.push('aoe');
         const r = BD.sim.damage.dealDamage(world, {
@@ -136,15 +138,16 @@
       case 'pull': pull(world, tgt, caster.x, caster.y, eff.dist || 1); return null;
       case 'heal': {
         const max = ST().statsOf(world, tgt).maxLife;
-        const amt = (max * AB().scale({ mult: eff.pctMaxLife }, ctx.rank)) / 100;
+        const amt = (max * (eff.perRank ? AB().scale(eff, ctx.rank) : AB().scale({ mult: eff.pctMaxLife }, ctx.rank))) / 100;
         if (eff.overMs) SS().apply(world, tgt, 'healing', { durMs: eff.overMs, magnitude: amt });
         else SS().heal(world, tgt, amt);
         return null;
       }
       case 'cleanse': SS().cleanse(world, tgt, eff.statuses); return null;
       case 'buff': {
-        const mag = eff.magnitude != null ? AB().scale({ mult: eff.magnitude }, ctx.rank) : undefined;
-        SS().apply(world, tgt, eff.id, { durMs: eff.durMs, magnitude: mag, sourceId: caster.id });
+        const mag = eff.magnitude == null ? undefined : eff.fixed ? eff.magnitude : eff.perRank ? AB().scale(eff, ctx.rank) : AB().scale({ mult: eff.magnitude }, ctx.rank);
+        const dur = eff.durKey && ctx.ab[eff.durKey] ? ctx.ab[eff.durKey] : eff.durMs;
+        SS().apply(world, tgt, eff.id, { durMs: dur, magnitude: mag, sourceId: caster.id });
         return null;
       }
       case 'resource': BD.sim.resources.gain(world, caster, eff.res || BD.sim.resources.kind(caster), eff.gen); return null;

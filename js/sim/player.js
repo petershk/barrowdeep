@@ -65,7 +65,8 @@
     if (!p || p.dead) return;
     tickTimers(world, p, dt);
     if (p.move) return;                       // mid-step: wait for the tile
-    if (p.attack) return;                     // mid-attack/cast: abilities system owns it
+    if (p.attack && p.attack.phase === 'channel') { channelMove(world, p); return; }
+    if (p.attack && p.attack.phase === 'windup') return;   // mid-swing/cast: the ability engine owns it
     if (BD.sim.status && BD.sim.status.clockMult(world, p) === 0) return; // stunned / frozen
     const it = p.intent;
     if (it.kind === 'move') followPath(world, p, it);
@@ -105,6 +106,7 @@
     const inRange = reach <= 1.5 ? cheb(p.x, p.y, t.x, t.y) <= 1 && G.canStep(p.x, p.y, Math.sign(t.x - p.x), Math.sign(t.y - p.y), (x, y) => E.walkable(world.floor, x, y) || (x === t.x && y === t.y))
       : within(p.x, p.y, t.x, t.y, reach) && BD.sim.targeting.hasLOS(world, p.x, p.y, t.x, t.y);
     if (inRange) {
+      if (p.attack) return;                   // recovering from the last swing
       if (it.kind === 'engage') { BD.sim.combat.playerBasicAttack(world, p, t); if (!it.hold) p.intent = { kind: 'idle' }; }
       else { const ok = BD.sim.abilities.fireApproach(world, p, it); if (!ok || !it.hold) p.intent = { kind: 'idle' }; }
       return;
@@ -118,6 +120,18 @@
     const [nx, ny] = it.path[0];
     if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); }
     else it.path = null;
+  }
+
+  /** Whirlwind and other channels: drift toward the held cursor at reduced speed. */
+  function channelMove(world, p) {
+    const a = p.attack, to = a.moveTo;
+    if (!to || (to.x === p.x && to.y === p.y)) return;
+    const ab = BD.sim.abilities.def(a.abilityId);
+    const k = ab && ab.moveWhileChannel ? ab.moveWhileChannel : 0;
+    if (!k) return;
+    const path = pathTo(world, p, to.x, to.y, true);
+    if (!path || !path.length) return;
+    if (M.startStep(world, p, path[0][0], path[0][1], moveMs(world, p) / k)) onStep(world, p);
   }
 
   function interact(world, p, it) {

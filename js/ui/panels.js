@@ -21,12 +21,12 @@
     if (existing) { close(id); }
     const { h, root } = BD.ui.dom;
     const el = h('div.panel.panel-' + id + (d.wide ? '.wide' : '') + (d.full ? '.full' : ''));
-    const shell = d.modal ? h('div.panel-shade', [el]) : el;
+    const shell = d.modal ? h('div.panel-shade' + (d.full ? '.menu-shade' : ''), [el]) : el;
     root().appendChild(shell);
     const entry = { id, el, shell, arg };
     stack.push(entry);
-    d.build(el, arg);
     if (d.onOpen) d.onOpen(el, arg);
+    d.build(el, arg);
     BD.app.bus.emit({ type: 'ui.panel', id, open: true });
     if (BD.ui.pad) BD.ui.pad.invalidate();
     return el;

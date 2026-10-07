@@ -68,6 +68,8 @@
   function cdTime(world, p, ab) {
     const s = ST().statsOf(world, p);
     let ms = ab.cooldownMs || 0;
+    const cfn = BD.sim.effects.scripts[ab.id + '.cooldown'];
+    if (cfn) ms = cfn(world, p, ab, ms);
     if (BD.sim.powers) ms = BD.sim.powers.cooldown(world, p, ab, ms);
     return ms * (1 - Math.min(40, s.cdr_pct || 0) / 100);
   }
@@ -110,9 +112,24 @@
       return { entity: e, x: e.x, y: e.y };
     }
     let x = aim.x, y = aim.y;
-    if (aim.entityId != null) { const e = E.get(world, aim.entityId); if (e) { x = e.x; y = e.y; } }
+    let ent = aim.entityId != null ? E.get(world, aim.entityId) : null;
+    if (ent && (ent.dead || ent.faction === 'player')) ent = null;
+    if (ent) { x = ent.x; y = ent.y; }
     if (x == null) return null;
-    return { x, y, entity: aim.entityId != null ? E.get(world, aim.entityId) : null };
+    if (t.mode === 'direction') {
+      // a clicked enemy is approached; otherwise swing toward the cursor from where we stand
+      if (!ent) {
+        const f = world.floor, id = f.occ[y * f.w + x];
+        const o = id && id !== p.id ? E.get(world, id) : null;
+        if (o && o.faction !== 'player') ent = o;
+      }
+      if (ent && cheb(p.x, p.y, ent.x, ent.y) <= (t.range || 1)) return { x: ent.x, y: ent.y, entity: ent };
+      if (ent) return { x: ent.x, y: ent.y, entity: ent };
+      const dx = Math.sign(x - p.x), dy = Math.sign(y - p.y);
+      if (!dx && !dy) { const d = BD.core.util.DIRS[p.dir]; return { x: p.x + d[0], y: p.y + d[1], entity: null }; }
+      return { x: p.x + dx, y: p.y + dy, entity: null };
+    }
+    return { x, y, entity: ent };
   }
 
   /** @returns {{ok:true}|{reject:string}|{approach:true}} */
@@ -156,7 +173,11 @@
     const ab = resolved(base, rank);
     if (abilityId === 'attack') { ab.targeting = base.targeting; ab.delivery = base.delivery; ab.area = base.area; ab.tags = base.tags; }
     // channel: holding re-issues keep it alive
-    if (p.attack && p.attack.phase === 'channel' && p.attack.abilityId === abilityId) { p.attack.heldMs = 0; return 'cast'; }
+    if (p.attack && p.attack.phase === 'channel' && p.attack.abilityId === abilityId) {
+      p.attack.heldMs = 0;
+      if (aim && aim !== 'auto' && aim.x != null) p.attack.moveTo = { x: aim.x, y: aim.y };
+      return 'cast';
+    }
     const tgt = resolveTarget(world, p, ab, aim);
     const v = validate(world, p, ab, rank, tgt);
     if (v.reject) return 'reject';
@@ -191,7 +212,11 @@
     p.lastActMs = world.time;
     if (ab.isSpell && res.cost && res.type === 'mana') p.lastCastMs = world.time;
     world.events.push({ type: 'ability.cast', id: p.id, abilityId: ab.id, x: p.x, y: p.y, tx: tgt.x, ty: tgt.y, windupMs: tm.windup, weapon: ST().statsOf(world, p).weapon.fx });
-    if (ab.selfTelegraph) world.events.push({ type: 'telegraph.start', srcId: p.id, shape: ab.area, x: p.x, y: p.y, ms: tm.windup, friendly: true });
+    if (ab.selfTelegraph) {
+      const tiles = BD.sim.targeting.areaTiles(ab.area, p.x, p.y, p.x, p.y, p.dir);
+      const z = BD.sim.zones.create(world, { tiles, cx: p.x, cy: p.y, armMs: tm.windup, telegraph: true, faction: 'player', srcId: p.id, resolve: null, kind: 'self_tele' });
+      p.attack.teleZone = z.id;
+    }
     if (ab.onCommit) BD.sim.effects.special(world, p, ab, rank, 'commit', p.attack);
     if (tm.windup <= 0 && !ab.channel) actionTick(world, p, 0);
   }
@@ -200,6 +225,7 @@
   function cancel(world, p, why) {
     const a = p.attack;
     if (!a) return;
+    if (a.teleZone) { const zs = world.floor.zones, zi = zs.findIndex((z) => z.id === a.teleZone); if (zi >= 0) { zs.splice(zi, 1); world.events.push({ type: 'telegraph.end', zoneId: a.teleZone }); } }
     if (a.phase === 'windup') {
       const ab = def(a.abilityId);
       if (a.spent) R().refund(world, p, a.spentType, a.spent);
@@ -223,8 +249,7 @@
       if (a.remaining <= 0) {
         const ab = resolved(def(a.abilityId), a.rank);
         const cost = (ab.channel.costPerSec * ab.channel.tickMs) / 1000;
-        const hold = BD.input ? true : true;
-        if (a.heldMs > 260 || !R().canPay(p, ab.resource.type, cost) || !hold) { cancel(world, p, 'released'); return; }
+        if (a.heldMs > 260 || !R().canPay(p, ab.resource.type, cost)) { cancel(world, p, 'released'); return; }
         R().spend(world, p, ab.resource.type, cost);
         a.remaining += ab.channel.tickMs;
         BD.sim.effects.impact(world, p, ab, a.rank, a);
