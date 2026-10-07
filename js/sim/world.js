@@ -62,7 +62,8 @@
   }
 
   /**
-   * @param {{seed:string, cls:string, name:string, difficulty?:string, background?:string, firstSkill?:string}} opts
+   * @param {{seed:string, cls:string, name:string, difficulty?:string, background?:string, firstSkill?:string,
+   *   ascension?:number}} opts
    */
   function createWorld(opts) {
     const world = {

@@ -19,7 +19,7 @@
   /**
    * @typedef {{ srcId:number|null, tgtId:number, amounts:Record<string,number>, tags:string[], canCrit:boolean,
    *   canDodge:boolean, canBlock:boolean, mult:number, abilityId?:string, isDot?:boolean, forceCrit?:boolean,
-   *   noOnHit?:boolean, critChanceAdd?:number, al?:number }} DamagePacket
+   *   noOnHit?:boolean, critChanceAdd?:number, al?:number, noFaction?:boolean, nonLethal?:boolean }} DamagePacket
    */
 
   function emitMiss(world, p, src, tgt, reason) {

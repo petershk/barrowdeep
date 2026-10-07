@@ -45,6 +45,7 @@
     // memo lives on the item (non-enumerable, so saves never see it): uids are only unique per world
     const key = (item.enhance || 0) + ':' + dataVersion;
     if (item._dk === key) return item._d;
+    /** @type {Record<string, any>} the derived item: base stats, rolled mods, tooltip lines */
     let d;
     const b = BD.data.bases[item.base];
     if (!b) throw new Error('unknown base ' + item.base);

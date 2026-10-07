@@ -28,7 +28,7 @@
   /**
    * @param {any} caster the player (owner for allies)
    * @param {any} eff a damage effect
-   * @param {{combo?:number, focus?:number, roll?:number, rng?:any, extraMult?:number}} ctx
+   * @param {{combo?:number, focus?:number, roll?:number, rng?:any, extraMult?:number, fixed?:number}} ctx
    * @returns {{amounts:Record<string,number>, total:number}}
    */
   function computeHit(world, caster, ab, eff, rank, ctx) {
@@ -41,6 +41,7 @@
     if (eff.perFocusPct) mult *= 1 + eff.perFocusPct * (ctx.focus || 0);
     mult *= ctx.extraMult || 1;
     const tags = ab.tags || [];
+    /** @type {Record<string, number>} */
     const amounts = {};
     if (eff.source === 'spell') {
       const lo = eff.base[0], hi = eff.base[1];

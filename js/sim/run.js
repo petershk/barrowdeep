@@ -14,6 +14,7 @@
   const LAST_STAIRS_FLOOR = FloorData.LAST - 1;  // no stairs down from here: the Sanctum is reached by waypoint
 
   function begin(world, opts) {
+    /** @type {number|string} a floor number or 'town' */
     let start = 1;
     if (opts && opts.floor) start = opts.floor;
     else if (BD.sim.gen.town) start = 'town';

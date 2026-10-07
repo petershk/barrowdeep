@@ -160,7 +160,7 @@
     return { x: p.x + dx, y: p.y + dy, entity: null };
   }
 
-  /** @returns {{ok:true}|{reject:string}|{approach:true}} */
+  /** @returns {{ok?:true, reject?:string, approach?:true}} exactly one of the three is set */
   function validate(world, p, ab, rank, tgt) {
     const t = ab.targeting || { mode: 'self' };
     if (!tgt) return reject(world, p, ab, 'no_target');
