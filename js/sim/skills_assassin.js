@@ -36,7 +36,7 @@
       BD.core.scheduler.after(world, 50, 'unseen.clear', {});
     }
   });
-  BD.core.scheduler.register('unseen.clear', (world) => { world.player._silentHit = false; });
+  BD.core.scheduler.register('unseen.clear', (world) => { world.player._silentHit = false; }, { scope: 'run' });
   const hasDamage = (ab) => (ab.effects || []).some((e) => e.type === 'damage');
 
   reg('attack.landed', (world, p, ab, rank, { landed }) => {

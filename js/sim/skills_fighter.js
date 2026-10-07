@@ -54,7 +54,7 @@
     if (BD.sim.powers) BD.sim.powers.onWarCry(world, p, results);
   });
   reg('war_cry.cooldown', (world, p, ab, ms) => (ks(p, 'warlord') ? 8000 : ms));
-  BD.core.scheduler.register('rage.tick', (world, pl) => { if (!world.player.dead) R.gain(world, world.player, 'rage', pl.n, true); });
+  BD.core.scheduler.register('rage.tick', (world, pl) => { if (!world.player.dead) R.gain(world, world.player, 'rage', pl.n, true); }, { scope: 'run' });
 
   // ---- Earthshaker: knockback-immune wind-up, r5 aftershock ----
   reg('earthshaker.commit', (world, p) => { BD.sim.status.apply(world, p, 'knockback_immune', { durMs: 320 }); });

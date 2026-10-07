@@ -55,7 +55,7 @@
       if (f.n > r.deepestFloor) r.deepestFloor = f.n;
     } else if (f.key === 'town') r.floor = 0;
     // without a Keeper the seal has nothing to guard
-    if (f.downPos && !f.keeperId && !f.sealBroken) openSeal(world, false);
+    if (f.downPos && !f.hadKeeper && !f.sealBroken) openSeal(world, false);
     if (f.sealBroken && f.downPos && f.key !== 'town') f.tiles[f.downPos.y * f.w + f.downPos.x] = T.STAIRS_DOWN;
     if (BD.sim.portal) BD.sim.portal.onEnter(world);
     if (f.key === 'town') {

@@ -35,7 +35,7 @@
           const e = BD.sim.monsters.create(world, f, id, m, pack);
           f.entities.set(id, e);
           E.occupy(f, e);
-          if (m.keeper) f.keeperId = id;
+          if (m.keeper) { f.keeperId = id; f.hadKeeper = true; }
         }
       }
     }
@@ -69,6 +69,7 @@
   function enterFloor(world, key, arrive) {
     const T0 = world.floor;
     if (T0 && BD.sim.floors) BD.sim.floors.leave(world);
+    BD.core.scheduler.dropFloorEvents(world);
     let plan;
     if (key === 'town') plan = BD.sim.gen.town.generate({ seed: world.run.seed });
     else if (typeof key === 'string' && key[0] === 'a') plan = BD.sim.gen.arena.generate({ n: Number(key.slice(1)), seed: world.run.seed });
