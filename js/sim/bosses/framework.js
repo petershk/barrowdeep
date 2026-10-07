@@ -68,7 +68,7 @@
       const usable = (m) => m.move !== st.last
         && ctx.dist >= m.minRange && ctx.dist <= m.maxRange + 0.5
         && !(st.cds[m.move] > world.time)
-        && (m.phase == null || m.phase === st.phase || (st.allMoves && m.move !== 'imp_call'))
+        && (m.phase == null || m.phase === st.phase || (st.allMoves && (d.allMovesSkip || []).indexOf(m.move) < 0))
         && moves[m.move];
       const fits = d.kit.filter(usable);
       if (fits.length) {
@@ -134,10 +134,11 @@
     BD.sim.stats.bump(e);
     world.events.push({ type: 'boss.phase', id: e.id, phase: st.phase, name: ph.name, line: d.lines.enrage, x: e.x, y: e.y });
     world.events.push({ type: 'announce', text: d.lines.enrage, style: 'boss' });
-    if (ph.onEnter && phaseHooks[ph.onEnter]) phaseHooks[ph.onEnter](world, e, d, st);
+    if (ph.onEnter && phaseHooks[ph.onEnter]) phaseHooks[ph.onEnter](world, e, d, st, ph);
     st.nextSpecial = world.time + BossBalance.phaseSpecialDelayMs;
   }
   const phaseHooks = {};
+  /** fn(world, e, def, bossState, phase): phase is the entered `phases` entry, carrying the effect's numbers */
   function registerPhase(id, fn) { phaseHooks[id] = fn; }
 
   /** live adds spawned by this boss */

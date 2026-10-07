@@ -18,26 +18,19 @@
 
   const RECOVER_MS = 300;             // pause after a move before the next decision
   const HEAVY_RECOVER_MS = 400;
-  const FAST_LANCE_MS = 400;          // a lance right after a Hollow Step arms this much sooner
-  const PRISON_MAX_WINDUP_MS = 500;   // he is free to act again after this even if the prison arms later
   const WRAITH_TRIES = 40;            // random tiles tried when looking for wall spots
   const WRAITH_EDGE = 2;              // keep wall spots this many tiles inside the map edge
-  const WRAITH_WINDUP_MS = 600;
   const STEP_SEARCH_R = 3;            // Hollow Step lands within this many tiles of an anchor
-  const STEP_MS = 600;                // Hollow Step costs this long and delays the next special as much
   const TWIN_OFFSET_X = 2;            // the shade appears this many tiles to his right
-  const TWIN_FIRST_SPECIAL_MS = 2500;
-  const TWIN_FIRST_CRUSH_MS = 6000;
   const NEVER_MS = 1e12;              // a timer that never fires
   const ORBS_ALL_DROPPED = 3;         // the twin starts past all three flask-orb thresholds, so drops none
-  const LONE_SHADE_EXPOSED_MS = 3000;
 
   // ---------------- Mortis ----------------
   reg('soul_lance', {
     start(world, e, m, ctx) {
       const t = ctx.tgt, st = Bosses.bossState(world, e);
       const tiles = Grid.rayTiles(e.x, e.y, t.x - e.x, t.y - e.y, m.length).filter(([x, y]) => Entities.inBounds(world.floor, x, y));
-      const arm = m.armMs - (st.fastLance ? FAST_LANCE_MS : 0);
+      const arm = m.armMs - (st.fastLance ? m.fastLanceMs : 0);
       st.fastLance = false;
       e.dir = dirOf(t.x - e.x, t.y - e.y);
       const z = AiMoves().strike(world, e, tiles, arm, m.mult, {
@@ -58,7 +51,7 @@
       const z = AiMoves().strike(world, e, AiMoves().cross(t.x, t.y, 1), m.armMs, m.mult, {
         school: 'bone', cx: t.x, cy: t.y, statuses: [{ id: 'rooted', durMs: m.rootMs }], kind: 'bone_prison',
       });
-      return tele(world, e, [z], { kind: 'bone_prison', after: RECOVER_MS }, Math.min(PRISON_MAX_WINDUP_MS, m.armMs));
+      return tele(world, e, [z], { kind: 'bone_prison', after: RECOVER_MS }, Math.min(m.maxWindupMs, m.armMs));
     },
     resolve(world, e, act) {
       e.ai.zoneIds = null;
@@ -76,12 +69,12 @@
         if (Entities.isFree(f, x, y) && againstWall) walls.push([x, y]);
       }
       if (!summon(world, e, m.add, m.count, m.cap, walls.length ? walls : null)) return null;
-      return Ai().windup(world, e, { kind: 'wraith_call', after: RECOVER_MS }, WRAITH_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'wraith_call', after: RECOVER_MS }, m.windupMs, false);
     },
     resolve: after(RECOVER_MS),
   });
   reg('hollow_step', {
-    start(world, e) {
+    start(world, e, m) {
       const f = world.floor, anchors = (f.arena && f.arena.anchors) || [[e.home.x, e.home.y]];
       const [ax, ay] = world.rng.pick(anchors);
       const spot = Entities.nearestFree(f, ax, ay, STEP_SEARCH_R);
@@ -90,11 +83,11 @@
       BD.sim.movement.displace(world, e, spot.x, spot.y, 1, 'blink');
       e.move = null;
       Bosses.bossState(world, e).fastLance = true;
-      Bosses.bossState(world, e).nextSpecial = world.time + STEP_MS;
-      return STEP_MS;
+      Bosses.bossState(world, e).nextSpecial = world.time + m.stepMs;
+      return m.stepMs;
     },
   });
-  Bosses.registerPhase('split_shades', (world, e) => {
+  Bosses.registerPhase('split_shades', (world, e, d, st, ph) => {
     const max = BD.sim.stats.statsOf(world, e).maxLife;
     const half = Math.max(1, Math.floor(e.hp / 2));
     e.hp = half;
@@ -112,16 +105,17 @@
       twin.ai.woke = true;
       twin.ai.boss = {
         phase: 1, opened: true, last: 'soul_lance', cds: {}, orbs: ORBS_ALL_DROPPED,
-        nextSpecial: world.time + TWIN_FIRST_SPECIAL_MS, nextCrush: world.time + TWIN_FIRST_CRUSH_MS, nextSig: NEVER_MS,
+        nextSpecial: world.time + ph.twinFirstSpecialMs, nextCrush: world.time + ph.twinFirstCrushMs, nextSig: NEVER_MS,
       };
       world.events.push({ type: 'boss.split', id: e.id, twin: twin.id, x: twin.x, y: twin.y });
     }
   });
-  // killing one shade leaves the other Exposed for 3 s
+  // killing one shade leaves the other Exposed (split_shades phase: loneShadeExposedMs)
   BD.sim.damage.onKillHooks.push((world, v) => {
     if (!v.isShade) return;
+    const ph = Monsters.defOf(v).phases.find((p) => p.onEnter === 'split_shades');
     for (const o of world.floor.entities.values()) {
-      if (o !== v && o.isShade && !o.dead && o.hp > 0) BD.sim.ai.makeExposed(world, o, LONE_SHADE_EXPOSED_MS);
+      if (o !== v && o.isShade && !o.dead && o.hp > 0) BD.sim.ai.makeExposed(world, o, ph.loneShadeExposedMs);
     }
   });
 })(globalThis.BD);
