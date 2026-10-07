@@ -142,7 +142,37 @@
       disarmMs: 800,                                    // hold interact this long (adjacent, still) to disarm
       disarmXp: 4,                                      // disarm XP at AL 1, growing by monsters.xpGrowth per AL
     },
-    ai: {},
+    // monster behaviour defaults (04 §3.2), by behaviour id; a behaviour entry in monsters.js may override some
+    ai: {
+      // melee: a swing never recovers faster than this after its wind-up
+      melee: { minRecoverMs: 150 },
+      // shoot: default range (also lob's), wind-up cap, recovery floor; Blood Bolt weakens this long
+      shoot: { range: 6, maxWindupMs: 450, minRecoverMs: 200, bloodBoltWeakenMs: 4000 },
+      // coward: flee time when hit; the whole pack flees this long when its leader dies
+      coward: { fleeMs: 1500, routFleeMs: 4000 },
+      // revive: wind-up before a corpse rises
+      revive: { windupMs: 800 },
+      // eat_corpse: eats only below this life share; cooldown, wind-up, then enraged this long
+      eat_corpse: { belowLifeFrac: 0.8, cooldownMs: 6000, windupMs: 700, enrageMs: 5000 },
+      // bone_wall: raised with the player between these distances; the wall stands this long
+      bone_wall: { minDist: 2.5, maxDist: 6, windupMs: 600, lifeMs: 6000 },
+      // burrow: from this far; travel, emerge telegraph, emerge damage multiplier, bosses Exposed after emerging
+      burrow: { minDist: 2.5, travelMs: 900, telegraphMs: 800, mult: 1.5, bossExposedMs: 1400 },
+      // charge_line: from this far; cooldown, damage multiplier, Exposed after hitting a wall
+      charge_line: { minDist: 2, cooldownMs: 7000, mult: 1.8, wallExposedMs: 2000 },
+      // cleave_cone: cooldown, cone width (degrees), damage multiplier, Exposed after, recovery
+      cleave_cone: { cooldownMs: 5000, angle: 100, mult: 1.6, exposedMs: 1000, recoverMs: 200 },
+      // lob: not at point blank; the zone it leaves lingers this long
+      lob: { minDist: 1.5, lingerMs: 3000 },
+      // death_zone: burst = dmgMult × average hit, poisons; the pool lingers, ticking lingerMult × average hit
+      death_zone: { dmgMult: 0.5, poisonMs: 4000, lingerMs: 4000, lingerMult: 0.1 },
+      // charge moves (monsters, Keepers, bosses): dash speed per tile; recovery after a charge that missed the wall
+      charge: { dashMsPerTile: 40, recoverMs: 400 },
+      // champion mods: offensive mods act with the player this close; a mod first fires after 40–100% of its period
+      mods: { range: 9, firstDueMin: 0.4 },
+      // player allies (clones, spirits): life share of the owner's, walk speed, engage ranges, swing floor
+      allies: { lifePct: 0.5, moveMs: 280, stepMs: 260, guardRange: 9, seekRange: 8, followDist: 2, minSwingMs: 450 },
+    },
     bosses: {
       firstSpecialMs: 4000,                             // first special of a boss whose def has no specialEvery
       firstSpecialScale: 0.5,                           // otherwise the first special comes after this share of the usual interval

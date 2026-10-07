@@ -7,8 +7,7 @@
   const Monsters = BD.sim.monsters;
   const Grid = BD.core.grid;
 
-  const DASH_MS_PER_TILE = 40;         // charge travel speed
-  const CHARGE_RECOVER_MS = 400;       // pause after a charge that didn't hit a wall
+  const ChargeBalance = BD.data.balance.ai.charge;   // dash speed, recovery after a charge that missed the wall
 
   /** Charge along a pre-telegraphed line. Hitting a wall/pillar = Exposed. */
   function chargeLine(world, e, tiles, mult, exposedMs) {
@@ -34,7 +33,7 @@
     }
     if (last) {
       const n = Math.max(1, Math.max(Math.abs(last[0] - e.x), Math.abs(last[1] - e.y)));
-      BD.sim.movement.displace(world, e, last[0], last[1], DASH_MS_PER_TILE * n, 'dash');
+      BD.sim.movement.displace(world, e, last[0], last[1], ChargeBalance.dashMsPerTile * n, 'dash');
       world.events.push({ type: 'dash', id: e.id, fromX: e.x, fromY: e.y, x: last[0], y: last[1] });
     }
     if (victim) {
@@ -48,7 +47,7 @@
       world.events.push({ type: 'collide', id: e.id, x: e.x, y: e.y });
       BD.sim.ai.makeExposed(world, e, exposedMs);
     }
-    return hitWall ? exposedMs : CHARGE_RECOVER_MS;
+    return hitWall ? exposedMs : ChargeBalance.recoverMs;
   }
 
   /** a telegraphed area strike centred on tiles; returns the zone */

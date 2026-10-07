@@ -11,15 +11,14 @@
   const { cheb } = BD.core.util;
   const hasMod = (e, id) => e.mods && e.mods.indexOf(id) >= 0;
 
-  const FIRST_DUE_MIN = 0.4;           // a mod first fires after 40–100% of its period (staggered by id)
-  const MOD_RANGE = 9;                 // offensive mods only act with the player this close
+  const ModBalance = BD.data.balance.ai.mods;   // range, first-fire stagger
   const TELEPORT_RADIUS = 2;
 
   function due(world, e, key, every) {
     const cds = e.ai.cds;
     if (cds[key] == null) {
       const stagger = (e.id % 10) / 10;
-      cds[key] = world.time + every * (FIRST_DUE_MIN + (1 - FIRST_DUE_MIN) * stagger);
+      cds[key] = world.time + every * (ModBalance.firstDueMin + (1 - ModBalance.firstDueMin) * stagger);
       return false;
     }
     if (world.time < cds[key]) return false;
@@ -30,7 +29,7 @@
   function tick(world, e) {
     if (!e.mods.length || e.ai.state === 'windup') return;
     const p = world.player;
-    const near = cheb(e.x, e.y, p.x, p.y) <= MOD_RANGE;
+    const near = cheb(e.x, e.y, p.x, p.y) <= ModBalance.range;
     for (const id of e.mods) {
       const m = ChampionMods()[id];
       if (!m) continue;

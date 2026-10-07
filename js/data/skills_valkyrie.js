@@ -100,6 +100,7 @@
     id: 'valkyries_call', branch: 'valor', tier: 2, name: "Valkyrie's Call", icon: 'valkyries_call', school: 'holy',
     tags: ['summon'], resource: { type: 'focus', cost: 0 }, cooldownMs: 30000, castMs: 300, noIas: true,
     targeting: { mode: 'self' }, delivery: { kind: 'summon' }, spiritMult: 0.8, spiritMs: 20000,
+    spiritJavelinCdMs: 2500,                           // at rank 5 the spirit throws a Javelin this often
     breakpoints: [
       { rank: 3, set: { spiritMs: 30000 }, text: 'Lasts 30 s.' },
       { rank: 5, set: { spiritThrows: true }, text: 'She also throws Javelins.' },
