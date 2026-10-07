@@ -148,7 +148,14 @@
 
   function fight(bot, near) {
     const w = bot.world, p = w.player;
+    bot.unreach = bot.unreach || new Map();
+    near = near.filter((e) => !(bot.unreach.get(e.id) > w.time));
+    if (!near.length) return progress(bot);
     const t = near[0];
+    // give up on targets we can't reach after 4 s without progress
+    const key = t.id + ':' + p.x + ',' + p.y;
+    if (bot.fightKey === key && !p.attack && w.time - bot.fightSince > 4000) { bot.unreach.set(t.id, w.time + 20000); bot.fightKey = null; return progress(bot); }
+    if (bot.fightKey !== key) { bot.fightKey = key; bot.fightSince = w.time; }
     if (p.attack && p.attack.phase === 'windup') return;
     if (!ROTATION[p.cls](bot, t, near)) CMD(w, { type: 'Engage', entityId: t.id, hold: true });
   }

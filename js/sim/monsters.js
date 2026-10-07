@@ -36,7 +36,8 @@
   /** Spawn at runtime (adds, revives, splits): runtime ids, nearest free reachable tile, not saved. */
   function spawn(world, def, x, y, o) {
     const f = world.floor;
-    const spot = E.nearestFree(f, x, y, 4);
+    // runtime spawns only land on tiles reachable from the level's entrance (never in sealed pockets)
+    const spot = E.nearestFree(f, x, y, 4, f.reach ? (sx, sy) => f.reach[sy * f.w + sx] >= 0 : null);
     if (!spot) return null;
     const id = world.nextId++;
     const e = create(world, f, id, Object.assign({ def, x: spot.x, y: spot.y, al: f.al, rank: 'normal' }, o || {}), o && o.pack ? o.pack : null);

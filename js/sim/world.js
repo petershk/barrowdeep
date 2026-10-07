@@ -20,7 +20,7 @@
       reachableCount: 0, occ: new Int32Array(N), block: new Uint8Array(N),
       entities: new Map(), items: [], zones: [], projectiles: [], corpses: [], allies: [],
       sealBroken: false, gateOpen: false, bossDead: false, keeperId: null, event: plan.event || null,
-      flow: null, flowFrom: -1, timeOnFloor: 0, fullyExplored: false, exploreDirty: true, extraLight: 0,
+      reach: plan.reachDist || null, flow: null, flowFrom: -1, timeOnFloor: 0, fullyExplored: false, exploreDirty: true, extraLight: 0,
     };
     world.floor = f;
     if (plan.arena) f.extraLight = 8;

@@ -15,11 +15,19 @@
     const act = Math.min(4, world.floor.n ? BD.data.floors.byN(world.floor.n).act : 1);
     return Object.values(BD.data.monsters).filter((m) => m.act === act && !m.spawner && !m.spawnOnly && m.role !== 'bomber');
   }
-  function spawnWave(world, cx, cy, n, tag) {
-    const sp = actSpecies(world);
+  /** spawn a wave; with a room, every monster lands inside it (the doors may be barred) */
+  function spawnWave(world, cx, cy, n, tag, room) {
+    const sp = actSpecies(world), f = world.floor;
     for (let i = 0; i < n; i++) {
       const def = world.rng.pick(sp).id;
-      const e = MON.spawn(world, def, cx + world.rng.int(-3, 3), cy + world.rng.int(-3, 3), { eventId: tag, noLoot: true });
+      let x = cx + world.rng.int(-3, 3), y = cy + world.rng.int(-3, 3);
+      if (room) {
+        const free = [];
+        for (let yy = room.y; yy < room.y + room.h; yy++) for (let xx = room.x; xx < room.x + room.w; xx++) if (E.isFree(f, xx, yy) && cheb(xx, yy, world.player.x, world.player.y) >= 2) free.push([xx, yy]);
+        if (!free.length) return;
+        [x, y] = world.rng.pick(free);
+      }
+      const e = MON.spawn(world, def, x, y, { eventId: tag, noLoot: true });
       if (e) e.eventId = tag;
     }
   }
@@ -101,7 +109,7 @@
     if (ev.id === 'cursed_chest' && ev.state === 'active') {
       if (world.time >= ev.nextWave && ev.wave < ED().cursed_chest.waves) {
         ev.wave++; ev.nextWave = world.time + ED().cursed_chest.waveMs;
-        spawnWave(world, ev.x, ev.y, 3 + ev.wave, 'cursed');
+        spawnWave(world, ev.x, ev.y, 3 + ev.wave, 'cursed', ev.room);
         world.events.push({ type: 'event.wave', id: 'cursed_chest', n: ev.wave });
       }
       const alive = Array.from(f.entities.values()).some((e) => e.eventId === 'cursed' && !e.dead);
