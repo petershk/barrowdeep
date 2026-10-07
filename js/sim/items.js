@@ -4,9 +4,8 @@
 (function (BD) {
   'use strict';
 
-  const cache = new Map();
   let dataVersion = 0;
-  function invalidate() { cache.clear(); dataVersion++; }
+  function invalidate() { dataVersion++; }
 
   const ilvlScale = (i) => 1 + 0.09 * (i - 1);
   /** deterministic 0..1 from a uid (base armour roll without storing it) */
@@ -25,9 +24,10 @@
   }
 
   function derive(item) {
-    const key = item.uid + ':' + (item.enhance || 0) + ':' + dataVersion;
-    let d = cache.get(key);
-    if (d) return d;
+    // memo lives on the item (non-enumerable, so saves never see it): uids are only unique per world
+    const key = (item.enhance || 0) + ':' + dataVersion;
+    if (item._dk === key) return item._d;
+    let d;
     const b = BD.data.bases[item.base];
     if (!b) throw new Error('unknown base ' + item.base);
     const enh = item.enhance || 0, ek = 1 + 0.1 * enh;
@@ -61,7 +61,8 @@
     if (b.reqAttr && b.heft) d.req = { attr: b.reqAttr, value: Math.round(b.heft * (1 + 0.06 * item.ilvl)) };
     const rm = { common: 1, magic: 2.5, rare: 6, legendary: 15 }[item.rarity] || 1;
     d.value = Math.round(20 * Math.pow(1.1, item.ilvl - 1) * rm * (1 + 0.15 * enh));
-    cache.set(key, d);
+    Object.defineProperty(item, '_d', { value: d, writable: true, configurable: true, enumerable: false });
+    Object.defineProperty(item, '_dk', { value: key, writable: true, configurable: true, enumerable: false });
     return d;
   }
   function addMod(d, k, v) { d.mods[k] = (d.mods[k] || 0) + v; }
