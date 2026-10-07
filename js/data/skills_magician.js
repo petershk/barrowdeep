@@ -11,7 +11,7 @@
     id: 'firebolt', branch: 'pyro', tier: 1, name: 'Firebolt', icon: 'firebolt', school: 'fire',
     tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 350,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'projectile', projectile: 'firebolt' },
-    effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [3, 6], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'firebolt', pierce: 1 } }, text: 'Pierces 1 target.' },
       { rank: 5, set: { splitOnHit: 2 }, text: 'Splits into 2 bolts on hit.' },
@@ -35,7 +35,7 @@
     tags: ['spell', 'fire', 'aoe'], resource: { type: 'mana', cost: 30 }, cooldownMs: 5000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, requiresVisible: false, outOfRange: 'approach' },
     delivery: { kind: 'zone', delayMs: 900 }, area: { shape: 'circle', radius: 2 }, linger: { kind: 'burning_ground', durMs: 4000 },
-    effects: [{ type: 'damage', source: 'spell', base: [22, 33], element: 'fire', canCrit: true, canDodge: false }],
+    effects: [{ type: 'damage', source: 'spell', base: [18, 26], element: 'fire', canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, set: { followers: 2 }, text: 'Two smaller meteors (50%) follow.' },
       { rank: 5, add: [{ type: 'status', id: 'stunned', durMs: 1000 }], text: 'Impact stuns for 1 s.' },

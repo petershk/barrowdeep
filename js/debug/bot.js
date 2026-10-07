@@ -14,7 +14,7 @@
     fighter: ['bash', 'bash', 'charge', 'bash', 'bash', 'war_cry', 'bash', 'war_cry', 'charge', 'berserk_strike', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'berserk_strike', 'earthshaker', 'warlord', 'bloodlust', 'earthshaker', 'berserk_strike', 'war_cry', 'charge', 'brace', 'brace', 'second_wind', 'second_wind', 'war_cry', 'earthshaker', 'avalanche_leap', 'juggernaut'],
     assassin: ['tiger_strike', 'tiger_strike', 'fire_blast', 'tiger_strike', 'tiger_strike', 'dragon_talon', 'dragon_talon', 'dragon_talon', 'shadowstep', 'phoenix_strike', 'phoenix_strike', 'phoenix_strike', 'dragon_talon', 'phoenix_strike', 'phoenix_strike', 'endless_flurry', 'dragon_talon', 'lightning_sentry', 'lightning_sentry', 'fire_blast', 'fire_blast', 'smoke_bomb', 'shadowstep', 'lightning_sentry', 'death_sentry', 'shadow_master', 'shadow_master', 'fire_blast', 'smoke_bomb', 'unseen'],
     magician: ['firebolt', 'firebolt', 'firebolt', 'frost_nova', 'firebolt', 'fireball', 'fireball', 'fireball', 'frost_nova', 'fireball', 'fireball', 'meteor', 'meteor', 'meteor', 'meteor', 'meteor', 'pyre', 'teleport', 'teleport', 'frost_nova', 'frost_nova', 'ice_shard', 'blizzard', 'blizzard', 'spark', 'chain_lightning', 'chain_lightning', 'blizzard', 'chain_lightning', 'energy_shield'],
-    valkyrie: ['multishot', 'multishot', 'aimed_shot', 'multishot', 'multishot', 'vault', 'aimed_shot', 'aimed_shot', 'multishot', 'aimed_shot', 'aimed_shot', 'rain_of_arrows', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot', 'rain_of_arrows', 'rain_of_arrows', 'deadeye', 'javelin', 'vault', 'pinning_shot', 'pinning_shot', 'piercing_shot', 'piercing_shot', 'sky_spear', 'sky_spear', 'valkyries_call', 'valkyries_call', 'javelin', 'wind_dancer'],
+    valkyrie: ['multishot', 'aimed_shot', 'multishot', 'multishot', 'multishot', 'vault', 'aimed_shot', 'aimed_shot', 'multishot', 'aimed_shot', 'aimed_shot', 'rain_of_arrows', 'rain_of_arrows', 'rain_of_arrows', 'pinning_shot', 'rain_of_arrows', 'rain_of_arrows', 'deadeye', 'javelin', 'vault', 'pinning_shot', 'pinning_shot', 'piercing_shot', 'piercing_shot', 'sky_spear', 'sky_spear', 'valkyries_call', 'valkyries_call', 'javelin', 'wind_dancer'],
   };
   const BAR = {
     fighter: { rmb: 'bash', s1: 'berserk_strike', s2: 'earthshaker', s3: 'war_cry', s4: 'charge' },
@@ -126,13 +126,15 @@
       if (c >= 3 && en >= 40 && near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length >= 2 && useSkill(bot, 's2', t)) return true;
       if (c >= 2 && en >= 30 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
       if (cheb(t.x, t.y, p.x, p.y) >= 3 && en >= 20 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && en >= 15 && useSkill(bot, 'rmb', t)) return true;
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && en >= 8 && useSkill(bot, 'rmb', t)) return true;
       return false;
     },
     magician(bot, t, near) {
       const p = bot.world.player, m = p.resources.mana.cur;
       const close = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length;
       if (close >= 2 && m >= 18 && useSkill(bot, 's3', t)) return true;
+      // a caster doesn't trade blows: when something reaches melee range, back off a few tiles
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && !(p.cooldowns.evade > 0) && kiteFrom(bot, t)) return true;
       if (near.length >= 3 && m >= 30 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (m >= 14 + 10 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
@@ -142,12 +144,24 @@
       const p = bot.world.player, f = p.resources.focus.n;
       if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
       if (f >= 4 && near.length >= 3 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
-      if (f >= 4 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
+      if (f >= 2 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 's4', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
       return false;
     },
   };
+
+  /** step (or Evade) to a free tile ~3 away from t, preferring the direction away from it */
+  function kiteFrom(bot, t) {
+    const w = bot.world, p = w.player, f = w.floor;
+    const dx = Math.sign(p.x - t.x), dy = Math.sign(p.y - t.y);
+    for (const [ax, ay] of [[dx, dy], [dx, 0], [0, dy], [dx || 1, -dy || 1], [-dy || 1, dx || 1]]) {
+      if (!ax && !ay) continue;
+      const x = p.x + ax * 3, y = p.y + ay * 3;
+      if (BD.sim.entities.isFree(f, x, y) && !dangerAt(w, x, y)) { CMD(w, { type: 'Evade', dirX: ax, dirY: ay }); return true; }
+    }
+    return false;
+  }
 
   function fight(bot, near) {
     const w = bot.world, p = w.player;

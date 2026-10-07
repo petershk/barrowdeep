@@ -23,9 +23,14 @@ if (want('ttk')) {
     const roster = L.actRoster(BD, fl.act);
     const meds = {};
     for (const cls of CLASSES) {
+      // TTK of the typical monster: per species, the median over seeds; then the median across species
       const t = [], c = [], k = [];
+      for (const m of roster) {
+        const ts = [];
+        for (let s = 0; s < SEEDS; s++) { const v = L.ttkOne(BD, cls, n, 'ttk' + s, m.id, 'normal'); if (v != null) ts.push(v); }
+        if (ts.length) t.push(L.med(ts));
+      }
       for (let s = 0; s < SEEDS; s++) {
-        for (let i = 0; i < Math.min(4, roster.length); i++) { const v = L.ttkOne(BD, cls, n, 'ttk' + s + i, roster[(i + s) % roster.length].id, 'normal'); if (v != null) t.push(v); }
         const v1 = L.ttkOne(BD, cls, n, 'ch' + s, roster[s % roster.length].id, 'champion'); if (v1 != null) c.push(v1);
         const v2 = L.ttkOne(BD, cls, n, 'kp' + s, roster[(s + 1) % roster.length].id, 'keeper'); if (v2 != null) k.push(v2);
       }
@@ -52,11 +57,14 @@ if (want('boss')) {
   console.log('\n== Boss fights (bot): length ' + B.bossFight + ' s (Malgoth ' + B.malgothFight + '), heavy ' + B.bossHeavy.map((x) => x * 100 + '%') + ', jab ' + B.bossJab.map((x) => x * 100 + '%'));
   for (const n of mode === 'full' ? [3, 6, 9, 12, 13] : [3, 6, 9, 12]) {
     for (const cls of CLASSES) {
-      const r = L.bossFight(BD, cls, n, 'boss' + n);
+      const runs = [];
+      for (let s = 0; s < Math.max(1, Math.min(3, SEEDS)); s++) runs.push(L.bossFight(BD, cls, n, 'boss' + n + ':' + s));
+      const lens = runs.filter((r) => !r.dead && r.len != null).map((r) => r.len), deaths = runs.filter((r) => r.dead).length;
+      const r = { len: L.med(lens), deaths, n: runs.length, heavyMed: L.med(runs.flatMap((x) => x.heavy)), jabMed: L.med(runs.flatMap((x) => x.jab)), flasks: L.mean(runs.map((x) => x.flasks)) };
       (out.boss[n] = out.boss[n] || {})[cls] = r;
       const lenBand = n === 13 ? B.malgothFight : B.bossFight;
-      console.log('floor', String(n).padStart(2), cls.padEnd(9), r.dead ? 'DIED at ' + fmt(r.diedAt) : 'len ' + fmt(r.len) + ' ' + band(r.len, lenBand),
-        ' heavy', r.heavyMed == null ? '-' : (r.heavyMed * 100).toFixed(0) + '% ' + band(r.heavyMed, B.bossHeavy), ' jab', r.jabMed == null ? '-' : (r.jabMed * 100).toFixed(1) + '% ' + band(r.jabMed, B.bossJab), ' flasks', r.flasks);
+      console.log('floor', String(n).padStart(2), cls.padEnd(9), 'len ' + fmt(r.len) + ' ' + band(r.len, lenBand), ' deaths ' + deaths + '/' + runs.length,
+        ' heavy', r.heavyMed == null ? '-' : (r.heavyMed * 100).toFixed(0) + '% ' + band(r.heavyMed, B.bossHeavy), ' jab', r.jabMed == null ? '-' : (r.jabMed * 100).toFixed(1) + '% ' + band(r.jabMed, B.bossJab), ' flasks', r.flasks.toFixed(1));
     }
   }
 }

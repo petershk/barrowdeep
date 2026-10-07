@@ -51,7 +51,8 @@
     const base = Math.atan2(ay, ax);
     const range = (ab.targeting && ab.targeting.range) || 7;
     const kind = d.projectile || 'arrow';
-    const group = { hits: 0, abilityId: ab.id };
+    // a volley strikes each enemy at most twice: later arrows pass through (big targets can't eat a whole volley)
+    const group = { hits: 0, abilityId: ab.id, ids: count > 1 ? [] : null };
     for (let i = 0; i < count; i++) {
       const ang = count > 1 ? base - spread / 2 + (spread * i) / (count - 1) : base;
       spawn(world, {
@@ -72,9 +73,11 @@
     });
   }
 
+  const countOf = (a, v) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] === v) n++; return n; };
   function hitEntity(world, pr, tgt) {
     const pl = pr.payload;
     pr.hitIds.push(tgt.id);
+    if (pl.group && pl.group.ids) pl.group.ids.push(tgt.id);
     world.events.push({ type: 'projectile.hit', id: pr.id, kind: pr.kind, tgtId: tgt.id, x: tgt.x, y: tgt.y });
     if (pl.type === 'packet') {
       const r = BD.sim.damage.dealDamage(world, { srcId: pr.srcId, tgtId: tgt.id, amounts: pl.amounts, tags: ['projectile', 'ranged'], canCrit: false, canDodge: true, canBlock: true, mult: 1 });
@@ -129,7 +132,8 @@
         const id = f.occ[ty * f.w + tx];
         if (id) {
           const e = E.get(world, id);
-          if (e && e.faction !== pr.faction && e.hp > 0 && !e.untargetable && pr.hitIds.indexOf(id) < 0 && !(e.move && e.move.kind === 'leap')) {
+          const g = pr.payload.group;
+          if (e && e.faction !== pr.faction && e.hp > 0 && !e.untargetable && pr.hitIds.indexOf(id) < 0 && !(g && g.ids && countOf(g.ids, id) >= 2) && !(e.move && e.move.kind === 'leap')) {
             hitEntity(world, pr, e);
             if (pr.pierce > 0) pr.pierce--;
             else if (pr.ricochet > 0) { pr.ricochet--; retarget(world, pr, e); nx = e.x; ny = e.y; return false; }

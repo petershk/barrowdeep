@@ -8,9 +8,9 @@
   // ---------------- Martial Arts ----------------
   sk({
     id: 'tiger_strike', branch: 'martial', tier: 1, name: 'Tiger Strike', icon: 'tiger_strike', school: 'ki',
-    tags: ['melee', 'builder', 'physical'], resource: { type: 'energy', cost: 15, combo: 'build' }, cooldownMs: 0, usesAttackSpeed: true,
+    tags: ['melee', 'builder', 'physical'], resource: { type: 'energy', cost: 8, combo: 'build' }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.2, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.35, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { critPerCombo: 10 }, text: '+10% critical strike chance per combo charge held.' },
       { rank: 5, set: { arcAt3: true }, text: 'At 3 charges, Tiger Strike hits the 3 tiles in front.' },
@@ -21,12 +21,12 @@
     id: 'dragon_talon', branch: 'martial', tier: 2, name: 'Dragon Talon', icon: 'dragon_talon', school: 'ki',
     tags: ['melee', 'finisher', 'physical'], resource: { type: 'energy', cost: 30, combo: 'finish' }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.5, perCombo: 0.9, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.6, perCombo: 1.0, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { collide: 1 }, text: 'A knocked-back enemy that hits another enemy deals 1× to both.' },
       { rank: 5, set: { killRefund: 1 }, text: 'A kill refunds 1 combo charge.' },
     ],
-    desc: 'A finishing kick: +0.9× per combo charge. At 2+ charges it knocks the target back 2 tiles and stuns for 0.4 s per charge.',
+    desc: 'A finishing kick: +1.0× per combo charge. At 2+ charges it knocks the target back 2 tiles and stuns for 0.4 s per charge.',
   });
   sk({
     id: 'phoenix_strike', branch: 'martial', tier: 3, name: 'Phoenix Strike', icon: 'phoenix_strike', school: 'fire',
@@ -40,7 +40,7 @@
     desc: 'The element follows your charges — 0: fire nova (radius 1, 0.8×). 1: fire nova (radius 2, 1.4×, Burning). 2: chain lightning (4 jumps, 1.2×, Shocked). 3: ice burst (radius 3, 1.8×, Frozen).',
   });
   sk({ id: 'endless_flurry', branch: 'martial', tier: 4, name: 'Endless Flurry', icon: 'endless_flurry', keystone: true, passive: () => void 0, school: 'ki',
-    desc: 'Maximum combo charges 5. Basic attacks have a 25% chance to build a charge.' });
+    desc: 'Maximum combo charges 4. Basic attacks have a 25% chance to build a charge.' });
 
   // ---------------- Traps ----------------
   sk({
@@ -91,7 +91,7 @@
       { rank: 3, set: { charges: 2 }, text: '2 charges.' },
       { rank: 5, set: { comboOnStep: 1 }, text: 'Grants 1 combo charge.' },
     ],
-    desc: 'Teleport behind a visible enemy within 7. Your next attack within 2 s is a guaranteed critical hit and counts as an Ambush.',
+    desc: 'Teleport behind a visible enemy within 7. Your next attack within 2 s is a guaranteed critical hit.',
   });
   sk({
     id: 'smoke_bomb', branch: 'shadow', tier: 2, name: 'Smoke Bomb', icon: 'smoke_bomb', school: 'shadow',

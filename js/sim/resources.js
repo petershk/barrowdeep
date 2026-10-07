@@ -65,7 +65,7 @@
   }
 
   // ---- combo ----
-  function comboMax(world, p) { return B.comboMax + (ST().statsOf(world, p).combo_max || 0) + (keystone(p, 'endless_flurry') ? 2 : 0); }
+  function comboMax(world, p) { return B.comboMax + (ST().statsOf(world, p).combo_max || 0) + (keystone(p, 'endless_flurry') ? 1 : 0); }
   function addCombo(world, p, n) {
     const c = p.resources.combo;
     if (!c) return;

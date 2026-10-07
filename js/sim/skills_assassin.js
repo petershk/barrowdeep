@@ -26,7 +26,7 @@
       if (n > 0) { ctx.packetMult *= 1 + BD.data.balance.player.comboBasicBonus * n; ctx.spendCombo = true; }
     }
     if (BD.sim.status.has(p, 'ambush_ready') && ab.id !== 'shadowstep' && hasDamage(ab)) {
-      ctx.forceCrit = true; ctx.packetMult *= 1.3;
+      ctx.forceCrit = true;
       BD.sim.status.remove(world, p, 'ambush_ready');
     }
     if (BD.sim.status.has(p, 'hidden') && hasDamage(ab)) {

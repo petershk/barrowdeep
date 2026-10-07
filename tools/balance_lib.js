@@ -133,7 +133,7 @@ function bossFight(BD, cls, n, seed) {
   const STEP = BD.core.scheduler.STEP_MS;
   if (n === 13) BD.sim.run.travel(w, 13, 'spawn');
   else { w.run.flags['key' + n] = true; BD.sim.bossfight.useGate(w); }
-  const res = { len: null, dead: false, heavy: [], jab: [], flasks: 0 };
+  const res = { len: null, dead: false, heavy: [], jab: [], flasks: 0, taken: {} };
   let woke = null;
   const maxLife = () => BD.sim.stats.statsOf(w, p).maxLife;
   for (let i = 0; i < 600000 / STEP; i++) {
@@ -142,9 +142,16 @@ function bossFight(BD, cls, n, seed) {
     for (const ev of w.events) {
       if (ev.type === 'boss.wake' && woke == null) woke = w.time;
       if (ev.type === 'flask.drink') res.flasks++;
+      if (ev.type === 'damage' && ev.tgtId === p.id) {
+        const src = BD.sim.entities.get(w, ev.srcId);
+        const key = (src ? (src.rank === 'boss' || src.rank === 'malgoth' ? 'boss' : 'adds') : 'other') + (ev.isDot ? ':dot' : (ev.tags || []).includes('heavy') ? ':heavy' : (ev.tags || []).includes('zone') ? ':zone' : ':hit');
+        res.taken[key] = (res.taken[key] || 0) + ev.total / maxLife();
+      }
       if (ev.type === 'damage' && ev.tgtId === p.id && !ev.isDot) {
         const src = BD.sim.entities.get(w, ev.srcId);
-        if (src && (src.rank === 'boss' || src.rank === 'malgoth')) (ev.tags && (ev.tags.includes('heavy') || ev.tags.includes('zone')) ? res.heavy : res.jab).push(ev.total / maxLife());
+        const tg = ev.tags || [];
+        // heavy = the telegraphed big moves (tagged heavy); jab = plain melee; other zone damage is neither
+        if (src && (src.rank === 'boss' || src.rank === 'malgoth')) { if (tg.includes('heavy')) res.heavy.push(ev.total / maxLife()); else if (!tg.includes('zone')) res.jab.push(ev.total / maxLife()); }
       }
       if ((ev.type === 'boss.defeat' && n !== 13) || ev.type === 'run.victory') res.len = (w.time - (woke || 0)) / 1000;
     }

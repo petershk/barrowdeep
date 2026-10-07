@@ -38,7 +38,7 @@
     },
     monsters: {
       // life follows AL^hpExp (fit to measured on-curve player power, 05 §4); hpGrowth is kept for tools
-      hpExp: 0.6, hpGrowth: 1.10, dmgGrowth: 1.08, xpGrowth: 1.12, goldGrowth: 1.10,
+      hpExp: 0.6, hpGrowth: 1.10, dmgGrowth: 1.055, xpGrowth: 1.12, goldGrowth: 1.10,
       defaultWindupMs: 500, reactionMs: 300, leashLostMs: 4000, notice: 6, leash: 14,
       ranks: {
         normal: { hp: 1, dmg: 1, xp: 1 }, minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
@@ -46,7 +46,7 @@
         boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 70, dmg: 1.8, xp: 0 },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 1, 2: 1, 3: 1, 4: 1 },   // per-act damage correction (tuned by the balance bot, 05 §3)
+      actDmg: { 1: 1.65, 2: 1.08, 3: 0.73, 4: 0.56 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 3.5, 2: 3.15, 3: 4.45, 4: 3.35 },    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
     },
