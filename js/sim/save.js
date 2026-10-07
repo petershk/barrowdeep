@@ -14,6 +14,7 @@
   function cleanPlayer(p) {
     const c = U.clone(p);
     for (const k of TRANSIENT) delete c[k];
+    delete c.stash;
     c.statuses = (c.statuses || []).filter((s) => !BD.data.statuses[s.id].invuln && s.id !== 'healing');
     return c;
   }
@@ -71,7 +72,11 @@
     world.floor = null;
     const key = s.floor.key;
     const arrive = s.floor.pos ? { x: s.floor.pos.x, y: s.floor.pos.y, exact: true } : s.floor.arenaRetreat ? 'gate' : 'up';
-    BD.sim.run.travel(world, key === 'town' || typeof key === 'number' ? key : key, arrive);
+    BD.sim.run.travel(world, key, arrive);
+    // arrival side effects (town restock, blessing offers) already happened before the save
+    world.run = U.clone(s.run);
+    world.rng.setState(s.rngState);
+    world.lootRng.setState(s.lootRngState);
     world.events.length = 0;
     return world;
   }

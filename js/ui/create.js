@@ -71,6 +71,13 @@
         list.appendChild(h('div.choice' + (st.difficulty === d.id ? '.sel' : '') + (unlocked ? '' : '.locked'), { data: { action: unlocked ? 'diff' : '', id: d.id } }, [h('b', d.name + (d.id === 'penitent' ? ' (default)' : '')), h('div.muted', d.desc + (unlocked ? '' : ' Unlock with Martyr\'s Path at the Soul Shrine.'))]));
       }
       body.appendChild(list);
+      const maxAsc = Math.min(10, (meta.ascension || {})[st.difficulty] || 0);
+      if (maxAsc > 0) {
+        const sel = h('div.row', [h('span', 'Ascension: ')]);
+        for (let a = 0; a <= maxAsc; a++) sel.appendChild(h('button.btn.tiny' + ((st.ascension || 0) === a ? '.primary' : ''), { data: { action: 'asc', n: a } }, String(a)));
+        body.appendChild(sel);
+        if (st.ascension) body.appendChild(h('div.muted.small', BD.data.ascensionMods.slice(0, st.ascension).map((t, i) => (i + 1) + '. ' + t).join('  ')));
+      }
     }
     const canNext = st.step !== 1 || !!st.skill;
     el.appendChild(h('div.row', { style: 'justify-content:space-between;margin-top:16px' }, [
@@ -81,12 +88,13 @@
       cls: (t) => { if (st.cls !== t.dataset.id) st.skill = null; st.cls = t.dataset.id; BD.ui.panels.rebuild('create'); },
       skill: (t) => { st.skill = t.dataset.id; BD.ui.panels.rebuild('create'); },
       bg: (t) => { st.background = t.dataset.id; BD.ui.panels.rebuild('create'); },
-      diff: (t) => { st.difficulty = t.dataset.id; BD.ui.panels.rebuild('create'); },
+      diff: (t) => { st.difficulty = t.dataset.id; st.ascension = 0; BD.ui.panels.rebuild('create'); },
+      asc: (t) => { st.ascension = Number(t.dataset.n); BD.ui.panels.rebuild('create'); },
       next: () => { st.step++; BD.ui.panels.rebuild('create'); },
       back: () => { if (st.step === 0) { BD.ui.panels.close('create'); BD.ui.menu.open(); } else { st.step--; BD.ui.panels.rebuild('create'); } },
       begin: () => {
         BD.ui.panels.closeAll();
-        BD.app.startRun({ cls: st.cls, firstSkill: st.skill, background: st.background, name: (st.name || 'Wanderer').trim() || 'Wanderer', difficulty: st.difficulty });
+        BD.app.startRun({ cls: st.cls, firstSkill: st.skill, background: st.background, name: (st.name || 'Wanderer').trim() || 'Wanderer', difficulty: st.difficulty, ascension: st.ascension || 0 });
       },
     });
   }

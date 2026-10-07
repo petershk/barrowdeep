@@ -62,6 +62,7 @@
       if (!r.waypoints.includes(0)) r.waypoints.unshift(0);
       // town stock tracks the deepest floor of the current act (05 §1)
       r.townAl = townAl(r);
+      if (BD.sim.economy) BD.sim.economy.onTownArrive(world);
       world.events.push({ type: 'town.arrive', first: !r.flags.visitedTown });
       r.flags.visitedTown = true;
     }

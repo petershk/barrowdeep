@@ -236,3 +236,21 @@ body.deny-flash #world { filter: brightness(1.15) sepia(0.3); }
 .load-art { height: 44px; image-rendering: pixelated; }
 .feed-line.bad { color: var(--bad); }
 body.save-failed .minimap { border-color: var(--bad); }
+
+/* ---- shops / shrine ---- */
+.shop-sub { text-align: center; margin: -6px 0 10px; }
+.shop-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.shop-wares, .shop-pack { max-height: 46vh; }
+.it-cell.selected { border-color: var(--gold); box-shadow: 0 0 8px rgba(201,162,39,0.5) inset; }
+.it-cell-price { margin-left: auto; color: var(--gold); font-size: 12px; }
+.services { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.reforge { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.tabs { gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.gamble-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shrine-souls { text-align: center; margin-bottom: 10px; }
+.souls { color: var(--souls); font-size: 1.2rem; }
+.shrine-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shrine-perk { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid #3a3020; padding: 6px 10px; background: rgba(0,0,0,0.3); }
+.shrine-perk.owned { border-color: #5a4a28; background: rgba(80, 60, 20, 0.2); }
+.shrine-perk.locked { opacity: 0.5; }
+@media (max-width: 900px) { .shop-cols, .shrine-list { grid-template-columns: 1fr; } }

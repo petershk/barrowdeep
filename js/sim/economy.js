@@ -1,0 +1,245 @@
+// @ts-check
+// Town economy (03 §8, 05 §6.3): Smith stock / reroll / buy / sell / buyback / enhance / reforge,
+// Curio gamble, Temple scrolls / blessings / respec / flask upgrade, Home rest and the stash.
+(function (BD) {
+  'use strict';
+
+  const EC = () => BD.data.economy;
+  const CMD = BD.sim.commands;
+  const I = () => BD.sim.interact;
+
+  function townState(world) {
+    const r = world.run;
+    if (!r.town) r.town = { stock: [], stockAct: 0, rerolls: 0, freeReroll: false, buyback: [], blessOffer: [], flaskUpgradedAct: 0, respecs: 0 };
+    return r.town;
+  }
+  const al = (world) => world.run.townAl || 1;
+
+  function price(item) { return BD.sim.items.derive(item).value; }
+  function sellPrice(item) { return Math.max(1, Math.floor(price(item) / EC().sellDiv)); }
+
+  /** costs (view models read these through describe-style helpers, never re-derive them) */
+  function costs(world) {
+    const r = world.run, t = townState(world);
+    return {
+      reroll: t.freeReroll ? 0 : EC().reroll(al(world), t.rerolls),
+      reforge: EC().reforge(al(world)),
+      gamble: EC().gamble(al(world)),
+      blessing: EC().blessing(al(world)),
+      flask: EC().flaskUpgrade(Math.min(4, r.act)),
+      respec: EC().respec(world.player.level, t.respecs),
+      portal: EC().portalScroll(Math.min(4, r.act)),
+    };
+  }
+  function enhanceCost(world, item) { return EC().enhance(al(world), (item.enhance || 0) + 1); }
+
+  function pay(world, n) {
+    const p = world.player;
+    if (p.gold < n) { I().deny(world, 'not_enough_gold'); return false; }
+    p.gold -= n;
+    return true;
+  }
+
+  // ---------------- town arrival ----------------
+  function onTownArrive(world) {
+    const r = world.run, t = townState(world);
+    r.blessing = null;
+    BD.sim.stats.bump(world.player);
+    t.rerolls = 0; t.buyback = []; t.freeReroll = !!r.flags.merchantsFavor;
+    t.blessOffer = world.lootRng.shuffle(Object.keys(BD.data.blessings)).slice(0, 3);
+    if (t.stockAct !== r.act || !t.stock.length) rollStock(world);
+  }
+
+  function rollStock(world) {
+    const t = townState(world), rng = world.lootRng, p = world.player;
+    const stock = [];
+    const n = EC().smithStock;
+    let rareDone = !rng.chance(EC().smithRareChance);
+    for (let i = 0; i < n; i++) {
+      const usable = i < EC().smithUsable;
+      let rarity = i === 0 ? 'magic' : rng.chance(0.5) ? 'magic' : 'common';
+      if (!rareDone && i === n - 1) { rarity = 'rare'; rareDone = true; }
+      stock.push(BD.sim.loot.rollItem(world, rng, { ilvl: al(world), rarity, cls: p.cls, usable }));
+    }
+    t.stock = stock;
+    t.stockAct = world.run.act;
+  }
+
+  // ---------------- commands ----------------
+  CMD.register('Buy', (world, c) => {
+    const t = townState(world), p = world.player;
+    const list = c.from === 'buyback' ? t.buyback : t.stock;
+    const it = list[c.idx];
+    if (!it) return false;
+    const cost = c.from === 'buyback' ? sellPrice(it) : price(it);
+    if (p.pack.length >= BD.sim.inventory.PACK) { I().deny(world, 'pack_full'); return false; }
+    if (!pay(world, cost)) return false;
+    list.splice(c.idx, 1);
+    p.pack.push(it);
+    world.events.push({ type: 'shop.buy', uid: it.uid, cost });
+    return true;
+  }, { ui: true });
+  CMD.register('Sell', (world, c) => {
+    const t = townState(world), p = world.player;
+    const i = p.pack.findIndex((x) => x.uid === c.uid);
+    if (i < 0 || p.pack[i].locked) return false;
+    const [it] = p.pack.splice(i, 1);
+    const gain = sellPrice(it);
+    p.gold += gain;
+    t.buyback.unshift(it);
+    if (t.buyback.length > EC().buyback) t.buyback.pop();
+    world.events.push({ type: 'shop.sell', uid: it.uid, gain });
+    return true;
+  }, { ui: true });
+  CMD.register('Reroll', (world) => {
+    const t = townState(world);
+    const cost = costs(world).reroll;
+    if (!pay(world, cost)) return false;
+    if (t.freeReroll) t.freeReroll = false; else t.rerolls++;
+    rollStock(world);
+    world.events.push({ type: 'reroll', cost });
+    return true;
+  }, { ui: true });
+  CMD.register('Enhance', (world, c) => {
+    const it = findItem(world, c.uid);
+    if (!it || (it.enhance || 0) >= EC().enhanceMax) return false;
+    if (!pay(world, enhanceCost(world, it))) return false;
+    it.enhance = (it.enhance || 0) + 1;
+    BD.sim.stats.bump(world.player);
+    world.events.push({ type: 'enhance', uid: it.uid, level: it.enhance });
+    return true;
+  }, { ui: true });
+  CMD.register('Reforge', (world, c) => {
+    const it = findItem(world, c.uid);
+    if (!it || it.rarity !== 'rare' || !it.affixes[c.affixIdx]) return false;
+    if (!pay(world, costs(world).reforge)) return false;
+    const old = it.affixes[c.affixIdx];
+    const band = BD.data.affixes[old.id].band;
+    const base = BD.data.bases[it.base];
+    const others = it.affixes.filter((_, j) => j !== c.affixIdx);
+    const taken = new Set(others.map((a) => BD.data.affixes[a.id].stat || a.id));
+    taken.add(BD.data.affixes[old.id].stat || old.id);
+    let next = null;
+    for (let k = 0; k < 20 && !next; k++) {
+      const roll = BD.sim.loot.rollAffixes(world.lootRng, base, 'rare', world.player.cls).find((a) => BD.data.affixes[a.id].band === band && !taken.has(BD.data.affixes[a.id].stat || a.id));
+      if (roll) next = roll;
+    }
+    if (!next) next = { id: old.id, roll: Math.round(world.lootRng.next() * 1000) / 1000, skill: old.skill, n: old.n };
+    it.affixes[c.affixIdx] = next;
+    BD.sim.items.invalidate();
+    BD.sim.stats.bump(world.player);
+    world.events.push({ type: 'reforge', uid: it.uid });
+    return true;
+  }, { ui: true });
+  CMD.register('Gamble', (world, c) => {
+    const p = world.player;
+    if (p.pack.length >= BD.sim.inventory.PACK) { I().deny(world, 'pack_full'); return false; }
+    if (!pay(world, costs(world).gamble)) return false;
+    const r = world.lootRng.next(), o = EC().gambleOdds;
+    const rarity = r < o.legendary ? 'legendary' : r < o.legendary + o.rare ? 'rare' : 'magic';
+    const it = BD.sim.loot.rollItem(world, world.lootRng, { ilvl: al(world), rarity, slot: c.slot, cls: p.cls });
+    p.pack.push(it);
+    world.events.push({ type: 'gamble', uid: it.uid, rarity: it.rarity });
+    return it.uid;
+  }, { ui: true });
+  CMD.register('BuyScroll', (world, c) => {
+    const p = world.player;
+    if (!pay(world, costs(world).portal)) return false;
+    p.pouch[c.kind || 'portal'] = (p.pouch[c.kind || 'portal'] || 0) + 1;
+    world.events.push({ type: 'shop.buy', scroll: c.kind || 'portal' });
+    return true;
+  }, { ui: true });
+  CMD.register('Bless', (world, c) => {
+    const t = townState(world);
+    if (!t.blessOffer.includes(c.id) || world.run.blessing) return false;
+    if (!pay(world, costs(world).blessing)) return false;
+    world.run.blessing = c.id;
+    BD.sim.stats.bump(world.player);
+    world.events.push({ type: 'blessing', id: c.id });
+    return true;
+  }, { ui: true });
+  CMD.register('FlaskUpgrade', (world) => {
+    const t = townState(world), p = world.player;
+    if (t.flaskUpgradedAct >= world.run.act || p.flask.permMax >= BD.data.balance.player.flaskPermMax) return false;
+    if (!pay(world, costs(world).flask)) return false;
+    t.flaskUpgradedAct = world.run.act;
+    p.flask.permMax++; p.flask.max++; p.flask.charges = p.flask.max;
+    world.events.push({ type: 'flask.upgrade', max: p.flask.max });
+    return true;
+  }, { ui: true });
+  CMD.register('Respec', (world) => {
+    const t = townState(world), p = world.player;
+    if (!pay(world, costs(world).respec)) return false;
+    t.respecs++;
+    const base = BD.data.balance.player.attrBase[p.cls];
+    let spentAttr = 0;
+    for (const k of ['str', 'dex', 'mag', 'vit']) { spentAttr += p.attrs[k] - base[k]; p.attrs[k] = base[k]; }
+    p.unspent.attr += spentAttr;
+    let pts = 0;
+    for (const id in p.skills) pts += p.skills[id];
+    p.skills = {}; p.unspent.skill += pts; p.charges = {};
+    p.bar = { rmb: null, s1: null, s2: null, s3: null, s4: null };
+    BD.sim.stats.bump(p);
+    BD.sim.inventory.clampResources(world, p);
+    world.events.push({ type: 'respec' });
+    return true;
+  }, { ui: true });
+  CMD.register('Rest', (world) => {
+    const p = world.player;
+    const s = BD.sim.stats.statsOf(world, p);
+    p.hp = s.maxLife; p.flask.charges = p.flask.max;
+    if (p.resources.mana) p.resources.mana.cur = s.maxMana;
+    if (p.resources.energy) p.resources.energy.cur = p.resources.energy.max;
+    p.statuses = p.statuses.filter((x) => !BD.data.statuses[x.id].debuff);
+    world.events.push({ type: 'rest' });
+    world.events.push({ type: 'save.request', why: 'rest' });
+    return true;
+  }, { ui: true });
+  // account-wide stash: the app attaches meta.stash as world.stash (tabs of 20)
+  CMD.register('Stash', (world, c) => {
+    const p = world.player, tabs = world.stash;
+    if (!tabs) return false;
+    const tab = tabs[c.tab || 0];
+    if (!tab || tab.length >= 20) return false;
+    const i = p.pack.findIndex((x) => x.uid === c.uid);
+    if (i < 0) return false;
+    tab.push(p.pack.splice(i, 1)[0]);
+    world.events.push({ type: 'stash' });
+    return true;
+  }, { ui: true });
+  CMD.register('Unstash', (world, c) => {
+    const p = world.player, tabs = world.stash;
+    if (!tabs) return false;
+    const tab = tabs[c.tab || 0];
+    const i = tab ? tab.findIndex((x) => x.uid === c.uid) : -1;
+    if (i < 0 || p.pack.length >= BD.sim.inventory.PACK) return false;
+    p.pack.push(tab.splice(i, 1)[0]);
+    world.events.push({ type: 'stash' });
+    return true;
+  }, { ui: true });
+
+  function findItem(world, uid) {
+    const p = world.player;
+    return p.pack.find((x) => x.uid === uid) || Object.values(p.equip).find((x) => x && x.uid === uid) || null;
+  }
+
+  // ---------------- run-level stat contributions ----------------
+  function runMods(world, p, add) {
+    const r = world.run;
+    if (r.blessing && BD.data.blessings[r.blessing]) { const b = BD.data.blessings[r.blessing]; for (const k in b.mods) add(k, b.mods[k], 'Blessing: ' + b.name); }
+    if (p.background === 'poacher') add('gold_find', 15, 'Poacher');
+  }
+
+  function onRunStart(world, opts) {
+    const p = world.player;
+    if (opts.background === 'soldier') {
+      const rng = world.lootRng;
+      const slot = BD.data.classes[p.cls].uses.includes('buckler') && rng.chance(0.5) ? 'offhand' : 'chest';
+      const it = BD.sim.loot.rollItem(world, rng, { ilvl: 1, rarity: 'magic', slot, cls: p.cls, usable: true });
+      p.pack.push(it);
+      BD.sim.inventory.equip(world, it.uid);
+    }
+  }
+
+  BD.sim.economy = { townState, price, sellPrice, costs, enhanceCost, onTownArrive, rollStock, runMods, onRunStart, findItem };
+})(globalThis.BD);

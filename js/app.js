@@ -114,6 +114,12 @@
     app.state = 'playing';
     app.lastSaveAt = world.time;
     app.lastSafe = null;
+    if (BD.ui.meta) {
+      const m = BD.ui.meta.get();
+      if (!Array.isArray(m.stash) || !Array.isArray(m.stash[0])) m.stash = [[]];
+      while (m.stash.length < 3) m.stash.push([]);
+      world.stash = m.stash;
+    }
     acc = 0;
     bus.emit({ type: 'app.world', world });
     dispatch(world);
@@ -129,6 +135,7 @@
     if (BD.audio.wire) BD.audio.wire(bus);
     if (BD.ui.wire) BD.ui.wire(bus);
     bus.on('save.request', (ev) => saveNow(ev.why || 'travel'));
+    bus.on('stash', () => { if (BD.ui.meta) BD.ui.meta.save(); saveNow('stash'); });
     bus.on('run.death', () => { saveNow('death'); setTimeout(() => BD.ui.panels.open('death'), 1200); });
     bus.on('run.harvest', (ev) => { if (BD.ui.meta) BD.ui.meta.addSouls(ev.souls); if (app.world && BD.ui.saves) BD.ui.saves.markDead(app.world.run.charId); });
     bus.on('run.victory', (ev) => {
