@@ -198,16 +198,7 @@
   'use strict';
   BD.data.difficulties = {
     pilgrim: { id: 'pilgrim', name: 'Pilgrim', hp: 0.7, dmg: 0.7, xp: 1.0, mf: 0, resistPenalty: 0, flaskBonus: 1, souls: 0.75, eliteMods: 1, keeperMoves: 1, spawn: 0.85,
-      desc: 'Monsters have 30% less life and deal 30% less damage. Elites and bosses fall fast. One extra flask charge. '
-        + 'Traps always visible. For learning the dark.',
-      // extra life multipliers on top of `hp` (playtest target: trash in 2–3 hits, bosses in 3–5× that);
-      // elites per act, bosses per boss, measured with tools/hits.js
-      eliteHp: {
-        champion: { 1: 0.65, 2: 0.65, 3: 0.45, 4: 0.42 },
-        keeper: { 1: 0.27, 2: 0.36, 3: 0.27, 4: 0.35 },
-      },
-      bossHp: { grulk: 0.15, mortis: 0.16, mygra: 0.14, hakthul: 0.11, malgoth: 0.046 },
-    },
+      desc: 'Monsters have 30% less life and deal 30% less damage. One extra flask charge. Traps always visible. For learning the dark.' },
     penitent: { id: 'penitent', name: 'Penitent', hp: 1.0, dmg: 1.0, xp: 1.0, mf: 0, resistPenalty: 0, flaskBonus: 0, souls: 1.0, eliteMods: 1, keeperMoves: 1, spawn: 1.0,
       desc: 'The descent as it is meant to be walked.' },
     martyr: { id: 'martyr', name: 'Martyr', hp: 1.6, dmg: 1.4, xp: 1.25, mf: 50, resistPenalty: -20, flaskBonus: 0, souls: 1.5, eliteMods: 2, keeperMoves: 2, spawn: 1.15,

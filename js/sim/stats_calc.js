@@ -115,13 +115,6 @@
     s.blockChance = s.blockBase > 0 ? Math.min(Balance.combat.blockCap, s.block + dexBlock) : 0;
   }
 
-  /** a difficulty's extra life multiplier for elites (per act) and bosses (per boss), 1 when it sets none */
-  function difficultyLifeMult(diff, e, act) {
-    if (diff.bossHp && BD.sim.entities.isBoss(e)) return diff.bossHp[e.def] || 1;
-    const elite = diff.eliteHp && diff.eliteHp[e.rank === 'unique' ? 'keeper' : e.rank];
-    return (elite && elite[act]) || 1;
-  }
-
   /** difficulty (and high ascension) lowers every resistance */
   function resistPenalty(world) {
     if (!BD.data.difficulties) return 0;
@@ -157,8 +150,7 @@
     let baseHp = def.hp;
     if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[act]) || 1);
     else if (e.rank === 'champion') baseHp = (def.hp + actMean) / 2;
-    const diffHp = diff.hp * difficultyLifeMult(diff, e, act);
-    s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diffHp * (e.hpMult || 1)));
+    s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
     const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK;
     s.dmgHi = def.dmg[1] * dmgK;

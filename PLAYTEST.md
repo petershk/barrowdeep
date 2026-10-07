@@ -22,17 +22,6 @@ headless screenshots. Human playtesting should confirm or overrule these.
   you in a barred room forever if a blinking monster left it (fixed); some loot piles couldn't be opened
   because a corpse prop sat on the same tile (fixed).
 
-## Pilgrim (easy) tuning, 2026-10-07
-Playtest target from the designer: on Pilgrim, regular enemies die in 2–3 hits and bosses in 3–5× that.
-Pilgrim now has extra life multipliers for elites (per act) and bosses (per boss) in
-`BD.data.difficulties.pilgrim` (`eliteHp`, `bossHp`). Valkyrie, 6 bot runs (`node tools/hits.js valkyrie pilgrim 6`),
-median hits to kill:
-- regular enemies 2 in every act; champions 4–5; Keepers 6–9
-- bosses: Grulk 9, Mortis 7 per twin shade, Mygra 12, Hakthul 12, Malgoth 14
-- other classes on Pilgrim: Fighter bosses 5–10 hits, Assassin 9–19 (more, smaller hits), Magician 6–12
-  except Grulk at 20 (few spells at that level)
-Boss fights on Pilgrim now last seconds, so most boss mechanics barely show; Penitent and Martyr are unchanged.
-
 ## Open questions for human players
 - Run length: the bot is quicker than a person. Does a full descent take you 60–90 minutes?
 - Mygra (Act III boss) is the hardest matchup for the assassin: kill the egg clutches first. Too hard?
