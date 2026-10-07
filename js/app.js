@@ -50,14 +50,15 @@
       if (BD.input.gamepad) BD.input.gamepad.frame(real);
       if (!app.paused()) {
         if (app.hitstopMs > 0) app.hitstopMs -= real;
-        else acc += real * (BD.ui.options ? (BD.ui.options.get('slowmo') ? 0.7 : 1) : 1);
+        else acc += real * (BD.ui.options ? (BD.ui.options.get('slowmo') ? 0.7 : 1) : 1) * (app.timeScale || 1);
         let guard = 0;
-        while (acc >= STEP_MS && guard++ < 20) {
+        while (acc >= STEP_MS && guard++ < 20 * (app.timeScale || 1)) {
           BD.sim.world.step(w, STEP_MS);
+          if (app.postStep) app.postStep(w);
           dispatch(w);
           acc -= STEP_MS;
         }
-        if (guard >= 20) acc = 0;
+        if (guard >= 20 * (app.timeScale || 1)) acc = 0;
       } else dispatch(w);
       tickSaves();
       BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
@@ -162,7 +163,7 @@
   }
 
   function loadDebug() {
-    const files = ['overlay', 'arena', 'autotest'];
+    const files = ['overlay', 'bot', 'arena', 'autotest'];
     for (const f of files) {
       const s = document.createElement('script');
       s.src = 'js/debug/' + f + '.js';
