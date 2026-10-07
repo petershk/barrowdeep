@@ -7,7 +7,9 @@
   const Carve = BD.sim.gen.carve;
 
   function validate(p) {
-    const fail = (msg) => { throw new Error(`floor ${p.n} seed ${p.seed}: ${msg}`); };
+    const fail = (msg) => {
+      throw new Error(`floor ${p.n} seed ${p.seed}: ${msg}`);
+    };
     if (!p.upPos) fail('no up stairs');
     const d = p.reachDist || Carve.reach(p, [p.upPos.x, p.upPos.y]);
     const reachable = (pos) => pos && d[Carve.idx(p, pos.x, pos.y)] >= 0;
@@ -33,8 +35,9 @@
       }
     }
     // border must be solid
-    for (let x = 0; x < p.w; x++) if (WALK[p.tiles[x]] || WALK[p.tiles[(p.h - 1) * p.w + x]]) fail('open border');
-    for (let y = 0; y < p.h; y++) if (WALK[p.tiles[y * p.w]] || WALK[p.tiles[y * p.w + p.w - 1]]) fail('open border');
+    const open = (x, y) => WALK[p.tiles[Carve.idx(p, x, y)]];
+    for (let x = 0; x < p.w; x++) if (open(x, 0) || open(x, p.h - 1)) fail('open border');
+    for (let y = 0; y < p.h; y++) if (open(0, y) || open(p.w - 1, y)) fail('open border');
     // one entity per tile
     const seen = new Set();
     for (const pack of p.spawns) for (const m of pack.members) {

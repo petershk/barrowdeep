@@ -5,6 +5,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Monsters = BD.sim.monsters;
   const Entities = BD.sim.entities;
@@ -75,7 +76,7 @@
         if (Entities.isFree(f, x, y) && againstWall) walls.push([x, y]);
       }
       if (!summon(world, e, m.add, m.count, m.cap, walls.length ? walls : null)) return null;
-      return BD.sim.ai.windup(world, e, { kind: 'wraith_call', after: RECOVER_MS }, WRAITH_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'wraith_call', after: RECOVER_MS }, WRAITH_WINDUP_MS, false);
     },
     resolve: after(RECOVER_MS),
   });

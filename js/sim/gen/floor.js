@@ -8,6 +8,14 @@
   const Carve = BD.sim.gen.carve;
   const { makeRng } = BD.core.rng;
 
+  const OPEN_ROOM_CLEARANCE = 3;  // organic layouts: open areas this far from walls become rooms
+  const KEEPER_FAR = 0.6;         // the keeper room is at least this fraction of the max distance away
+  const WAYPOINT_MIN_DIST = 2;    // the waypoint sits at least this many steps from the up stairs
+  const WAYPOINT_FALLBACK_R = 3;  // ... or on a free tile this far out when the room has no spot
+  const FREE_NEIGHBOUR_MAX_R = 6; // freeNeighbour searches rings up to (not including) this radius
+  const GATE_MIN_STAIRS_DIST = 12;
+  const GATE_TOP_PICKS = 5;       // the gate goes on one of the 6 farthest candidate walls
+
   /** @param {{n:number, biome?:string, al?:number, seed:string|number, difficulty?:string}} spec */
   function generateFloor(spec) {
     const fl = BD.data.floors.byN(spec.n);
@@ -17,7 +25,7 @@
     if (biome.layout === 'sanctum') return BD.sim.gen.sanctum.generate(s, rng);
     const p = Carve.newPlan(s, biome.w, biome.h);
     BD.sim.gen.layouts[biome.layout](p, rng, biome.params || {});
-    if (!p.rooms.length) p.rooms = Carve.roomsFromOpenAreas(p, 3);
+    if (!p.rooms.length) p.rooms = Carve.roomsFromOpenAreas(p, OPEN_ROOM_CLEARANCE);
     features(p, rng, fl);
     if (BD.sim.gen.populate) BD.sim.gen.populate.run(p, rng, fl, s);
     BD.sim.gen.validate(p);
@@ -25,60 +33,79 @@
   }
 
   function features(p, rng, fl) {
-    // up stairs: centre of a random ordinary room
-    const plain = p.rooms.filter((r) => !r.setpiece);
-    const up = rng.pick(plain.length ? plain : p.rooms);
-    let ux = up.cx, uy = up.cy;
-    if (Carve.get(p, ux, uy) !== T.FLOOR) { const t = Carve.roomTiles(p, up); [ux, uy] = t[t.length >> 1]; }
-    Carve.connectAll(p, [ux, uy]);
-    // re-derive rooms that might have been walled off (organic layouts)
-    let dist = Carve.reach(p, [ux, uy]);
-    p.rooms = p.rooms.filter((r) => dist[Carve.idx(p, r.cx, r.cy)] >= 0 || Carve.roomTiles(p, r).some(([x, y]) => dist[Carve.idx(p, x, y)] >= 0));
-    Carve.set(p, ux, uy, T.STAIRS_UP);
-    p.upPos = { x: ux, y: uy };
-    p.spawnPos = freeNeighbour(p, ux, uy, dist);
-    p.upRoom = up;
-
-    // room distance = BFS distance of its centre (or nearest reachable tile)
-    const roomDist = (r) => {
-      let best = -1;
-      for (const [x, y] of Carve.roomTiles(p, r)) { const d = dist[Carve.idx(p, x, y)]; if (d > best) best = d; }
-      const c = dist[Carve.idx(p, r.cx, r.cy)];
-      return c >= 0 ? c : best;
-    };
-    let maxD = 0;
-    for (let i = 0; i < dist.length; i++) if (dist[i] > maxD) maxD = dist[i];
-
-    // keeper room: largest room at distance ≥ 60% of max
-    const area = (r) => r.area || Carve.roomTiles(p, r).length;
-    const far = p.rooms.filter((r) => r !== up && roomDist(r) >= 0.6 * maxD);
-    const pool = far.length ? far : p.rooms.filter((r) => r !== up);
-    p.keeperRoom = pool.slice().sort((a, b) => area(b) - area(a) || roomDist(b) - roomDist(a))[0];
-
-    // down stairs: reachable room centre farthest from the up stairs (not act-end floors)
-    if (fl.stairsDown) {
-      const cands = p.rooms.filter((r) => r !== up && r !== p.keeperRoom && !r.setpiece);
-      const pick = (cands.length ? cands : p.rooms.filter((r) => r !== up)).slice().sort((a, b) => roomDist(b) - roomDist(a))[0];
-      const spot = centreFloor(p, pick, dist);
-      Carve.set(p, spot[0], spot[1], T.STAIRS_SEALED);
-      p.downPos = { x: spot[0], y: spot[1] };
-    }
-
-    // waypoint near the up stairs
-    if (fl.waypoint) {
-      const tiles = Carve.roomTiles(p, up)
-        .filter(([x, y]) => Carve.get(p, x, y) === T.FLOOR && Math.abs(x - ux) + Math.abs(y - uy) >= 2 && openAround(p, x, y));
-      const near = tiles.sort((a, b) => Math.abs(a[0] - ux) + Math.abs(a[1] - uy) - (Math.abs(b[0] - ux) + Math.abs(b[1] - uy)))[0]
-        || freeNeighbour(p, ux, uy, dist, 3);
-      const wx = near.x !== undefined ? near.x : near[0], wy = near.y !== undefined ? near.y : near[1];
-      Carve.set(p, wx, wy, T.WAYPOINT);
-      p.waypointPos = { x: wx, y: wy };
-    }
-
+    const { up, ux, uy, dist } = placeUpStairs(p, rng);
+    const roomDist = roomDistances(p, dist);
+    p.keeperRoom = pickKeeperRoom(p, up, dist, roomDist);
+    if (fl.stairsDown) placeDownStairs(p, up, dist, roomDist);
+    if (fl.waypoint) placeWaypoint(p, up, ux, uy, dist);
     // boss gate: 2×2 on a wall adjacent to a reachable room, ≥12 tiles from the stairs
     if (fl.gate) placeGate(p, rng, dist);
     // features may have changed walkability (stairs/waypoint are walkable) — recompute
     p.reachDist = Carve.reach(p, [ux, uy]);
+  }
+
+  /** up stairs at the centre of a random ordinary room; connects the floor around them */
+  function placeUpStairs(p, rng) {
+    const plain = p.rooms.filter((r) => !r.setpiece);
+    const up = rng.pick(plain.length ? plain : p.rooms);
+    let ux = up.cx, uy = up.cy;
+    if (Carve.get(p, ux, uy) !== T.FLOOR) {
+      const t = Carve.roomTiles(p, up);
+      [ux, uy] = t[t.length >> 1];
+    }
+    Carve.connectAll(p, [ux, uy]);
+    // re-derive rooms that might have been walled off (organic layouts)
+    const dist = Carve.reach(p, [ux, uy]);
+    const reached = ([x, y]) => dist[Carve.idx(p, x, y)] >= 0;
+    p.rooms = p.rooms.filter((r) => reached([r.cx, r.cy]) || Carve.roomTiles(p, r).some(reached));
+    Carve.set(p, ux, uy, T.STAIRS_UP);
+    p.upPos = { x: ux, y: uy };
+    p.spawnPos = freeNeighbour(p, ux, uy, dist);
+    p.upRoom = up;
+    return { up, ux, uy, dist };
+  }
+
+  /** room distance = BFS distance of its centre (or its farthest reachable tile) */
+  function roomDistances(p, dist) {
+    return (r) => {
+      let best = -1;
+      for (const [x, y] of Carve.roomTiles(p, r)) best = Math.max(best, dist[Carve.idx(p, x, y)]);
+      const c = dist[Carve.idx(p, r.cx, r.cy)];
+      return c >= 0 ? c : best;
+    };
+  }
+
+  /** keeper room: largest room at distance ≥ 60% of the farthest reachable tile */
+  function pickKeeperRoom(p, up, dist, roomDist) {
+    let maxD = 0;
+    for (let i = 0; i < dist.length; i++) if (dist[i] > maxD) maxD = dist[i];
+    const area = (r) => r.area || Carve.roomTiles(p, r).length;
+    const far = p.rooms.filter((r) => r !== up && roomDist(r) >= KEEPER_FAR * maxD);
+    const pool = far.length ? far : p.rooms.filter((r) => r !== up);
+    return pool.slice().sort((a, b) => area(b) - area(a) || roomDist(b) - roomDist(a))[0];
+  }
+
+  /** down stairs: reachable room centre farthest from the up stairs (not act-end floors) */
+  function placeDownStairs(p, up, dist, roomDist) {
+    const cands = p.rooms.filter((r) => r !== up && r !== p.keeperRoom && !r.setpiece);
+    const pool = cands.length ? cands : p.rooms.filter((r) => r !== up);
+    const pick = pool.slice().sort((a, b) => roomDist(b) - roomDist(a))[0];
+    const spot = centreFloor(p, pick, dist);
+    Carve.set(p, spot[0], spot[1], T.STAIRS_SEALED);
+    p.downPos = { x: spot[0], y: spot[1] };
+  }
+
+  /** waypoint: the open floor tile of the stairs room nearest the stairs (but not touching them) */
+  function placeWaypoint(p, up, ux, uy, dist) {
+    const fromStairs = (x, y) => Math.abs(x - ux) + Math.abs(y - uy);
+    const tiles = Carve.roomTiles(p, up)
+      .filter(([x, y]) => Carve.get(p, x, y) === T.FLOOR && fromStairs(x, y) >= WAYPOINT_MIN_DIST && openAround(p, x, y));
+    const near = tiles.sort((a, b) => fromStairs(a[0], a[1]) - fromStairs(b[0], b[1]))[0]
+      || freeNeighbour(p, ux, uy, dist, WAYPOINT_FALLBACK_R);
+    // `near` is an [x, y] room tile or a freeNeighbour {x, y}
+    const [wx, wy] = Array.isArray(near) ? near : [near.x, near.y];
+    Carve.set(p, wx, wy, T.WAYPOINT);
+    p.waypointPos = { x: wx, y: wy };
   }
 
   function openAround(p, x, y) {
@@ -94,7 +121,7 @@
   }
 
   function freeNeighbour(p, x, y, dist, minR = 1) {
-    for (let r = minR; r < 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    for (let r = minR; r < FREE_NEIGHBOUR_MAX_R; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const nx = x + dx, ny = y + dy;
       if (Carve.get(p, nx, ny) === T.FLOOR && dist[Carve.idx(p, nx, ny)] >= 0) return { x: nx, y: ny };
@@ -121,13 +148,13 @@
         if (!f.every(([fx, fy]) => Carve.get(p, fx, fy) === T.FLOOR && dist[Carve.idx(p, fx, fy)] >= 0)) continue;
         const d = dist[Carve.idx(p, f[0][0], f[0][1])];
         const fromStairs = Math.abs(f[0][0] - p.upPos.x) + Math.abs(f[0][1] - p.upPos.y);
-        if (fromStairs < 12) continue;
+        if (fromStairs < GATE_MIN_STAIRS_DIST) continue;
         cands.push({ x, y, front: f, d });
       }
     }
     if (!cands.length) throw new Error('no gate spot (seed ' + p.seed + ', floor ' + p.n + ')');
     cands.sort((a, b) => b.d - a.d);
-    const g = cands[Math.min(cands.length - 1, rng.int(0, Math.min(5, cands.length - 1)))];
+    const g = cands[Math.min(cands.length - 1, rng.int(0, Math.min(GATE_TOP_PICKS, cands.length - 1)))];
     for (let j = 0; j < 2; j++) {
       for (let i = 0; i < 2; i++) {
         Carve.set(p, g.x + i, g.y + j, T.GATE);

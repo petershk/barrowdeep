@@ -5,6 +5,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Monsters = BD.sim.monsters;
   const Entities = BD.sim.entities;
@@ -98,14 +99,14 @@
         });
       }
       world.events.push({ type: 'boss.cast', id: e.id, move: 'fire_wave', x: e.x, y: e.y });
-      return BD.sim.ai.windup(world, e, { kind: 'fire_wave', after: WAVE_RECOVER_MS }, m.armMs);
+      return Ai().windup(world, e, { kind: 'fire_wave', after: WAVE_RECOVER_MS }, m.armMs);
     },
     resolve: (world, e, act) => act.after,
   });
   reg('imp_call', {
     start(world, e, m) {
       if (!Bosses.summon(world, e, m.add, m.count, m.cap, null)) return null;
-      return BD.sim.ai.windup(world, e, { kind: 'imp_call', after: RECOVER_MS }, IMP_CALL_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'imp_call', after: RECOVER_MS }, IMP_CALL_WINDUP_MS, false);
     },
     resolve: (world, e, act) => act.after,
   });
@@ -149,7 +150,7 @@
       wave(0);
       wave(1);
       const windupMs = 2 * (m.armMs + RAIN_WAVE_GAP_MS);
-      return BD.sim.ai.windup(world, e, { kind: 'chaos_rain', exposedMs: m.exposedMs, heavy: true }, windupMs);
+      return Ai().windup(world, e, { kind: 'chaos_rain', exposedMs: m.exposedMs, heavy: true }, windupMs);
     },
     resolve: () => 0,
   });
@@ -162,7 +163,7 @@
           school: 'shadow', cx: x, cy: y, statuses: [{ id: 'rooted', durMs: m.rootMs }], kind: 'grasping_hands',
         }));
       }
-      return BD.sim.ai.windup(world, e, { kind: 'grasping_hands', after: RECOVER_MS }, HANDS_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'grasping_hands', after: RECOVER_MS }, HANDS_WINDUP_MS, false);
     },
     resolve: (world, e, act) => act.after,
   });
@@ -200,7 +201,7 @@
       for (let i = 0; i < m.count; i++) {
         sched(world, i * METEOR_EVERY_MS, 'malgoth.meteor', { srcId: e.id, armMs: m.armMs, mult: m.mult });
       }
-      return BD.sim.ai.windup(world, e, { kind: 'meteor_train', after: RECOVER_MS }, m.count * METEOR_EVERY_MS, false);
+      return Ai().windup(world, e, { kind: 'meteor_train', after: RECOVER_MS }, m.count * METEOR_EVERY_MS, false);
     },
     resolve: (world, e, act) => act.after,
   });
@@ -231,7 +232,7 @@
         const a = a0 + dirn * (Math.PI / 2) * (k / BEAM_TICKS_PER_QUARTER);
         sched(world, m.armMs + k * BEAM_TICK_MS, 'malgoth.beam', { srcId: e.id, cx: s.cx, cy: s.cy, a, mult: m.mult, k });
       }
-      return BD.sim.ai.windup(world, e, { kind: 'doom_beam', after: HEAVY_RECOVER_MS }, m.armMs + BEAM_TICKS * BEAM_TICK_MS, false);
+      return Ai().windup(world, e, { kind: 'doom_beam', after: HEAVY_RECOVER_MS }, m.armMs + BEAM_TICKS * BEAM_TICK_MS, false);
     },
     resolve: (world, e, act) => act.after,
   });

@@ -4,6 +4,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Monsters = BD.sim.monsters;
   const Entities = BD.sim.entities;
@@ -101,7 +102,7 @@
           linger: { kind: 'burning_ground', durMs: BURN_MS, amount: Monsters.avgDmg(world, e) * BRAND_BURN_MULT },
         },
       });
-      return BD.sim.ai.windup(world, e, { kind: 'brand', after: RECOVER_MS }, BRAND_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'brand', after: RECOVER_MS }, BRAND_WINDUP_MS, false);
     },
     resolve: after(RECOVER_MS),
   });

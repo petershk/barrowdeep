@@ -4,6 +4,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Monsters = BD.sim.monsters;
   const Entities = BD.sim.entities;
@@ -46,7 +47,7 @@
           linger: { kind: 'poison_pool', durMs: POISON_MS, amount: Monsters.avgDmg(world, e) * POOL_MULT },
         }));
       }
-      return BD.sim.ai.windup(world, e, { kind: 'venom_spit', after: RECOVER_MS }, SPIT_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'venom_spit', after: RECOVER_MS }, SPIT_WINDUP_MS, false);
     },
     resolve: after(RECOVER_MS),
   });
@@ -68,7 +69,7 @@
       e.untargetable = true;
       Entities.vacate(world.floor, e);
       world.events.push({ type: 'burrow', id: e.id, x: e.x, y: e.y });
-      return BD.sim.ai.windup(world, e, { kind: 'burrow_strike', stage: 0, m }, BURROW_MS, false);
+      return Ai().windup(world, e, { kind: 'burrow_strike', stage: 0, m }, BURROW_MS, false);
     },
     resolve(world, e, act) {
       const p = world.player;
@@ -100,7 +101,7 @@
         world.events.push({ type: 'egg.hatch', x: o.x, y: o.y });
       }
       if (!n) return null;
-      return BD.sim.ai.windup(world, e, { kind: 'brood', after: RECOVER_MS }, BROOD_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'brood', after: RECOVER_MS }, BROOD_WINDUP_MS, false);
     },
     resolve: after(RECOVER_MS),
   });

@@ -5,6 +5,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Monsters = BD.sim.monsters;
   const Grid = BD.core.grid;
@@ -43,7 +44,7 @@
       for (let i = 0; i < RALLY_MINIONS; i++) {
         Monsters.spawn(world, def, e.x, e.y, { rank: 'minion', packId: e.packId, noLoot: true, noXp: true, spawnedBy: e.id });
       }
-      return BD.sim.ai.windup(world, e, { kind: 'rally', after: RECOVER_MS }, RALLY_WINDUP_MS);
+      return Ai().windup(world, e, { kind: 'rally', after: RECOVER_MS }, RALLY_WINDUP_MS);
     },
     resolve: (world, e, act) => act.after,
   });

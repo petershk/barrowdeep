@@ -42,10 +42,16 @@
     return p;
   }
 
+  /** a decor tile of the given kind */
+  function putDecor(p, x, y, kind) {
+    Carve.set(p, x, y, T.DECOR);
+    p.decor[Carve.idx(p, x, y)] = kind;
+  }
+
   function decorRing(p, rng, ox, oy, w, h, kinds, step) {
-    for (let x = ox + 1; x < ox + w - 1; x += step) { Carve.set(p, x, oy, T.DECOR); p.decor[Carve.idx(p, x, oy)] = rng.pick(kinds); }
+    for (let x = ox + 1; x < ox + w - 1; x += step) putDecor(p, x, oy, rng.pick(kinds));
     for (let y = oy + 2; y < oy + h - 2; y += step) {
-      for (const x of [ox, ox + w - 1]) { Carve.set(p, x, y, T.DECOR); p.decor[Carve.idx(p, x, y)] = rng.pick(kinds); }
+      for (const x of [ox, ox + w - 1]) putDecor(p, x, y, rng.pick(kinds));
     }
   }
 
@@ -55,11 +61,8 @@
   }
   function throne(p, rng, ox, oy, w, h) {
     const cx = ox + (w >> 1);
-    Carve.set(p, cx, oy, T.DECOR); p.decor[Carve.idx(p, cx, oy)] = 'altar';
-    for (const [bx, by] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) {
-      Carve.set(p, ox + bx, oy + by, T.DECOR);
-      p.decor[Carve.idx(p, ox + bx, oy + by)] = 'brazier';
-    }
+    putDecor(p, cx, oy, 'altar');
+    for (const [bx, by] of [[3, 3], [w - 4, 3], [3, h - 4], [w - 4, h - 4]]) putDecor(p, ox + bx, oy + by, 'brazier');
     p.arena.anchors = [[cx, oy + 2], [ox + 3, oy + 4], [ox + w - 4, oy + 4], [ox + 3, oy + h - 5], [ox + w - 4, oy + h - 5]];
     for (const [px, py] of [[6, 6], [w - 7, 6], [6, h - 7], [w - 7, h - 7]]) Carve.set(p, ox + px, oy + py, T.PILLAR);
   }

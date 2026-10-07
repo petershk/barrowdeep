@@ -4,6 +4,7 @@
   'use strict';
 
   const Bosses = BD.sim.bosses;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const Entities = BD.sim.entities;
   const Grid = BD.core.grid;
@@ -75,7 +76,7 @@
         k++;
       }
       const windupMs = m.rowMs * m.length * sweeps.length + CONE_TAIL_MS;
-      return BD.sim.ai.windup(world, e, { kind: 'bone_cone', after: CONE_RECOVER_MS }, windupMs);
+      return Ai().windup(world, e, { kind: 'bone_cone', after: CONE_RECOVER_MS }, windupMs);
     },
     resolve: (world, e, act) => act.after,
   });
@@ -97,7 +98,7 @@
         tiles, cx: e.x, cy: e.y, armMs: m.armMs, faction: 'monster', srcId: e.id, school: 'shadow', kind: 'raise_dead',
         resolve: { type: 'packet', amounts: { phys: 0.0001 }, spawn: { def: m.add } },
       });
-      return BD.sim.ai.windup(world, e, { kind: 'raise_dead', after: RAISE_RECOVER_MS }, RAISE_WINDUP_MS, false);
+      return Ai().windup(world, e, { kind: 'raise_dead', after: RAISE_RECOVER_MS }, RAISE_WINDUP_MS, false);
     },
     resolve: (world, e, act) => act.after,
   });

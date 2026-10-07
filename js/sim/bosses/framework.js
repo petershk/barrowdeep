@@ -6,6 +6,7 @@
   'use strict';
 
   const Entities = BD.sim.entities;
+  const Ai = () => BD.sim.ai;
   const AiMoves = () => BD.sim.ai_moves;
   const { cheb } = BD.core.util;
 
@@ -182,7 +183,7 @@
   /** zone(s) + wind-up in one call; the zone ids are cancelled if the wind-up is interrupted */
   function telegraph(world, e, zones, action, ms) {
     e.ai.zoneIds = zones.map((z) => z.id);
-    return BD.sim.ai.windup(world, e, action, ms);
+    return Ai().windup(world, e, action, ms);
   }
   const resolveNoop = { resolve: (world, e, act) => act.after || RECOVER_MS };
 

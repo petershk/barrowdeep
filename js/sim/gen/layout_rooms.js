@@ -7,9 +7,20 @@
   const { T } = BD.data.tiles;
   const Carve = BD.sim.gen.carve;
 
+  const ROOM_TRIES = 80;          // random spots tried per room
+  const ROOM_EDGE = 2;            // rooms keep this many tiles from the map edge
+  const ROOM_MARGIN = 2;          // ... and this much rock between each other
+  const NAVE_SHORT_MIN = 7;       // nave short side
+  const NAVE_SHORT_MAX = 9;
+  const CHAPEL_CHANCE = 0.3;      // share of ordinary rooms that are small side chapels
+  const CHAPEL_MIN = 4;           // chapel side
+  const CHAPEL_MAX = 5;
+  const MAX_ROOM_TRIES = 200;
+  const ROOM_DECOR_MAX = 2;       // decor pieces per room, at most
+
   function tryRoom(p, rng, w, h, margin) {
-    for (let a = 0; a < 80; a++) {
-      const x = rng.int(2, p.w - w - 2), y = rng.int(2, p.h - h - 2);
+    for (let a = 0; a < ROOM_TRIES; a++) {
+      const x = rng.int(ROOM_EDGE, p.w - w - ROOM_EDGE), y = rng.int(ROOM_EDGE, p.h - h - ROOM_EDGE);
       if (!Carve.rectFree(p, x, y, w, h, margin)) continue;
       Carve.fillRect(p, x, y, w, h, T.FLOOR);
       const r = { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1) };
@@ -23,9 +34,15 @@
     // two rows of pillars, every other tile, one tile in from the long walls
     const horiz = r.w >= r.h;
     if (horiz) {
-      for (let x = r.x + 2; x < r.x + r.w - 2; x += 2) { Carve.set(p, x, r.y + 1, T.PILLAR); Carve.set(p, x, r.y + r.h - 2, T.PILLAR); }
+      for (let x = r.x + 2; x < r.x + r.w - 2; x += 2) {
+        Carve.set(p, x, r.y + 1, T.PILLAR);
+        Carve.set(p, x, r.y + r.h - 2, T.PILLAR);
+      }
     } else {
-      for (let y = r.y + 2; y < r.y + r.h - 2; y += 2) { Carve.set(p, r.x + 1, y, T.PILLAR); Carve.set(p, r.x + r.w - 2, y, T.PILLAR); }
+      for (let y = r.y + 2; y < r.y + r.h - 2; y += 2) {
+        Carve.set(p, r.x + 1, y, T.PILLAR);
+        Carve.set(p, r.x + r.w - 2, y, T.PILLAR);
+      }
     }
     r.nave = true;
   }
@@ -40,10 +57,14 @@
       for (const a of inTree) for (let b = 0; b < rooms.length; b++) {
         if (inTree.includes(b)) continue;
         const d = Math.abs(rooms[a].cx - rooms[b].cx) + Math.abs(rooms[a].cy - rooms[b].cy);
-        if (d < bd) { bd = d; best = [a, b]; }
+        if (d < bd) {
+          bd = d;
+          best = [a, b];
+        }
       }
       if (!best) break;
-      inTree.push(best[1]); edges.push(best);
+      inTree.push(best[1]);
+      edges.push(best);
     }
     for (let k = 0; k < extraLoops; k++) {
       const a = rng.int(0, rooms.length - 1), b = rng.int(0, rooms.length - 1);
@@ -63,17 +84,17 @@
     const naves = rng.int(params.naves[0], params.naves[1]);
     for (let i = 0; i < naves; i++) {
       const long = rng.int(params.naveW[0], params.naveW[1]) | 1; // odd widths keep pillars symmetric
-      const short = rng.int(7, 9);
+      const short = rng.int(NAVE_SHORT_MIN, NAVE_SHORT_MAX);
       const horiz = rng.chance(0.5);
-      const r = tryRoom(p, rng, horiz ? long : short, horiz ? short : long, 2);
+      const r = horiz ? tryRoom(p, rng, long, short, ROOM_MARGIN) : tryRoom(p, rng, short, long, ROOM_MARGIN);
       if (r) addNavePillars(p, r);
     }
     let guard = 0;
-    while (p.rooms.length < target + p.setpieces.length && guard++ < 200) {
-      const chapel = rng.chance(0.3);
-      const w = chapel ? rng.int(4, 5) : rng.int(params.roomW[0], params.roomW[1]);
-      const h = chapel ? rng.int(4, 5) : rng.int(params.roomH[0], params.roomH[1]);
-      tryRoom(p, rng, w, h, 2);
+    while (p.rooms.length < target + p.setpieces.length && guard++ < MAX_ROOM_TRIES) {
+      const chapel = rng.chance(CHAPEL_CHANCE);
+      const w = chapel ? rng.int(CHAPEL_MIN, CHAPEL_MAX) : rng.int(params.roomW[0], params.roomW[1]);
+      const h = chapel ? rng.int(CHAPEL_MIN, CHAPEL_MAX) : rng.int(params.roomH[0], params.roomH[1]);
+      tryRoom(p, rng, w, h, ROOM_MARGIN);
     }
     // corridors: shuffle so set pieces aren't always first
     connectRooms(p, rng, params.wideCorridor, rng.int(1, 2));
@@ -81,7 +102,7 @@
     const kinds = BD.data.decorKinds[p.biome];
     for (const r of p.rooms) {
       if (r.setpiece) continue;
-      const n = rng.int(0, 2);
+      const n = rng.int(0, ROOM_DECOR_MAX);
       for (let k = 0; k < n; k++) {
         const x = rng.chance(0.5) ? r.x : r.x + r.w - 1, y = rng.int(r.y + 1, r.y + r.h - 2);
         if (Carve.get(p, x, y) === T.FLOOR && !p.protect[Carve.idx(p, x, y)] && wallAdjacent(p, x, y)) {
