@@ -46,12 +46,13 @@
   }
 
   /** @returns {{idle:string[][], walk:string[][], attack:string[][], hurt:string[][], death:string[][], corpse:string[][]}} */
-  function framesOf(id) {
-    let d = derived.get(id);
+  function framesOf(id, doll) {
+    const dk = doll ? id + '#' + doll : id;
+    let d = derived.get(dk);
     if (d) return d;
     const art = BD.view.art[id];
     if (!art) return null;
-    const f = art.frames;
+    const f = doll && BD.view.paperdoll ? { idle: [BD.view.paperdoll.compose(id, art.frames.idle[0], doll)] } : art.frames;
     const idle = f.idle[0];
     const legs = Math.floor(idle.length * 0.78);
     d = {
@@ -62,7 +63,7 @@
       death: f.death || [squash(idle, 0.85), squash(idle, 0.6), squash(idle, 0.35)],
       corpse: f.corpse || [corpse(idle)],
     };
-    derived.set(id, d);
+    derived.set(dk, d);
     return d;
   }
 
@@ -74,15 +75,16 @@
    */
   function get(id, frame, i, o) {
     o = o || {};
-    const key = id + '|' + frame + '|' + i + '|' + (o.palKey || '') + '|' + (o.tint || '') + '|' + (o.flip ? 1 : 0);
+    const key = id + '|' + frame + '|' + i + '|' + (o.palKey || '') + '|' + (o.tint || '') + '|' + (o.flip ? 1 : 0) + '|' + (o.doll || '');
     let c = cache.get(key);
     if (c) return c;
-    const fr = framesOf(id);
+    const fr = framesOf(id, o.doll);
     if (!fr || !hasCanvas()) return null;
     const list = fr[frame] || fr.idle;
     const grid = list[i % list.length];
     const art = BD.view.art[id];
-    const pal = o.pal ? Object.assign({}, art.pal, o.pal) : art.pal;
+    let pal = o.pal ? Object.assign({}, art.pal, o.pal) : art.pal;
+    if (o.doll && BD.view.paperdoll) pal = Object.assign({}, BD.view.paperdoll.PAL, pal);
     const w = W(grid), h = grid.length;
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
