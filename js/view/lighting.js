@@ -37,7 +37,7 @@
       let v = 0;
       if (f.visible[i]) {
         const d = Math.hypot(x - pp.x, y - pp.y);
-        v = Math.max(town ? 0.75 : 0.38, 1.15 - d / (R + 2));
+        v = Math.max(town ? 0.75 : 0.42, 1.25 - d / (R + 2.5));
       } else if (f.explored[i]) v = town ? 0.4 : 0.16;
       v = Math.max(v, f.explored[i] ? amb : 0);
       acc[i * 3] = v; acc[i * 3 + 1] = v * 0.93; acc[i * 3 + 2] = v * 0.82;

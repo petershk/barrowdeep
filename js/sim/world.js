@@ -21,6 +21,7 @@
       sealBroken: false, gateOpen: false, bossDead: false, keeperId: null, event: plan.event || null,
       flow: null, flowFrom: -1, timeOnFloor: 0, fullyExplored: false, exploreDirty: true, extraLight: 0,
     };
+    world.floor = f;
     for (let i = 0; i < N; i++) if (plan.reachDist && plan.reachDist[i] >= 0 && BD.data.tiles.WALK[plan.tiles[i]]) f.reachableCount++;
     // generated monsters get stable ids n×10000 + index
     let gi = 0;
@@ -36,6 +37,9 @@
         }
       }
     }
+    f._packMods = null;
+    for (const e of f.entities.values()) BD.sim.stats.bump(e);
+    for (const o of plan.objects) if (o.kind === 'corpse_prop') f.corpses.push({ id: world.nextId++, def: o.def, x: o.x, y: o.y, packId: null, rank: 'normal', maxLife: 20, ms: 1e9, prop: true });
     return f;
   }
 
@@ -100,5 +104,19 @@
     BD.core.scheduler.runDue(world);
   }
 
-  BD.sim.world = { SAVE_VERSION, createWorld, enterFloor, instantiateFloor, step, addSystem, SYSTEMS };
+  /** Hash of the gameplay-relevant state (tests: determinism, save round-trips). */
+  function stateHash(world) {
+    const U = BD.core.util;
+    const f = world.floor;
+    const ents = [];
+    for (const e of f.entities.values()) ents.push([e.id, e.def, e.x, e.y, Math.round(e.hp * 100), e.statuses.map((s) => s.id + ':' + Math.round(s.remainingMs)).join(','), e.ai ? e.ai.state : '']);
+    const p = world.player;
+    return U.hashOf({
+      t: world.time, rng: world.rng.state(), loot: world.lootRng.state(), run: world.run,
+      p: [p.x, p.y, Math.round(p.hp * 100), p.level, Math.round(p.xp), p.gold, p.attrs, p.skills, p.resources, p.statuses.map((s) => s.id)],
+      ents, proj: f.projectiles.length, zones: f.zones.length, items: (f.items || []).map((i) => i.uid),
+    });
+  }
+
+  BD.sim.world = { SAVE_VERSION, stateHash, createWorld, enterFloor, instantiateFloor, step, addSystem, SYSTEMS };
 })(globalThis.BD);

@@ -45,6 +45,8 @@
         boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 70, dmg: 1.8, xp: 0 },
       },
       projectileSpeed: 6, flowRadius: 30,
+      actDmg: { 1: 1, 2: 1, 3: 1, 4: 1 },   // per-act damage correction (tuned by the balance bot, 05 §3)
+      corpseMs: 10000,
     },
     xp: { base: 280, growth: 1.12, fullClearKills: 5 },
     gen: {
@@ -56,5 +58,24 @@
     ai: {},
     bosses: {},
     ui: {},
+  };
+})(globalThis.BD);
+
+// Difficulties (01 §9) and backgrounds (01 §5).
+(function (BD) {
+  'use strict';
+  BD.data.difficulties = {
+    pilgrim: { id: 'pilgrim', name: 'Pilgrim', hp: 0.7, dmg: 0.7, xp: 1.0, mf: 0, resistPenalty: 0, flaskBonus: 1, souls: 0.75, eliteMods: 1, keeperMoves: 1, spawn: 0.85,
+      desc: 'Monsters have 30% less life and deal 30% less damage. One extra flask charge. Traps always visible. For learning the dark.' },
+    penitent: { id: 'penitent', name: 'Penitent', hp: 1.0, dmg: 1.0, xp: 1.0, mf: 0, resistPenalty: 0, flaskBonus: 0, souls: 1.0, eliteMods: 1, keeperMoves: 1, spawn: 1.0,
+      desc: 'The descent as it is meant to be walked.' },
+    martyr: { id: 'martyr', name: 'Martyr', hp: 1.6, dmg: 1.4, xp: 1.25, mf: 50, resistPenalty: -20, flaskBonus: 0, souls: 1.5, eliteMods: 2, keeperMoves: 2, spawn: 1.15,
+      desc: 'Monsters have 60% more life and deal 40% more damage. Your resistances suffer −20. Elites carry two powers; Keepers two signature moves. +50% magic find, +25% experience.' },
+  };
+  BD.data.backgrounds = {
+    wanderer: { id: 'wanderer', name: 'Wanderer', desc: 'No advantage. No burden.', free: true },
+    soldier: { id: 'soldier', name: 'Soldier', desc: 'Begins with a magic shield or armour piece.', perk: 'bg_soldier' },
+    acolyte: { id: 'acolyte', name: 'Acolyte', desc: '+1 flask charge for this run.', perk: 'bg_acolyte' },
+    poacher: { id: 'poacher', name: 'Poacher', desc: '+15% gold find for this run.', perk: 'bg_poacher' },
   };
 })(globalThis.BD);

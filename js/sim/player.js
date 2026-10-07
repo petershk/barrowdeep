@@ -21,6 +21,20 @@
       intent: { kind: 'idle' }, faction: 'player', lastHitMs: -1e9, lastDamagedMs: -1e9, lastCastMs: -1e9, attack: null,
     });
     p.hp = 1;
+    world.player = p;
+    if (BD.sim.resources) BD.sim.resources.init(world, p);
+    // starting kit (03; Soldier background adds a magic piece in economy.js)
+    for (const k of BD.data.classes[cls].startKit) {
+      const it = BD.sim.items.make(world, k.base, 1, 'common');
+      const slot = BD.data.bases[k.base].slot;
+      if (!p.equip[slot]) p.equip[slot] = it; else p.pack.push(it);
+    }
+    if (opts.firstSkill && BD.data.skills && BD.data.skills[opts.firstSkill]) { p.skills[opts.firstSkill] = 1; p.bar.rmb = opts.firstSkill; }
+    const diff = BD.data.difficulties[opts.difficulty || 'penitent'];
+    p.flask.max = p.flask.charges = B.player.flaskBase + (diff ? diff.flaskBonus : 0) + (opts.background === 'acolyte' ? 1 : 0);
+    BD.sim.stats.bump(p);
+    p.hp = BD.sim.stats.statsOf(world, p).maxLife;
+    if (p.resources.mana) p.resources.mana.cur = BD.sim.stats.statsOf(world, p).maxMana;
     return p;
   }
 

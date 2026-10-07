@@ -24,7 +24,7 @@
   def(T.WATER, {});
   def(T.LAVA, { light: { color: '#ff6a1a', radius: 2.2, intensity: 0.55 } });
   def(T.CHASM, {});
-  def(T.GATE, { tall: true, interact: true, light: { color: '#a01818', radius: 3, intensity: 0.5 } });
+  def(T.GATE, { see: false, tall: true, interact: true, light: { color: '#a01818', radius: 3, intensity: 0.5 } });
   def(T.WAYPOINT, { walk: true, interact: true, light: { color: '#6aa8ff', radius: 3, intensity: 0.6 } });
   def(T.PORTAL_STONE, { walk: true, interact: true, light: { color: '#b06aff', radius: 2.5, intensity: 0.5 } });
   def(T.TOWN_DOOR, { see: false, tall: true, interact: true });

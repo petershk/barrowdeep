@@ -1,0 +1,128 @@
+// @ts-check
+// HUD: life orb (left), resource orb (right, colour by resource), XP strip, flask + pouch,
+// status chips above the life orb. Orbs and bars update every frame; text only when changed.
+(function (BD) {
+  'use strict';
+
+  const { h, setText, root } = BD.ui.dom;
+  let el = null, life = null, res = null, xp = null, flask = null, pouch = null, chips = null, pips = null;
+  const RES_COL = { rage: ['#ff8a2a', '#8a3008'], energy: ['#d0e850', '#4a6010'], mana: ['#4a8aff', '#10307a'], focus: ['#f0e0a0', '#7a6020'] };
+
+  function orb(cls) {
+    const cv = /** @type {HTMLCanvasElement} */ (h('canvas', { width: 96, height: 96 }));
+    const val = h('div.orb-val');
+    const lab = h('div.orb-lab');
+    const wrap = h('div.orb.' + cls, [cv, val, lab]);
+    return { wrap, cv, val, lab, level: -1, t: 0 };
+  }
+
+  function mount() {
+    life = orb('life'); res = orb('res');
+    xp = { bar: h('div.xp-fill'), wrap: null };
+    xp.wrap = h('div.xp', [xp.bar]);
+    flask = { el: h('div.flask', { title: 'Healing Flask (Q)' }, [h('div.flask-glass'), h('div.flask-n'), h('div.key', 'Q')]) };
+    pouch = h('div.pouch');
+    chips = h('div.chips');
+    pips = h('div.pips');
+    el = h('div.hud', [chips, life.wrap, h('div.hud-mid', [h('div.hud-row', [flask.el, pouch, h('div.bar-slot')]), xp.wrap]), res.wrap]);
+    root().appendChild(el);
+    root().appendChild(pips);
+  }
+
+  function drawOrb(o, frac, colTop, colBot, t, pulse) {
+    const g = o.cv.getContext('2d');
+    const W = 96, R = 44;
+    g.clearRect(0, 0, W, W);
+    g.save();
+    g.beginPath(); g.arc(48, 48, R, 0, Math.PI * 2); g.clip();
+    g.fillStyle = '#0b0807'; g.fillRect(0, 0, W, W);
+    const top = 48 + R - frac * 2 * R;
+    const gr = g.createLinearGradient(0, top, 0, 96);
+    gr.addColorStop(0, colTop); gr.addColorStop(1, colBot);
+    g.fillStyle = gr;
+    g.beginPath(); g.moveTo(0, 96);
+    for (let x = 0; x <= W; x += 4) g.lineTo(x, top + Math.sin(x / 9 + t / 260) * (frac > 0.02 && frac < 0.98 ? 2 : 0));
+    g.lineTo(W, 96); g.closePath(); g.fill();
+    if (pulse) { g.fillStyle = `rgba(255,255,255,${0.12 + 0.1 * Math.sin(t / 95)})`; g.fillRect(0, 0, W, W); }
+    // glass highlight
+    const hl = g.createRadialGradient(34, 30, 2, 40, 36, 40);
+    hl.addColorStop(0, 'rgba(255,255,255,0.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = hl; g.fillRect(0, 0, W, W);
+    g.restore();
+    g.strokeStyle = '#5a4a28'; g.lineWidth = 3; g.beginPath(); g.arc(48, 48, R + 1, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = '#000'; g.lineWidth = 1; g.beginPath(); g.arc(48, 48, R + 3, 0, Math.PI * 2); g.stroke();
+  }
+
+  let t = 0;
+  function frame(world, ms) {
+    if (!el) mount();
+    t += ms;
+    const p = world.player;
+    const s = BD.sim.stats.statsOf(world, p);
+    const lf = Math.max(0, p.hp) / s.maxLife;
+    drawOrb(life, lf, '#d02020', '#4a0606', t, lf < 0.25 && !p.dead);
+    setText(life.val, Math.ceil(Math.max(0, p.hp)) + ' / ' + s.maxLife);
+    setText(life.lab, 'Life');
+    const kind = BD.data.classes[p.cls].resource;
+    const r = p.resources;
+    let frac = 0, txt = '', lab = '', pulse = false;
+    if (kind === 'rage') { frac = r.rage.cur / r.rage.max; txt = Math.floor(r.rage.cur) + ''; lab = p.momentum ? 'Rage · Momentum' : 'Rage'; pulse = p.momentum; }
+    else if (kind === 'energy') { frac = r.energy.cur / r.energy.max; txt = Math.floor(r.energy.cur) + ''; lab = 'Energy'; }
+    else if (kind === 'mana') { frac = r.mana.max ? r.mana.cur / r.mana.max : 0; txt = Math.floor(r.mana.cur) + ' / ' + Math.round(r.mana.max); lab = r.surge ? 'Mana · Surge' : 'Mana'; pulse = r.surge; }
+    else if (kind === 'focus') { frac = r.focus.n / 5; txt = r.focus.n + ' / 5'; lab = 'Focus'; }
+    const c = RES_COL[kind];
+    drawOrb(res, frac, c[0], c[1], t, pulse);
+    setText(res.val, txt); setText(res.lab, lab);
+    // xp
+    const need = BD.sim.progression.xpToNext(p.level);
+    xp.bar.style.width = (p.level >= 30 ? 100 : Math.min(100, (p.xp / need) * 100)).toFixed(2) + '%';
+    xp.wrap.title = 'Level ' + p.level + (p.level < 30 ? ' — ' + Math.floor(p.xp) + ' / ' + need + ' experience' : '');
+    // flask
+    setText(flask.el.querySelector('.flask-n'), p.flask.charges + '/' + p.flask.max);
+    flask.el.classList.toggle('empty', p.flask.charges <= 0);
+    flask.el.style.setProperty('--fill', String(p.flask.charges / Math.max(1, p.flask.max)));
+    // pouch
+    const pt = 'Portal ' + (p.pouch.portal || 0) + (p.pouch.reveal ? ' · Revelation ' + p.pouch.reveal : '');
+    setText(pouch, pt);
+    // status chips (real names for every buff)
+    chipFrame(world, p);
+    pipsFrame(world, p);
+  }
+
+  function chipFrame(world, p) {
+    const want = p.statuses.filter((st) => BD.data.statuses[st.id] && !BD.data.statuses[st.id].hiddenChip && st.id !== 'healing');
+    const key = want.map((s) => s.id).join(',');
+    if (chips.dataset.key !== key) {
+      BD.ui.dom.clear(chips);
+      for (const st of want) {
+        const d = BD.data.statuses[st.id];
+        chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: d.name, style: { borderColor: BD.view.palette.STATUS_COLOR[st.id] || '#888' } }, [h('span.chip-name', d.name), h('span.chip-t')]));
+      }
+      chips.dataset.key = key;
+    }
+    want.forEach((st, i) => { const c = chips.children[i]; if (c) setText(c.lastChild, st.remainingMs > 0 ? (st.remainingMs / 1000).toFixed(1) + 's' : ''); });
+  }
+
+  /** combo / focus pips above the player */
+  function pipsFrame(world, p) {
+    const r = p.resources;
+    const n = r.combo ? r.combo.n : r.focus ? r.focus.n : 0;
+    const max = r.combo ? BD.sim.resources.comboMax(world, p) : r.focus ? 5 : 0;
+    if (!max || BD.app.state !== 'playing') { pips.style.display = 'none'; return; }
+    pips.style.display = '';
+    const key = n + '/' + max;
+    if (pips.dataset.key !== key) {
+      BD.ui.dom.clear(pips);
+      for (let i = 0; i < max; i++) pips.appendChild(h('div.pip' + (i < n ? '.on' : '') + (r.focus ? '.focus' : '')));
+      pips.dataset.key = key;
+    }
+    const iso = BD.view.iso, v = iso.view;
+    const pos = BD.view.entities.pos(p, 0, { x: 0, y: 0 });
+    const o = iso.toScreen(pos.x, pos.y, { x: 0, y: 0 });
+    pips.style.left = o.x / v.dpr + 'px';
+    pips.style.top = (o.y - 46 * v.Z * v.dpr - 30) / v.dpr + 'px';
+  }
+
+  BD.ui.hud.add({ frame });
+  BD.ui.hudOrbs = { frame };
+})(globalThis.BD);

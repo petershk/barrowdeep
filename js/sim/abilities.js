@@ -1,0 +1,284 @@
+// @ts-check
+// Ability engine (06 §7): resolve target → validate → (reject | approach | commit) → action
+// (wind-up/cast) → impact (delivery + effects, in effects.js). Rejected casts cost nothing.
+(function (BD) {
+  'use strict';
+
+  const E = BD.sim.entities;
+  const TG = BD.sim.targeting;
+  const R = () => BD.sim.resources;
+  const ST = () => BD.sim.stats;
+  const B = BD.data.balance;
+  const { within, cheb, dirOf } = BD.core.util;
+
+  /** all ability defs by id (skills register into BD.data.skills) */
+  function def(id) { return id === 'attack' ? BD.data.basicAttack : BD.data.skills[id]; }
+
+  /** hard + soft ranks; soft ranks only on skills with ≥1 hard point; total capped at 8 */
+  function rankOf(world, p, id) {
+    if (id === 'attack') return 1;
+    const hard = p.skills[id] || 0;
+    if (!hard) return 0;
+    const s = ST().statsOf(world, p);
+    return Math.min(8, hard + (s['skill_plus_' + id] || 0) + (s.all_skills || 0));
+  }
+  /** universal rank scaling 1 + 0.2(r−1), or perRank */
+  function scale(eff, rank, key) {
+    const k = key || 'mult';
+    if (eff.perRank) return eff.perRank[Math.min(eff.perRank.length, rank) - 1] * (rank > 5 ? 1 + 0.2 * (rank - 5) : 1);
+    return (eff[k] || 0) * (1 + 0.2 * (rank - 1));
+  }
+  /** apply breakpoints: returns { effects, set } for this rank */
+  function resolved(ab, rank) {
+    const out = Object.assign({}, ab);
+    out.effects = (ab.effects || []).slice();
+    out.selfEffects = (ab.selfEffects || []).slice();
+    for (const bp of ab.breakpoints || []) {
+      if (rank < bp.rank) continue;
+      if (bp.add) out.effects = out.effects.concat(bp.add);
+      if (bp.addSelf) out.selfEffects = out.selfEffects.concat(bp.addSelf);
+      if (bp.set) for (const k in bp.set) out[k] = typeof bp.set[k] === 'object' && !Array.isArray(bp.set[k]) ? Object.assign({}, out[k], bp.set[k]) : bp.set[k];
+    }
+    if (BD.sim.powers) BD.sim.powers.modifyAbility(out, rank);
+    return out;
+  }
+
+  /** basic attack specialised to the equipped weapon */
+  function basicFor(world, p) {
+    const s = ST().statsOf(world, p);
+    const w = s.weapon;
+    const ab = Object.assign({}, BD.data.basicAttack);
+    if (w.projectile) {
+      ab.targeting = { mode: 'unit', range: w.range, requiresLOS: true, outOfRange: 'approach' };
+      ab.delivery = { kind: 'projectile', projectile: w.projectile, pierce: w.pierce || 0, hitTiming: 'onImpact' };
+      ab.tags = ['attack', 'basic', 'projectile'];
+    } else if (w.reachLine) {
+      ab.targeting = { mode: 'unit', range: w.reachLine, requiresLOS: true, outOfRange: 'approach' };
+      ab.area = { shape: 'line', length: w.reachLine };
+      ab.tags = ['attack', 'basic', 'melee'];
+    } else ab.tags = ['attack', 'basic', 'melee'];
+    if (BD.sim.powers) BD.sim.powers.modifyAbility(ab, 1);
+    return ab;
+  }
+
+  function cooldownLeft(p, ab) {
+    if (ab.charges) { const c = p.charges && p.charges[ab.id]; return c && c.n <= 0 ? c.ms : 0; }
+    return p.cooldowns[ab.id] || 0;
+  }
+  function cdTime(world, p, ab) {
+    const s = ST().statsOf(world, p);
+    let ms = ab.cooldownMs || 0;
+    if (BD.sim.powers) ms = BD.sim.powers.cooldown(world, p, ab, ms);
+    return ms * (1 - Math.min(40, s.cdr_pct || 0) / 100);
+  }
+  function maxCharges(world, p, ab) {
+    let n = ab.charges || 0;
+    if (BD.sim.powers) n = BD.sim.powers.charges(world, p, ab, n);
+    return n;
+  }
+
+  /** timing: weapon cycle with impact at 40%, or spell cast with impact at the end */
+  function timing(world, p, ab) {
+    const s = ST().statsOf(world, p);
+    if (ab.castMs != null) { const c = ab.castMs / (ab.noIas ? 1 : 1 + s.ias / 100); return { windup: c, recover: ab.recoverMs || 0 }; }
+    if (ab.isSpell) return { windup: s.spellCastMs, recover: 0 };
+    const cyc = s.attackCycleMs;
+    return { windup: cyc * B.player.impactFrac, recover: cyc * (1 - B.player.impactFrac) };
+  }
+
+  function reject(world, p, ab, reason, extra) {
+    world.events.push({ type: 'ability.reject', id: p.id, abilityId: ab.id, reason: BD.data.strings.t(reason, extra) });
+    return { reject: reason };
+  }
+
+  /** resolve aim → target {entity?, x, y} */
+  function resolveTarget(world, p, ab, aim) {
+    const t = ab.targeting || { mode: 'self' };
+    if (t.mode === 'self') return { x: p.x, y: p.y, self: true };
+    if (aim === 'auto' || !aim) aim = TG.autoAim(world, p, t.range || 1);
+    if (t.mode === 'unit') {
+      let e = aim.entityId != null ? E.get(world, aim.entityId) : null;
+      if (e && (e.dead || e.hp <= 0 || e.faction === 'player')) e = null;
+      if (!e && aim.x != null) {
+        const f = world.floor;
+        const id = f.occ[aim.y * f.w + aim.x];
+        const o = id ? E.get(world, id) : null;
+        if (o && o.faction !== 'player') e = o;
+        else e = TG.nearestEnemy(world, aim.x, aim.y, 1.5, 'player', null);
+      }
+      if (!e) return null;
+      return { entity: e, x: e.x, y: e.y };
+    }
+    let x = aim.x, y = aim.y;
+    if (aim.entityId != null) { const e = E.get(world, aim.entityId); if (e) { x = e.x; y = e.y; } }
+    if (x == null) return null;
+    return { x, y, entity: aim.entityId != null ? E.get(world, aim.entityId) : null };
+  }
+
+  /** @returns {{ok:true}|{reject:string}|{approach:true}} */
+  function validate(world, p, ab, rank, tgt) {
+    const t = ab.targeting || { mode: 'self' };
+    if (!tgt) return reject(world, p, ab, 'no_target');
+    if (p.attack && p.attack.phase === 'windup') return reject(world, p, ab, 'not_ready');
+    if (p.attack && p.attack.phase === 'channel' && ab.id !== p.attack.abilityId) return reject(world, p, ab, 'not_ready');
+    if (cooldownLeft(p, ab) > 0) return reject(world, p, ab, ab.charges ? 'no_charges' : 'not_ready');
+    const res = ab.resource || { type: 'none', cost: 0 };
+    if (!R().canPay(p, res.type, res.cost, res.minStart)) return reject(world, p, ab, 'no_resource', { res: res.type });
+    if (ab.requires && !ab.requires(world, p)) return reject(world, p, ab, 'not_ready');
+    if (t.mode !== 'self') {
+      const range = t.range || 1;
+      const inRange = range <= 1.5 && (ab.delivery.kind === 'melee')
+        ? cheb(p.x, p.y, tgt.x, tgt.y) <= Math.max(1, Math.round(range))
+        : within(p.x, p.y, tgt.x, tgt.y, range);
+      const needLOS = t.requiresLOS !== false;
+      const los = !needLOS || TG.hasLOS(world, p.x, p.y, tgt.x, tgt.y);
+      if (!inRange || !los) {
+        if (t.outOfRange === 'approach' && (tgt.entity || t.mode !== 'unit')) return { approach: true };
+        return reject(world, p, ab, !los ? 'no_los' : 'out_of_range');
+      }
+      if (t.requiresVisible) {
+        const f = world.floor;
+        if (!f.explored[tgt.y * f.w + tgt.x] || (t.mode === 'point' && !f.visible[tgt.y * f.w + tgt.x])) return reject(world, p, ab, 'out_of_range');
+      }
+    }
+    if (BD.sim.effects.precheck) { const pr = BD.sim.effects.precheck(world, p, ab, rank, tgt); if (pr) return reject(world, p, ab, pr); }
+    return { ok: true };
+  }
+
+  /**
+   * Try to cast. aim: {x,y}|{entityId}|'auto'. Returns 'cast' | 'approach' | 'reject'.
+   */
+  function tryCast(world, p, abilityId, aim, opts) {
+    const base = abilityId === 'attack' ? basicFor(world, p) : def(abilityId);
+    if (!base) return 'reject';
+    const rank = rankOf(world, p, abilityId);
+    if (!rank) { reject(world, p, base, 'not_ready'); return 'reject'; }
+    const ab = resolved(base, rank);
+    if (abilityId === 'attack') { ab.targeting = base.targeting; ab.delivery = base.delivery; ab.area = base.area; ab.tags = base.tags; }
+    // channel: holding re-issues keep it alive
+    if (p.attack && p.attack.phase === 'channel' && p.attack.abilityId === abilityId) { p.attack.heldMs = 0; return 'cast'; }
+    const tgt = resolveTarget(world, p, ab, aim);
+    const v = validate(world, p, ab, rank, tgt);
+    if (v.reject) return 'reject';
+    if (v.approach) {
+      p.intent = { kind: 'approachThenCast', abilityId, targetId: tgt.entity ? tgt.entity.id : null, x: tgt.x, y: tgt.y, range: ab.targeting.range, hold: !!(opts && opts.hold) };
+      if (!tgt.entity) p.intent.kind = 'approachPoint';
+      return 'approach';
+    }
+    commit(world, p, ab, rank, tgt, opts);
+    return 'cast';
+  }
+
+  function commit(world, p, ab, rank, tgt, opts) {
+    const res = ab.resource || { type: 'none', cost: 0 };
+    const spent = res.type && res.type !== 'none' && res.cost ? R().spend(world, p, res.type, res.cost) : 0;
+    const cd = cdTime(world, p, ab);
+    if (ab.charges) {
+      p.charges = p.charges || {};
+      const mc = maxCharges(world, p, ab);
+      const c = p.charges[ab.id] || (p.charges[ab.id] = { n: mc, ms: 0 });
+      c.n--; if (c.ms <= 0) c.ms = cd;
+    } else if (cd > 0) p.cooldowns[ab.id] = cd;
+    if (tgt.x !== p.x || tgt.y !== p.y) p.dir = dirOf(tgt.x - p.x, tgt.y - p.y);
+    const tm = timing(world, p, ab);
+    const comboHeld = R().combo(p);
+    p.attack = {
+      abilityId: ab.id, rank, phase: ab.channel ? 'channel' : 'windup', remaining: ab.channel ? ab.channel.tickMs : tm.windup, recover: tm.recover,
+      tx: tgt.x, ty: tgt.y, targetId: tgt.entity ? tgt.entity.id : null, spentType: res.type, spent, cdSet: cd, comboHeld,
+      focusHeld: p.resources.focus ? p.resources.focus.n + (res.type === 'focus' ? spent : 0) : 0, heldMs: 0, cancellable: !!ab.cancelOnMove,
+      telegraph: !!ab.selfTelegraph,
+    };
+    p.lastActMs = world.time;
+    if (ab.isSpell && res.cost && res.type === 'mana') p.lastCastMs = world.time;
+    world.events.push({ type: 'ability.cast', id: p.id, abilityId: ab.id, x: p.x, y: p.y, tx: tgt.x, ty: tgt.y, windupMs: tm.windup, weapon: ST().statsOf(world, p).weapon.fx });
+    if (ab.selfTelegraph) world.events.push({ type: 'telegraph.start', srcId: p.id, shape: ab.area, x: p.x, y: p.y, ms: tm.windup, friendly: true });
+    if (ab.onCommit) BD.sim.effects.special(world, p, ab, rank, 'commit', p.attack);
+    if (tm.windup <= 0 && !ab.channel) actionTick(world, p, 0);
+  }
+
+  /** Cancel the player's own wind-up/cast/channel: refunds resource and cooldown. */
+  function cancel(world, p, why) {
+    const a = p.attack;
+    if (!a) return;
+    if (a.phase === 'windup') {
+      const ab = def(a.abilityId);
+      if (a.spent) R().refund(world, p, a.spentType, a.spent);
+      if (ab && ab.charges && p.charges[ab.id]) p.charges[ab.id].n++;
+      else if (a.cdSet) p.cooldowns[a.abilityId] = 0;
+      world.events.push({ type: 'ability.cancel', id: p.id, abilityId: a.abilityId, why });
+    }
+    if (a.phase === 'channel') world.events.push({ type: 'ability.end', id: p.id, abilityId: a.abilityId });
+    p.attack = null;
+  }
+
+  /** per-step: advance the player's action (and allies'). */
+  function actionTick(world, p, dt) {
+    const a = p.attack;
+    if (!a) return;
+    const clk = BD.sim.status.clockMult(world, p);
+    if (clk === 0 && a.phase === 'windup') { cancel(world, p, 'stunned'); return; }
+    a.remaining -= dt * (clk || 0);
+    if (a.phase === 'channel') {
+      a.heldMs += dt;
+      if (a.remaining <= 0) {
+        const ab = resolved(def(a.abilityId), a.rank);
+        const cost = (ab.channel.costPerSec * ab.channel.tickMs) / 1000;
+        const hold = BD.input ? true : true;
+        if (a.heldMs > 260 || !R().canPay(p, ab.resource.type, cost) || !hold) { cancel(world, p, 'released'); return; }
+        R().spend(world, p, ab.resource.type, cost);
+        a.remaining += ab.channel.tickMs;
+        BD.sim.effects.impact(world, p, ab, a.rank, a);
+      }
+      return;
+    }
+    if (a.phase === 'windup' && a.remaining <= 0) {
+      const ab = a.abilityId === 'attack' ? basicFor(world, p) : resolved(def(a.abilityId), a.rank);
+      a.phase = 'recover';
+      const left = a.remaining;
+      a.remaining = a.recover + left;
+      BD.sim.effects.impact(world, p, ab, a.rank, a);
+      if (p.attack === a && a.remaining <= 0) p.attack = null;
+      return;
+    }
+    if (a.phase === 'recover' && a.remaining <= 0) p.attack = null;
+  }
+
+  function chargeTick(world, p, dt) {
+    if (!p.charges) return;
+    for (const id in p.charges) {
+      const c = p.charges[id], ab = def(id);
+      const mc = maxCharges(world, p, ab);
+      if (c.n >= mc) { c.ms = 0; c.n = mc; continue; }
+      c.ms -= dt;
+      if (c.ms <= 0) { c.n++; c.ms = c.n < mc ? cdTime(world, p, ab) : 0; world.events.push({ type: 'ability.ready', id: p.id, abilityId: id }); }
+    }
+    for (const id in p.cooldowns) {
+      if (p.cooldowns[id] > 0 && p.cooldowns[id] - dt <= 0 && id !== 'evade') world.events.push({ type: 'ability.ready', id: p.id, abilityId: id });
+    }
+  }
+
+  /** Fired by PlayerIntent once in range (approachThenCast). */
+  function fireApproach(world, p, it) {
+    const aim = it.targetId != null ? { entityId: it.targetId } : { x: it.x, y: it.y };
+    return tryCast(world, p, it.abilityId, aim, { hold: it.hold }) === 'cast';
+  }
+
+  function system(world, dt) {
+    const p = world.player;
+    if (!p || p.dead) return;
+    chargeTick(world, p, dt);
+    actionTick(world, p, dt);
+  }
+
+  /** passive stat mods from skills (keystones etc.) */
+  function passiveMods(world, p, add) {
+    for (const id in p.skills) {
+      const ab = BD.data.skills[id];
+      if (ab && ab.passive) ab.passive(p.skills[id], add, ab.name);
+    }
+    if (BD.sim.powers) BD.sim.powers.statMods(world, p, add);
+  }
+
+  BD.sim.abilities = { def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing, tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods };
+  BD.sim.world.addSystem('abilities', system, 8);
+})(globalThis.BD);

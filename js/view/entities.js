@@ -28,19 +28,39 @@
 
   function artOf(e) {
     if (e.kind === 'player') return CLASS_ART[e.cls] || 'fighter';
-    const d = BD.data.monsters && BD.data.monsters[e.def];
+    const d = (BD.data.monsters && BD.data.monsters[e.def]) || (BD.data.bosses && BD.data.bosses[e.def]);
     if (d) return d.sprite;
     if (e.kind === 'ally') return e.art || 'valkyrie';
     return 'skeleton';
   }
+  const palCache = new Map();
+  /** Keepers and unique elites get a distinct palette (gilded / spectral); bosses use their own. */
   function palOf(e) {
-    const d = BD.data.monsters && BD.data.monsters[e.def];
+    const d = (BD.data.monsters && BD.data.monsters[e.def]) || (BD.data.bosses && BD.data.bosses[e.def]);
     let pal = d && d.pal ? d.pal : null;
     if (e.palOverride) pal = Object.assign({}, pal || {}, e.palOverride);
+    if (d && (e.rank === 'keeper' || e.rank === 'unique')) {
+      const key = e.def + e.rank;
+      let c = palCache.get(key);
+      if (!c) {
+        const base = Object.assign({}, BD.view.art[d.sprite] ? BD.view.art[d.sprite].pal : {}, pal || {});
+        c = {};
+        const P = BD.view.palette;
+        const tint = e.rank === 'keeper' ? [255, 200, 80] : [150, 190, 255];
+        for (const k in base) {
+          const [r, g, b] = P.rgb(base[k]);
+          const l = (r + g + b) / 3 / 255;
+          const mix = (t) => Math.round(Math.min(255, t * (0.35 + 0.85 * l)));
+          c[k] = '#' + ((1 << 24) | (mix(tint[0]) << 16) | (mix(tint[1]) << 8) | mix(tint[2])).toString(16).slice(1);
+        }
+        palCache.set(key, c);
+      }
+      pal = c;
+    }
     return pal;
   }
   function scaleOf(e) {
-    const d = BD.data.monsters && BD.data.monsters[e.def];
+    const d = (BD.data.monsters && BD.data.monsters[e.def]) || (BD.data.bosses && BD.data.bosses[e.def]);
     return d && d.scale ? d.scale : 1;
   }
 

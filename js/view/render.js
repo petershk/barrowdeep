@@ -257,7 +257,7 @@
     if (e.move && !e.move.kind) dy -= Math.abs(Math.sin((e.move.elapsed / e.move.dur) * Math.PI)) * S;
     if (e.airborne) dy -= e.airborne * S;
     const scale = V.scaleOf(e);
-    const opts = { flip, pal: V.palOf(e), palKey: e.palKey || (e.def + (e.rank === 'normal' ? '' : e.rank)), scale, dx, dy };
+    const opts = { flip, pal: V.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''), scale, dx, dy };
     for (const fn of actorUnder) fn(ctx, world, e, ep, s, timeMs);
     if (!e.dead) shadow(ep.x, ep.y, scale);
     const box = drawArt(art, frame, fi, ep.x, ep.y, opts);

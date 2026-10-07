@@ -48,7 +48,7 @@
     // subtle hash noise on top of the checker so large rooms don't look flat
     const h = ((x * 73856093) ^ (y * 19349663)) >>> 0;
     const base = (x + y) & 1 ? pal.floorA : pal.floorB;
-    const k = 0.94 + ((h % 13) / 13) * 0.1;
+    const k = 1.12 + ((h % 13) / 13) * 0.12;
     return P.shade(base, k);
   }
 
