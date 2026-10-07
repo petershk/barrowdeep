@@ -3,12 +3,21 @@
 (function (BD) {
   'use strict';
 
+  const Grid = BD.core.grid;
   const { T } = BD.data.tiles;
-  const FL = BD.data.floors;
-  const I = () => BD.sim.interact;
+  const FloorData = BD.data.floors;
+  const Interact = () => BD.sim.interact;
+
+  const TOWN_ARRIVAL_DROP = 2;            // arriving in town from below: this many tiles south of the stairs
+  const ARRIVAL_SEARCH_RADIUS = 8;        // how far to look for a free tile around the arrival point
+  const LAST_ACT = 4;                     // town stock never goes past act 4
+  const FLOORS_PER_ACT = 3;
+  const LAST_STAIRS_FLOOR = FloorData.LAST - 1;  // no stairs down from here: the Sanctum is reached by waypoint
 
   function begin(world, opts) {
-    const start = opts && opts.floor ? opts.floor : BD.sim.gen.town ? 'town' : 1;
+    let start = 1;
+    if (opts && opts.floor) start = opts.floor;
+    else if (BD.sim.gen.town) start = 'town';
     travel(world, start, 'spawn');
   }
 
@@ -28,7 +37,7 @@
   function arrivalPos(world, f, arrive) {
     if (!arrive || arrive === 'spawn') return null;
     if (typeof arrive === 'object') return arrive;
-    if (arrive === 'up' && f.key === 'town' && f.downPos) return { x: f.downPos.x, y: f.downPos.y + 2 };
+    if (arrive === 'up' && f.key === 'town' && f.downPos) return { x: f.downPos.x, y: f.downPos.y + TOWN_ARRIVAL_DROP };
     if (arrive === 'up' && f.upPos) return f.upPos;
     if (arrive === 'down' && f.downPos) return f.downPos;
     if (arrive === 'waypoint' && f.waypointPos) return f.waypointPos;
@@ -38,14 +47,16 @@
   }
 
   function placePlayer(world, pos) {
-    const f = world.floor, p = world.player, E = BD.sim.entities;
-    E.vacate(f, p);
-    const exact = pos.exact && E.isFree(f, pos.x, pos.y) ? pos : null;
+    const f = world.floor, p = world.player, Entities = BD.sim.entities;
+    Entities.vacate(f, p);
+    const exact = pos.exact && Entities.isFree(f, pos.x, pos.y) ? pos : null;
     const spot = exact
-      || E.nearestFree(f, pos.x, pos.y, 8, (x, y) => x !== pos.x || y !== pos.y)
-      || E.nearestFree(f, pos.x, pos.y, 8);
-    p.x = spot.x; p.y = spot.y; p.move = null;
-    E.occupy(f, p);
+      || Entities.nearestFree(f, pos.x, pos.y, ARRIVAL_SEARCH_RADIUS, (x, y) => x !== pos.x || y !== pos.y)
+      || Entities.nearestFree(f, pos.x, pos.y, ARRIVAL_SEARCH_RADIUS);
+    p.x = spot.x;
+    p.y = spot.y;
+    p.move = null;
+    Entities.occupy(f, p);
     BD.sim.fov.refresh(world);
   }
 
@@ -53,12 +64,14 @@
     const r = world.run;
     if (typeof f.n === 'number' && f.key === f.n) {
       r.floor = f.n;
-      r.act = FL.byN(f.n).act;
+      r.act = FloorData.byN(f.n).act;
       if (f.n > r.deepestFloor) r.deepestFloor = f.n;
-    } else if (f.key === 'town') r.floor = 0;
+    } else if (f.key === 'town') {
+      r.floor = 0;
+    }
     // without a Keeper the seal has nothing to guard
     if (f.downPos && !f.hadKeeper && !f.sealBroken) openSeal(world, false);
-    if (f.sealBroken && f.downPos && f.key !== 'town') f.tiles[f.downPos.y * f.w + f.downPos.x] = T.STAIRS_DOWN;
+    if (f.sealBroken && f.downPos && f.key !== 'town') f.tiles[Grid.idx(f, f.downPos.x, f.downPos.y)] = T.STAIRS_DOWN;
     if (BD.sim.portal) BD.sim.portal.onEnter(world);
     if (f.key === 'town') {
       if (!r.waypoints.includes(0)) r.waypoints.unshift(0);
@@ -73,39 +86,45 @@
 
   /** AL for town stock: deepest floor reached in the current act; after an act boss, the next act's first floor */
   function townAl(r) {
-    const FLd = BD.data.floors;
-    const act = Math.min(4, r.act);
-    if (r.flags['act' + act + 'Done'] && act < 4) return FLd.al(FLd.firstOfAct(act + 1));
-    let deepest = FLd.firstOfAct(act);
-    for (let n = FLd.firstOfAct(act); n < FLd.firstOfAct(act) + 3; n++) if (n <= r.deepestFloor) deepest = n;
-    return FLd.al(deepest);
+    const act = Math.min(LAST_ACT, r.act);
+    if (r.flags['act' + act + 'Done'] && act < LAST_ACT) return FloorData.al(FloorData.firstOfAct(act + 1));
+    let deepest = FloorData.firstOfAct(act);
+    for (let n = FloorData.firstOfAct(act); n < FloorData.firstOfAct(act) + FLOORS_PER_ACT; n++) if (n <= r.deepestFloor) deepest = n;
+    return FloorData.al(deepest);
   }
 
   function openSeal(world, announce) {
     const f = world.floor;
     f.sealBroken = true;
-    if (f.downPos) f.tiles[f.downPos.y * f.w + f.downPos.x] = T.STAIRS_DOWN;
+    if (f.downPos) f.tiles[Grid.idx(f, f.downPos.x, f.downPos.y)] = T.STAIRS_DOWN;
     if (announce) {
-      world.events.push({ type: 'seal.break', x: f.downPos ? f.downPos.x : 0, y: f.downPos ? f.downPos.y : 0 });
-      I().announce(world, 'seal_broken');
+      const at = f.downPos || { x: 0, y: 0 };
+      world.events.push({ type: 'seal.break', x: at.x, y: at.y });
+      Interact().announce(world, 'seal_broken');
     }
   }
 
   function descend(world) {
     const f = world.floor;
-    if (f.key === 'town') { travel(world, 1, 'up'); return; }
+    if (f.key === 'town') {
+      travel(world, 1, 'up');
+      return;
+    }
     if (typeof f.n !== 'number' || !f.sealBroken) return;
     const next = f.n + 1;
-    if (next > 12) return;
+    if (next > LAST_STAIRS_FLOOR) return;
     travel(world, next, 'up');
     world.events.push({ type: 'floor.descend', n: next });
   }
 
   function ascend(world) {
     const f = world.floor;
-    if (f.key === 1 || f.key === FL.firstOfAct(world.run.act)) {
-      if (BD.sim.gen.town) { travel(world, 'town', 'up'); return; }
-      I().deny(world, 'no_town_yet');
+    if (f.key === 1 || f.key === FloorData.firstOfAct(world.run.act)) {
+      if (BD.sim.gen.town) {
+        travel(world, 'town', 'up');
+        return;
+      }
+      Interact().deny(world, 'no_town_yet');
       return;
     }
     if (typeof f.key === 'number') travel(world, f.key - 1, 'down');
@@ -118,7 +137,7 @@
       r.waypoints.push(key);
       r.waypoints.sort((a, b) => a - b);
       world.events.push({ type: 'waypoint.activate', floor: key, x: f.waypointPos.x, y: f.waypointPos.y });
-      I().announce(world, 'waypoint_on');
+      Interact().announce(world, 'waypoint_on');
       const p = world.player;
       p.flask.charges = Math.max(p.flask.charges, p.flask.max);
     }
@@ -126,7 +145,10 @@
   }
 
   function usePortalStone(world) { if (BD.sim.portal) BD.sim.portal.useStone(world); }
-  function useGate(world) { if (BD.sim.bossfight) BD.sim.bossfight.useGate(world); else I().deny(world, 'gate_locked'); }
+  function useGate(world) {
+    if (BD.sim.bossfight) BD.sim.bossfight.useGate(world);
+    else Interact().deny(world, 'gate_locked');
+  }
 
   BD.sim.run = { townAl, begin, travel, placePlayer, onEnter, openSeal, descend, ascend, touchWaypoint, usePortalStone, useGate };
 })(globalThis.BD);

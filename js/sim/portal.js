@@ -5,8 +5,11 @@
 (function (BD) {
   'use strict';
 
-  const I = () => BD.sim.interact;
-  const CMD = BD.sim.commands;
+  const Interact = () => BD.sim.interact;
+  const Commands = BD.sim.commands;
+
+  const SANCTUM_FLOOR = BD.data.floors.LAST;   // Malgoth's Sanctum: its waypoint is unlocked by a run flag, not a visit
+  const PORTAL_SPOT_RADIUS = 3;    // how far from the reader a fresh portal may land
 
   function read(world, kind) {
     const p = world.player, f = world.floor;
@@ -19,26 +22,35 @@
       world.events.push({ type: 'reveal', x: p.x, y: p.y });
       return true;
     }
-    if (!p.pouch.portal) { I().deny(world, 'no_portal'); return false; }
+    if (!p.pouch.portal) {
+      Interact().deny(world, 'no_portal');
+      return false;
+    }
     if (f.key === 'town') return false;
-    if (BD.sim.bossfight && BD.sim.bossfight.liveFight(world)) { I().deny(world, 'cant_unsafe'); return false; }
+    if (BD.sim.bossfight && BD.sim.bossfight.liveFight(world)) {
+      Interact().deny(world, 'cant_unsafe');
+      return false;
+    }
     p.pouch.portal--;
-    const spot = BD.sim.entities.nearestFree(f, p.x + 1, p.y, 3, (x, y) => x !== p.x || y !== p.y) || { x: p.x, y: p.y };
+    const spot = BD.sim.entities.nearestFree(f, p.x + 1, p.y, PORTAL_SPOT_RADIUS, (x, y) => x !== p.x || y !== p.y) || { x: p.x, y: p.y };
     world.run.portal = { key: f.key, x: spot.x, y: spot.y };
     f.objects = f.objects.filter((o) => o.kind !== 'portal');
     f.objects.push({ kind: 'portal', x: spot.x, y: spot.y, runtime: true });
     world.events.push({ type: 'portal.open', x: spot.x, y: spot.y });
-    I().announce(world, 'portal_open');
+    Interact().announce(world, 'portal_open');
     return true;
   }
 
   /** dungeon side: step through to town */
-  I().registerObject('portal', (world) => { BD.sim.run.travel(world, 'town', 'portal'); });
+  Interact().registerObject('portal', (world) => { BD.sim.run.travel(world, 'town', 'portal'); });
 
   /** town side: the portal stone returns you through an open pair */
   function useStone(world) {
     const pt = world.run.portal;
-    if (!pt) { I().deny(world, 'no_portal'); return; }
+    if (!pt) {
+      Interact().deny(world, 'no_portal');
+      return;
+    }
     if (pt.x < 0) {
       // the Ferryman's portal: back to the up stairs, or beside the boss gate
       BD.sim.run.travel(world, pt.key, pt.to || 'up');
@@ -60,14 +72,18 @@
   /** waypoint travel (01 §4): town = 0, floors 1/4/7/10, Malgoth's Sanctum (13) after Hakthul */
   function travelTo(world, floor) {
     const r = world.run;
-    if (floor === 13) { if (!r.flags.sanctum) return false; BD.sim.run.travel(world, 13, 'spawn'); return true; }
+    if (floor === SANCTUM_FLOOR) {
+      if (!r.flags.sanctum) return false;
+      BD.sim.run.travel(world, SANCTUM_FLOOR, 'spawn');
+      return true;
+    }
     if (floor !== 0 && !r.waypoints.includes(floor)) return false;
     if (floor === 0) BD.sim.run.travel(world, 'town', 'waypoint');
     else BD.sim.run.travel(world, floor, 'waypoint');
     world.events.push({ type: 'waypoint.travel', floor });
     return true;
   }
-  CMD.register('TravelWaypoint', (world, c) => travelTo(world, c.floor), { ui: true });
+  Commands.register('TravelWaypoint', (world, c) => travelTo(world, c.floor), { ui: true });
 
   BD.sim.portal = { read, useStone, onEnter, travelTo };
 })(globalThis.BD);
