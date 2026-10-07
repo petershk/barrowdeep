@@ -37,7 +37,7 @@ function onCurve(BD, cls, n, seed, o) {
   // several snapshot runs per class: the measurement seed picks one, so gear luck averages out
   const runs = CURVE && CURVE[cls] ? (Array.isArray(CURVE[cls]) ? CURVE[cls] : [CURVE[cls]]) : null;
   let h = 0; for (const ch of String(seed || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const run = runs && runs.length ? runs[h % runs.length] : null;
+  const run = runs && runs.length ? runs[(o.run != null ? o.run : h) % runs.length] : null;
   const snap = run && (run[n] || run[n - 1]);
   if (snap) {
     p.level = snap.level; p.attrs = Object.assign({}, snap.attrs); p.skills = Object.assign({}, snap.skills); p.bar = Object.assign({}, snap.bar);
@@ -111,8 +111,8 @@ function spotNear(BD, w, d) {
 }
 
 /** time for the bot to kill one target of the given rank, from its first swing/cast; the hero is kept alive (offense only) */
-function ttkOne(BD, cls, n, seed, def, rank) {
-  const { w, p, bot } = onCurve(BD, cls, n, seed);
+function ttkOne(BD, cls, n, seed, def, rank, run) {
+  const { w, p, bot } = onCurve(BD, cls, n, seed, { run });
   const STEP = BD.core.scheduler.STEP_MS;
   const at = spotNear(BD, w, 4);
   const mods = rank === 'champion' ? w.rng.shuffle(Object.keys(BD.data.championMods).filter((k) => !BD.data.championMods[k].lore)).slice(0, 1) : [];
@@ -134,8 +134,8 @@ function ttkOne(BD, cls, n, seed, def, rank) {
 }
 
 /** an idle hero (no actions, no flask) surrounded by four melee trash: seconds until death */
-function packKill(BD, cls, n, seed) {
-  const { w, p } = onCurve(BD, cls, n, seed);
+function packKill(BD, cls, n, seed, run) {
+  const { w, p } = onCurve(BD, cls, n, seed, { run });
   const STEP = BD.core.scheduler.STEP_MS;
   const roster = actRoster(BD, BD.data.floors.byN(n).act, (m) => m.behaviours.some((b) => b.id === 'melee') && !m.behaviours.some((b) => /ranged|shoot|caster|coward/.test(b.id)));
   for (let i = 0; i < 4; i++) {
@@ -149,8 +149,8 @@ function packKill(BD, cls, n, seed) {
 }
 
 /** bot vs the act boss of floor n (gate opened directly) */
-function bossFight(BD, cls, n, seed) {
-  const { w, p, bot } = onCurve(BD, cls, n, seed, { keep: true });
+function bossFight(BD, cls, n, seed, run) {
+  const { w, p, bot } = onCurve(BD, cls, n, seed, { keep: true, run });
   const STEP = BD.core.scheduler.STEP_MS;
   if (n === 13) BD.sim.run.travel(w, 13, 'spawn');
   else { w.run.flags['key' + n] = true; BD.sim.bossfight.useGate(w); }
@@ -184,4 +184,7 @@ function bossFight(BD, cls, n, seed) {
   return res;
 }
 
-module.exports = { BANDS, makeBD, onCurve, ttkOne, packKill, bossFight, actRoster, med, mean };
+/** how many bot-curve runs a class has (0 = synthetic) */
+function curveRuns(cls) { const r = CURVE && CURVE[cls]; return r ? (Array.isArray(r) ? r.length : 1) : 0; }
+
+module.exports = { curveRuns, BANDS, makeBD, onCurve, ttkOne, packKill, bossFight, actRoster, med, mean };

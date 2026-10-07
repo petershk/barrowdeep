@@ -10,7 +10,7 @@
     id: 'tiger_strike', branch: 'martial', tier: 1, name: 'Tiger Strike', icon: 'tiger_strike', school: 'ki',
     tags: ['melee', 'builder', 'physical'], resource: { type: 'energy', cost: 8, combo: 'build' }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.5, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.42, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { critPerCombo: 10 }, text: '+10% critical strike chance per combo charge held.' },
       { rank: 5, set: { arcAt3: true }, text: 'At 3 charges, Tiger Strike hits the 3 tiles in front.' },
@@ -21,7 +21,7 @@
     id: 'dragon_talon', branch: 'martial', tier: 2, name: 'Dragon Talon', icon: 'dragon_talon', school: 'ki',
     tags: ['melee', 'finisher', 'physical'], resource: { type: 'energy', cost: 30, combo: 'finish' }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'unit', range: 1, requiresLOS: true, outOfRange: 'approach' }, delivery: { kind: 'melee' }, area: { shape: 'single' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.6, perCombo: 1.0, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.45, perCombo: 1.0, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { collide: 1 }, text: 'A knocked-back enemy that hits another enemy deals 1× to both.' },
       { rank: 5, set: { killRefund: 1 }, text: 'A kill refunds 1 combo charge.' },

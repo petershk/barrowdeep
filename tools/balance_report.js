@@ -27,7 +27,8 @@ if (want('ttk')) {
       const t = [], c = [], k = [];
       for (const m of roster) {
         const ts = [];
-        for (let s = 0; s < SEEDS; s++) { const v = L.ttkOne(BD, cls, n, 'ttk' + s, m.id, 'normal'); if (v != null) ts.push(v); }
+        const runs = L.curveRuns(cls) || SEEDS;
+        for (let s = 0; s < runs; s++) { const v = L.ttkOne(BD, cls, n, 'ttk' + s, m.id, 'normal', s); if (v != null) ts.push(v); }
         if (ts.length) t.push(L.med(ts));
       }
       for (let s = 0; s < SEEDS; s++) {

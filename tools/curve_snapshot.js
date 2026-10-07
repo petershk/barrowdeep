@@ -8,7 +8,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const CLASSES = ['fighter', 'assassin', 'magician', 'valkyrie'];
-const RUNS = 5;
+const RUNS = 16;
 
 function snapshot(cls, seed) {
   const { loadBD } = require('../test/harness');
@@ -38,7 +38,8 @@ if (process.argv[2] === '--one') {
   process.stdout.write(JSON.stringify(snapshot(process.argv[3], process.argv[4])));
 } else {
   const jobs = [];
-  for (const cls of CLASSES) for (let i = 0; i < RUNS; i++) jobs.push({ cls, seed: 'curve-' + cls + '-' + i });
+  const salt = process.env.CURVE_SALT || '';
+  for (const cls of CLASSES) for (let i = 0; i < RUNS; i++) jobs.push({ cls, seed: 'curve-' + salt + cls + '-' + i });
   Promise.all(jobs.map((j) => new Promise((resolve) => {
     let buf = '';
     const ch = spawn(process.execPath, [__filename, '--one', j.cls, j.seed]);

@@ -34,7 +34,7 @@
   });
 
   boss('mortis', 2, {
-    hpMult: 1.75, dmgMult: 1.1,
+    hpMult: 1.55, dmgMult: 1.1,
     name: 'Mortis the Hollow King', title: 'Throne of the Catacombs', sprite: 'wraith', family: 'undead', arena: 'throne',
     pal: { R: '#9a90b8', r: '#6a6088', W: '#e0e8ff', Y: '#9fc3ff' },
     kit: [
@@ -49,7 +49,7 @@
   });
 
   boss('mygra', 3, {
-    dmgMult: 1.2,
+    hpMult: 1.2, dmgMult: 1.05,
     name: 'Mygra the Brood Mother', title: 'Queen of the Deep Caves', sprite: 'spider', family: 'beast', arena: 'cavern',
     pal: { p: '#3a2a4a', P: '#5a3a6a', R: '#ff4070' },
     kit: [
@@ -64,7 +64,7 @@
   });
 
   boss('hakthul', 4, {
-    hpMult: 1.45, dmgMult: 0.76,
+    hpMult: 1.3, dmgMult: 0.68,
     name: 'Hakthul the Dread Knight', title: 'Warden of the Burning Halls', sprite: 'hellknight', family: 'demon', arena: 'lava_hall', dr: 15,
     kit: [
       { move: 'shield_charge', weight: 3, minRange: 2, maxRange: 6, cdMs: 7000, mult: 8, armMs: 700, length: 6, exposedMs: 2000 },

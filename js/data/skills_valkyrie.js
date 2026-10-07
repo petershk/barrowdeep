@@ -11,7 +11,7 @@
     id: 'aimed_shot', branch: 'marksman', tier: 1, name: 'Aimed Shot', icon: 'aimed_shot', school: 'holy',
     tags: ['projectile', 'spender', 'physical'], resource: { type: 'focus', cost: 'all' }, cooldownMs: 0, castMs: 300, cancelOnMove: true, onCommit: true,
     targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ maxDist: 12 }),
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.6, perFocus: 0.3, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.75, perFocus: 0.3, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { pierceAt5: true }, text: 'At 5 focus, the arrow pierces every enemy.' },
       { rank: 5, set: { extraAt5: 2 }, text: 'At 5 focus, 2 more arrows fly at nearby enemies.' },
@@ -48,12 +48,12 @@
     id: 'multishot', branch: 'skirmish', tier: 1, name: 'Multishot', icon: 'multishot', school: 'steel',
     tags: ['projectile', 'builder', 'physical'], resource: { type: 'focus', cost: 0 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'point', range: 8, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ count: 5, spread: 50, extraFromStat: true }),
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.0, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.05, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: arrow({ count: 7, spread: 50, extraFromStat: true }) }, text: '7 arrows.' },
       { rank: 5, set: { ricochet: 1 }, text: 'Arrows ricochet once.' },
     ],
-    desc: 'Five arrows in a 50° cone, 1.0× each. +1 focus if three or more hit.',
+    desc: 'Five arrows in a 50° cone, 1.05× each. +1 focus if three or more hit.',
   });
   sk({
     id: 'vault', branch: 'skirmish', tier: 2, name: 'Vault', icon: 'vault', school: 'dust',

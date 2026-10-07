@@ -97,7 +97,7 @@
     const hpK = M.hpExp ? Math.pow(al, M.hpExp) : Math.pow(M.hpGrowth, al - 1);
     // Keepers and unique elites scale from their act's mean life, so a tank species isn't a ×8 tank
     const actMean = def.act && BD.data.monsterRef && e.rank !== 'boss' && e.rank !== 'malgoth' ? BD.data.monsterRef.actRef(Math.min(4, def.act)).hp : def.hp;
-    const baseHp = e.rank === 'keeper' || e.rank === 'unique' ? actMean : e.rank === 'champion' ? (def.hp + actMean) / 2 : def.hp;
+    const baseHp = e.rank === 'keeper' || e.rank === 'unique' ? actMean * ((M.keeperAct && M.keeperAct[Math.min(4, def.act || 1)]) || 1) : e.rank === 'champion' ? (def.hp + actMean) / 2 : def.hp;
     s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
     const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK; s.dmgHi = def.dmg[1] * dmgK;

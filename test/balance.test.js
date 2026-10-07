@@ -17,9 +17,11 @@ module.exports = (T) => {
   function trash(cls, n) {
     const roster = L.actRoster(BD, BD.data.floors.byN(n).act);
     const per = [];
+    // one fight per bot-curve run, so every run's gear counts (synthetic hero: SEEDS fights)
+    const runs = L.curveRuns(cls) || SEEDS;
     for (const m of roster) {
       const v = [];
-      for (let s = 0; s < SEEDS; s++) { const t = L.ttkOne(BD, cls, n, 'ttk' + s, m.id, 'normal'); if (t != null) v.push(t); }
+      for (let s = 0; s < runs; s++) { const t = L.ttkOne(BD, cls, n, 'ttk' + s, m.id, 'normal', s); if (t != null) v.push(t); }
       if (v.length) per.push(L.med(v));
     }
     return L.mean(per);
@@ -46,8 +48,10 @@ module.exports = (T) => {
       for (const cls of CLASSES) {
         const c = [], k = [];
         ACTS[a].forEach((n, i) => {
-          const x = L.ttkOne(BD, cls, n, 'ch' + i, roster[i % roster.length].id, 'champion'); if (x != null) c.push(x);
-          const y = L.ttkOne(BD, cls, n, 'kp' + i, roster[(i + 1) % roster.length].id, 'keeper'); if (y != null) k.push(y);
+          for (let r = 0; r < 2; r++) {
+            const x = L.ttkOne(BD, cls, n, 'ch' + i + r, roster[(i + r) % roster.length].id, 'champion', 2 * i + r); if (x != null) c.push(x);
+            const y = L.ttkOne(BD, cls, n, 'kp' + i + r, roster[(i + r + 1) % roster.length].id, 'keeper', 2 * i + r); if (y != null) k.push(y);
+          }
         });
         ch.push(L.med(c)); kp.push(L.med(k));
       }
@@ -58,17 +62,17 @@ module.exports = (T) => {
 
   T.test('an idle hero dies to an unanswered pack of four in ' + B.packKill.join('–') + ' s (per act, class median)', () => {
     for (const a in ACTS) {
-      const v = CLASSES.map((cls) => L.mean(ACTS[a].map((n) => L.packKill(BD, cls, n, 'pack' + n)).filter((x) => x != null)));
+      const v = CLASSES.map((cls) => L.mean(ACTS[a].flatMap((n, i) => [0, 1].map((r) => L.packKill(BD, cls, n, 'pack' + n, 2 * i + r))).filter((x) => x != null)));
       T.between(L.med(v), B.packKill[0], B.packKill[1], 'act ' + a + ' pack kill time');
     }
   });
 
   T.test('act boss fights: length, heavy hits and jabs in band (class medians)', () => {
     for (const n of [3, 6, 9, 12]) {
-      // two fights per class with the hero as the bot finds it on arrival: most must be won
-      const runs = CLASSES.flatMap((cls) => [0, 1].map((s) => L.bossFight(BD, cls, n, 'boss' + n + ':' + s)));
+      // three fights per class (three bot-curve heroes): two thirds must be won
+      const runs = CLASSES.flatMap((cls) => [0, 1, 2].map((s) => L.bossFight(BD, cls, n, 'boss' + n + ':' + s, s)));
       const lens = runs.filter((r) => r.len != null).map((r) => r.len);
-      T.ok(lens.length >= 5, 'floor ' + n + ': at least 5 of 8 boss fights won (' + lens.length + ')');
+      T.ok(lens.length >= 8, 'floor ' + n + ': at least 8 of 12 boss fights won (' + lens.length + ')');
       T.between(L.med(lens), B.bossFight[0], B.bossFight[1], 'floor ' + n + ' boss fight length');
       const heavy = L.med(runs.flatMap((r) => r.heavy)), jab = L.med(runs.flatMap((r) => r.jab));
       if (heavy != null) T.between(heavy, B.bossHeavy[0], B.bossHeavy[1], 'floor ' + n + ' heavy hit share of life');
@@ -77,9 +81,9 @@ module.exports = (T) => {
   });
 
   T.test('Malgoth: the full fight lasts ' + B.malgothFight.join('–') + ' s (class median) and is winnable', () => {
-    const runs = CLASSES.map((cls) => L.bossFight(BD, cls, 13, 'mal:0'));
+    const runs = CLASSES.flatMap((cls) => [0, 1].map((s) => L.bossFight(BD, cls, 13, 'mal:' + s, s)));
     const lens = runs.filter((r) => r.len != null).map((r) => r.len);
-    T.ok(lens.length >= 2, 'at least two classes beat Malgoth (' + lens.length + ')');
+    T.ok(lens.length >= 5, 'at least 5 of 8 Malgoth fights won (' + lens.length + ')');
     T.between(L.med(lens), B.malgothFight[0], B.malgothFight[1], 'Malgoth fight length');
   });
 };

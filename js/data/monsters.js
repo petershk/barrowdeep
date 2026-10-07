@@ -5,8 +5,8 @@
   'use strict';
 
   const FAMILY_RES = {
-    undead: { fire: 0, cold: 20, light: 0, pois: 40 },
-    demon: { fire: 15, cold: 0, light: 0, pois: 0 },
+    undead: { fire: 0, cold: 0, light: 0, pois: 40 },
+    demon: { fire: 25, cold: 0, light: 0, pois: 0 },
     beast: { fire: 0, cold: 0, light: 0, pois: 0 },
     construct: { fire: 0, cold: 0, light: -25, pois: 0 },
     human: { fire: 0, cold: 0, light: 0, pois: 0 },
@@ -37,7 +37,7 @@
     behaviours: [{ id: 'fearless' }, { id: 'melee' }] });
   mon('skeleton', { name: 'Skeleton', act: 1, family: 'undead', role: 'brute', hp: 18, dmg: [2, 5], attackMs: 1300, moveMs: 380, xp: 7,
     sprite: 'skeleton', behaviours: [{ id: 'melee' }] });
-  mon('skeleton_archer', { name: 'Skeleton Archer', act: 1, family: 'undead', role: 'artillery', hp: 14, dmg: [2, 4], attackMs: 1600, moveMs: 380, xp: 9,
+  mon('skeleton_archer', { name: 'Skeleton Archer', act: 1, family: 'undead', role: 'artillery', hp: 14, dmg: [1, 3], attackMs: 1800, moveMs: 380, xp: 9,
     sprite: 'skarcher', aggro: { notice: 8, leash: 14 },
     behaviours: [{ id: 'kite', min: 2, max: 6 }, { id: 'shoot', range: 7, projectile: 'arrow' }] });
 

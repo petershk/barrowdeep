@@ -23,7 +23,7 @@
     tags: ['spell', 'projectile', 'fire', 'aoe'], resource: { type: 'mana', cost: 14 }, cooldownMs: 0,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 1 } },
-    effects: [{ type: 'damage', source: 'spell', base: [12, 18], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [13, 20], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 2 } } }, text: 'Radius 2.' },
       { rank: 5, set: { fbGround: true }, text: 'Leaves burning ground for 3 s.' },
@@ -62,7 +62,7 @@
     id: 'frost_nova', branch: 'frost', tier: 2, name: 'Frost Nova', icon: 'frost_nova', school: 'cold',
     tags: ['spell', 'cold', 'aoe'], resource: { type: 'mana', cost: 18 }, cooldownMs: 6000,
     targeting: { mode: 'self' }, delivery: { kind: 'instant' }, area: { shape: 'circle', radius: 2 },
-    effects: [{ type: 'damage', source: 'spell', base: [8, 12], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'frozen', durMs: 1500, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [9, 14], element: 'cold', canCrit: true, canDodge: false }, { type: 'status', id: 'frozen', durMs: 1500, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
       { rank: 5, add: [{ type: 'status', id: 'vulnerable', durMs: 3000, needsHit: true }], text: 'Frozen enemies are Vulnerable for 3 s.' },

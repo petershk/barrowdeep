@@ -42,17 +42,18 @@
       defaultWindupMs: 500, reactionMs: 300, leashLostMs: 4000, notice: 6, leash: 14,
       ranks: {
         normal: { hp: 1, dmg: 1, xp: 1 }, minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
-        champion: { hp: 3.6, dmg: 1.2, xp: 3 }, unique: { hp: 11, dmg: 1.4, xp: 7 }, keeper: { hp: 11, dmg: 1.4, xp: 7 },
-        boss: { hp: 35, dmg: 1.6, xp: 40 }, malgoth: { hp: 160, dmg: 1.25, xp: 0 },
+        champion: { hp: 3.2, dmg: 1.2, xp: 3 }, unique: { hp: 11, dmg: 1.4, xp: 7 }, keeper: { hp: 11, dmg: 1.4, xp: 7 },
+        boss: { hp: 35, dmg: 1.68, xp: 40 }, malgoth: { hp: 160, dmg: 1.4, xp: 0 },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 1.0, 2: 1.08, 3: 0.82, 4: 0.67 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
-      actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },    // per-act life correction (tuned by the balance bot, 05 §4)
+      actDmg: { 1: 1.0, 2: 1.08, 3: 0.9, 4: 0.8 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
+      actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },
+      keeperAct: { 1: 1, 2: 0.88, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
     },
     xp: { base: 280, growth: 1.12, fullClearKills: 5 },
     gen: {
-      budgetMin: 44, budgetMax: 70,
+      budgetMin: 48, budgetMax: 75,
       spawn: { pilgrim: 0.85, penitent: 1.0, martyr: 1.15 },
     },
     loot: {},

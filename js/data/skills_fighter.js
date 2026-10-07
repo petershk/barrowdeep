@@ -12,7 +12,7 @@
     resource: { type: 'rage', cost: 0, gen: 12 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'direction', range: 1, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'melee', hitTiming: 'onImpact' }, area: { shape: 'arc3' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.25, canCrit: true, canDodge: false }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.18, canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, add: [{ type: 'knockback', dist: 1, targets: 'center' }], text: 'Knocks the centre target back 1 tile.' },
       { rank: 5, add: [{ type: 'status', id: 'stunned', durMs: 500, onlyOnCrit: true }], text: 'Critical hits stun for 0.5 s.' },
