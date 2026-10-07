@@ -244,7 +244,6 @@
       world.events.push({ type: 'chain', srcId: p.id, fromX: from.x, fromY: from.y, x: cur.x, y: cur.y, abilityId: 'proc' });
       const eff = { source: 'weapon', mult: CHAIN_WEAPON_MULT, element: 'light' };
       const h = Hits().computeHit(world, p, { tags: [] }, eff, 1, { rng: world.rng });
-
       BD.sim.damage.dealDamage(world, {
         srcId: p.id, tgtId: cur.id, amounts: h.amounts, tags: ['proc'],
         canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: 'proc',

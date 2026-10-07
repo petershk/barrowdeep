@@ -4,10 +4,20 @@
 (function (BD) {
   'use strict';
 
-  const B = BD.data.balance;
+  const Balance = BD.data.balance;
   const REG = BD.data.stats;
   let globalVersion = 0;                 // bumped by data patches (Data Lab) so everything recomputes
   function bumpAll() { globalVersion++; }
+
+  const ATTRS = ['str', 'dex', 'mag', 'vit'];
+  const ARMOR_PER_STR = 0.5;             // armor from each point of Strength
+  const EVASION_PER_DEX = 2;             // evasion from each point of Dexterity
+  const CRIT_PER_DEX = 0.1;              // crit chance (%) from each point of Dexterity
+  const BLOCK_DEX_FLOOR = 10;            // Dexterity above this adds block chance
+  const ASCENSION_RESIST_LEVEL = 8;      // from this ascension on...
+  const ASCENSION_RESIST_PENALTY = -20;  // ...all resistances take this penalty
+  const LAST_ACT = 4;                    // per-act monster tables stop here (the Sanctum uses act 4)
+  const MONSTER_CRIT_MULT = 1.5;         // monsters never crit; the multiplier is only a placeholder
 
   function newStats() {
     const s = { bd: {} };
@@ -32,12 +42,31 @@
 
   function playerStats(world, p) {
     const s = newStats();
-    const base = B.player.attrBase[p.cls];
-    for (const a of ['str', 'dex', 'mag', 'vit']) {
+    addAttributes(s, p);
+    const weapon = addGear(s, p);
+    addModifiers(world, s, p);
+    deriveLifeAndMana(s, p);
+    deriveDefence(s);
+    deriveResists(world, s);
+    s.weapon = weapon;
+    s.wieldValue = s[weapon.wieldStat] || 0;
+    s.attackCycleMs = weapon.speedMs / (1 + s.ias / 100);
+    s.moveMs = Balance.player.moveMs / (1 + s.move_pct / 100);
+    s.spellCastMs = Balance.player.spellCastMs / (1 + s.ias / 100);
+    s.statusChanceMult = 1 + Balance.combat.statusChanceMagK * s.mag;
+    return s;
+  }
+
+  function addAttributes(s, p) {
+    const base = Balance.player.attrBase[p.cls];
+    for (const a of ATTRS) {
       add(s, a, base[a], 'Base');
       if (p.attrs[a] - base[a]) add(s, a, p.attrs[a] - base[a], 'Level-up points');
     }
-    // gear
+  }
+
+  /** armor, block and affixes of equipped items; returns the weapon (fists when none) */
+  function addGear(s, p) {
     const items = BD.sim.items;
     let weapon = FISTS;
     s.blockBase = 0;
@@ -47,9 +76,16 @@
       const d = items.derive(it);
       if (slot === 'weapon') weapon = d;
       if (d.armor) add(s, 'armor', d.armor, d.name);
-      if (d.block) { add(s, 'block', d.block, d.name); s.blockBase += d.block; }
+      if (d.block) {
+        add(s, 'block', d.block, d.name);
+        s.blockBase += d.block;
+      }
       for (const k in d.mods) add(s, k, d.mods[k], d.name);
     }
+    return weapon;
+  }
+
+  function addModifiers(world, s, p) {
     // passives, keystones, legendary powers, class traits
     if (BD.sim.abilities) BD.sim.abilities.passiveMods(world, p, (k, v, src) => add(s, k, v, src));
     if (BD.sim.resources) BD.sim.resources.traitMods(world, p, (k, v, src) => add(s, k, v, src));
@@ -57,67 +93,79 @@
     if (BD.sim.economy) BD.sim.economy.runMods(world, p, (k, v, src) => add(s, k, v, src));
     // statuses / buffs
     if (BD.sim.status) BD.sim.status.statMods(world, p, (k, v, src) => add(s, k, v, src));
-    if (s.all_attr) for (const a of ['str', 'dex', 'mag', 'vit']) add(s, a, s.all_attr, 'All Attributes');
+    if (s.all_attr) for (const a of ATTRS) add(s, a, s.all_attr, 'All Attributes');
+  }
 
-    // ---- derived ----
+  function deriveLifeAndMana(s, p) {
     const L = p.level;
-    const flatLife = B.player.lifeBase + B.player.lifePerLevel * (L - 1) + B.player.lifePerVit * s.vit + s.life;
+    const flatLife = Balance.player.lifeBase + Balance.player.lifePerLevel * (L - 1) + Balance.player.lifePerVit * s.vit + s.life;
     s.maxLife = Math.round(flatLife * (1 + s.life_pct / 100));
     s.bdLife = [
-      { source: 'Base', value: B.player.lifeBase },
-      { source: 'Level ' + L, value: B.player.lifePerLevel * (L - 1) },
-      { source: 'Vitality ×' + B.player.lifePerVit, value: B.player.lifePerVit * s.vit },
+      { source: 'Base', value: Balance.player.lifeBase },
+      { source: 'Level ' + L, value: Balance.player.lifePerLevel * (L - 1) },
+      { source: 'Vitality ×' + Balance.player.lifePerVit, value: Balance.player.lifePerVit * s.vit },
     ];
     const usesMana = BD.data.classes[p.cls].resource === 'mana';
-    s.maxMana = usesMana ? Math.round(B.player.manaBase + B.player.manaPerLevel * (L - 1) + B.player.manaPerMag * s.mag + s.mana) : 0;
-    s.manaRegenPerS = B.player.manaRegenBase + B.player.manaRegenPerMag * s.mag + s.mana_regen;
-    s.armorTotal = Math.round((s.armor + 0.5 * s.str) * (1 + s.armor_pct / 100));
-    s.evasionTotal = Math.round(s.evasion + 2 * s.dex);
-    s.critChance = Math.min(B.combat.critCap, s.crit + 0.1 * s.dex);
+    const flatMana = Balance.player.manaBase + Balance.player.manaPerLevel * (L - 1) + Balance.player.manaPerMag * s.mag + s.mana;
+    s.maxMana = usesMana ? Math.round(flatMana) : 0;
+    s.manaRegenPerS = Balance.player.manaRegenBase + Balance.player.manaRegenPerMag * s.mag + s.mana_regen;
+  }
+
+  function deriveDefence(s) {
+    s.armorTotal = Math.round((s.armor + ARMOR_PER_STR * s.str) * (1 + s.armor_pct / 100));
+    s.evasionTotal = Math.round(s.evasion + EVASION_PER_DEX * s.dex);
+    s.critChance = Math.min(Balance.combat.critCap, s.crit + CRIT_PER_DEX * s.dex);
     s.critMult = 1 + s.crit_dmg / 100;
-    s.blockChance = s.blockBase > 0 ? Math.min(B.combat.blockCap, s.block + Math.max(0, s.dex - 10) * B.combat.blockPerDexOver10) : 0;
-    const pen = BD.data.difficulties ? BD.data.difficulties[world.run.difficulty].resistPenalty + (world.run.ascension >= 8 ? -20 : 0) : 0;
-    const cap = B.combat.resistCap + Math.min(B.combat.resistMaxBonus, s.res_max);
+    const dexBlock = Math.max(0, s.dex - BLOCK_DEX_FLOOR) * Balance.combat.blockPerDexOver10;
+    s.blockChance = s.blockBase > 0 ? Math.min(Balance.combat.blockCap, s.block + dexBlock) : 0;
+  }
+
+  /** difficulty (and high ascension) lowers every resistance */
+  function resistPenalty(world) {
+    if (!BD.data.difficulties) return 0;
+    const ascension = world.run.ascension >= ASCENSION_RESIST_LEVEL ? ASCENSION_RESIST_PENALTY : 0;
+    return BD.data.difficulties[world.run.difficulty].resistPenalty + ascension;
+  }
+
+  function deriveResists(world, s) {
+    const pen = resistPenalty(world);
+    const cap = Balance.combat.resistCap + Math.min(Balance.combat.resistMaxBonus, s.res_max);
     s.res = {};
     for (const el of ['fire', 'cold', 'light', 'pois']) {
-      s.res[el] = Math.max(B.combat.resistMin, Math.min(cap, s['res_' + el] + s.res_all + pen));
+      s.res[el] = Math.max(Balance.combat.resistMin, Math.min(cap, s['res_' + el] + s.res_all + pen));
     }
     s.res.phys = 0;
     s.resCap = cap;
-    s.weapon = weapon;
-    s.wieldValue = s[weapon.wieldStat] || 0;
-    s.attackCycleMs = weapon.speedMs / (1 + s.ias / 100);
-    s.moveMs = B.player.moveMs / (1 + s.move_pct / 100);
-    s.spellCastMs = B.player.spellCastMs / (1 + s.ias / 100);
-    s.statusChanceMult = 1 + B.combat.statusChanceMagK * s.mag;
-    return s;
   }
 
   function monsterStats(world, e) {
     const def = BD.data.monsters[e.def] || BD.data.bosses && BD.data.bosses[e.def];
     const s = newStats();
     const al = e.al || 1;
-    const M = B.monsters;
+    const M = Balance.monsters;
     const rank = M.ranks[e.rank] || M.ranks.normal;
     const diff = BD.data.difficulties ? BD.data.difficulties[world.run.difficulty] : { hp: 1, dmg: 1, xp: 1 };
-    const actK = BD.data.balance.monsters.actDmg ? BD.data.balance.monsters.actDmg[Math.min(4, def.act || 1)] || 1 : 1;
-    const actH = M.actHp ? M.actHp[Math.min(4, def.act || 1)] || 1 : 1;
+    const act = Math.min(LAST_ACT, def.act || 1);
+    const actK = M.actDmg ? M.actDmg[act] || 1 : 1;
+    const actH = M.actHp ? M.actHp[act] || 1 : 1;
     const hpK = M.hpExp ? Math.pow(al, M.hpExp) : Math.pow(M.hpGrowth, al - 1);
     // Keepers and unique elites scale from their act's mean life, so a tank species isn't a ×8 tank
     const useActRef = def.act && BD.data.monsterRef && e.rank !== 'boss' && e.rank !== 'malgoth';
-    const actMean = useActRef ? BD.data.monsterRef.actRef(Math.min(4, def.act)).hp : def.hp;
+    const actMean = useActRef ? BD.data.monsterRef.actRef(Math.min(LAST_ACT, def.act)).hp : def.hp;
     let baseHp = def.hp;
-    if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[Math.min(4, def.act || 1)]) || 1);
+    if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[act]) || 1);
     else if (e.rank === 'champion') baseHp = (def.hp + actMean) / 2;
     s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
     const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
-    s.dmgLo = def.dmg[0] * dmgK; s.dmgHi = def.dmg[1] * dmgK;
+    s.dmgLo = def.dmg[0] * dmgK;
+    s.dmgHi = def.dmg[1] * dmgK;
     s.attackCycleMs = def.attackMs;
     s.moveMs = def.moveMs;
     s.windupMs = def.windupMs || M.defaultWindupMs;
     add(s, 'dr_pct', def.dr || 0, 'Base');
     s.res = Object.assign({ phys: 0 }, def.res);
-    s.critChance = 0; s.critMult = 1.5;
+    s.critChance = 0;
+    s.critMult = MONSTER_CRIT_MULT;
     s.evadeChance = 0;
     for (const b of def.behaviours || []) if (b.id === 'evade') s.evadeChance = b.pct;
     if (BD.sim.monsters) BD.sim.monsters.modStats(world, e, s, (k, v, src) => add(s, k, v, src));

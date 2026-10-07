@@ -4,13 +4,92 @@
 (function (BD) {
   'use strict';
 
-  const SD = BD.data.statuses;
-  const B = BD.data.balance;
+  const StatusData = BD.data.statuses;
+  const Balance = BD.data.balance;
   const bump = (e) => BD.sim.stats.bump(e);
   const isBoss = (e) => BD.sim.entities.isBoss(e);
 
-  function has(e, id) { for (const s of e.statuses) if (s.id === id) return s; return null; }
-  function stacks(e, id) { let n = 0; for (const s of e.statuses) if (s.id === id) n += s.stacks || 1; return n; }
+  const DEFAULT_MAX_STACKS = 5;   // stacking statuses without their own cap
+  const DEFAULT_SLOW = 0.3;       // a slow with no magnitude takes this much speed...
+  const MAX_SLOW = 0.9;           // ...and no slow takes more than this
+  const MIN_DEALT_MULT = 0.1;     // weakening statuses never cut damage dealt below this
+  const OATH_DMG_PCT = 25;        // Oath: +% damage...
+  const OATH_DR_PCT = 20;         // ...and +% damage reduction
+
+  function has(e, id) {
+    for (const s of e.statuses) if (s.id === id) return s;
+    return null;
+  }
+  function stacks(e, id) {
+    let n = 0;
+    for (const s of e.statuses) if (s.id === id) n += s.stacks || 1;
+    return n;
+  }
+
+  /** explicit mag, then magnitude, then the status default */
+  function magnitudeOf(o, def) {
+    if (o.mag != null) return o.mag;
+    if (o.magnitude != null) return o.magnitude;
+    return def.mag || 0;
+  }
+
+  /**
+   * Boss / keeper rules (05 §2.4): a status may be ignored (null), shortened, or swapped for
+   * a boss-specific one. Returns the status actually applied.
+   */
+  function bossRule(e, id, def, durMs, mag) {
+    if (!isBoss(e) || def.boss === undefined) return { id, def, durMs, mag };
+    if (def.boss === 'ignore') return null;
+    if (typeof def.boss === 'number') return { id, def, durMs: durMs * def.boss, mag };
+    const bossId = def.boss;
+    return {
+      id: bossId,
+      def: StatusData[bossId],
+      mag: def.bossMag || (StatusData[bossId].mag || 0),
+      durMs: def.bossDurMs || durMs,
+    };
+  }
+
+  function newStatus(id, durMs, mag, o, dot, element) {
+    return {
+      id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId,
+      tick: Balance.combat.dotTickMs, dot, element,
+    };
+  }
+
+  /** stacking status: add a stack, or at the cap refresh the stack closest to expiring */
+  function applyStack(e, id, def, durMs, mag, o, dot) {
+    const list = e.statuses.filter((x) => x.id === id);
+    if (list.length >= (def.max || DEFAULT_MAX_STACKS)) {
+      const s = list.sort((a, b) => a.remainingMs - b.remainingMs)[0];
+      s.remainingMs = durMs;
+      s.dot = Math.max(s.dot || 0, dot);
+      s.sourceId = o.sourceId;
+      return s;
+    }
+    const s = newStatus(id, durMs, mag, o, dot, def.dot || o.element || null);
+    e.statuses.push(s);
+    return s;
+  }
+
+  /** single-instance status: refresh (longest duration, strongest magnitude/DoT wins) or add */
+  function applySingle(world, e, id, def, durMs, mag, o, dot) {
+    let s = has(e, id);
+    if (s) {
+      s.remainingMs = Math.max(s.remainingMs, durMs);
+      s.magnitude = Math.max(s.magnitude || 0, mag);
+      if (dot > (s.dot || 0)) {
+        s.dot = dot;
+        s.sourceId = o.sourceId;
+      }
+      return s;
+    }
+    s = newStatus(id, durMs, mag, o, dot, def.dot || null);
+    if (def.shield) s.pool = mag;
+    e.statuses.push(s);
+    world.events.push({ type: 'status.apply', id: e.id, status: id, durMs, x: e.x, y: e.y });
+    return s;
+  }
 
   /**
    * @param {{durMs?:number, magnitude?:number, sourceId?:number|null, hit?:number, element?:string, mag?:number}} o
@@ -18,58 +97,25 @@
    */
   function apply(world, e, id, o) {
     o = o || {};
-    let def = SD[id];
-    if (!def || !e || e.hp <= 0) return null;
-    let durMs = o.durMs != null ? o.durMs : def.durMs;
-    let mag = o.mag != null ? o.mag : o.magnitude != null ? o.magnitude : def.mag || 0;
-    // boss / keeper rules (05 §2.4)
-    if (isBoss(e) && def.boss !== undefined) {
-      if (def.boss === 'ignore') return null;
-      if (typeof def.boss === 'number') durMs *= def.boss;
-      else { id = def.boss; mag = def.bossMag || (SD[id].mag || 0); durMs = def.bossDurMs || durMs; def = SD[id]; }
-    }
+    const asked = StatusData[id];
+    if (!asked || !e || e.hp <= 0) return null;
+    const rule = bossRule(e, id, asked, o.durMs != null ? o.durMs : asked.durMs, magnitudeOf(o, asked));
+    if (!rule) return null;
+    id = rule.id;
+    const { def, durMs, mag } = rule;
     // immunities
     if (e.kind === 'player') {
       const st = BD.sim.stats.statsOf(world, e);
       if ((id === 'chilled' && st.chill_immune) || (id === 'slowed' && st.slow_immune)) return null;
     }
     if (id === 'feared' && e.kind === 'monster' && BD.sim.monsters && BD.sim.monsters.fearless(e)) return null;
-    let s = null;
-    const dot = def.dot && o.hit ? (o.hit * def.pct) / Math.max(1, durMs / B.combat.dotTickMs) : 0;
-    if (def.stack === 'stack') {
-      const list = e.statuses.filter((x) => x.id === id);
-      if (list.length >= (def.max || 5)) {
-        // at the cap: refresh the stack closest to expiring
-        s = list.sort((a, b) => a.remainingMs - b.remainingMs)[0];
-        s.remainingMs = durMs;
-        s.dot = Math.max(s.dot || 0, dot);
-        s.sourceId = o.sourceId;
-      } else {
-        s = {
-          id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId,
-          tick: B.combat.dotTickMs, dot, element: def.dot || o.element || null,
-        };
-        e.statuses.push(s);
-      }
-    } else {
-      s = has(e, id);
-      if (s) {
-        s.remainingMs = Math.max(s.remainingMs, durMs);
-        s.magnitude = Math.max(s.magnitude || 0, mag);
-        if (dot > (s.dot || 0)) { s.dot = dot; s.sourceId = o.sourceId; }
-      } else {
-        s = {
-          id, remainingMs: durMs, magnitude: mag, stacks: 1, sourceId: o.sourceId == null ? null : o.sourceId,
-          tick: B.combat.dotTickMs, dot, element: def.dot || null,
-        };
-        if (def.shield) s.pool = mag;
-        e.statuses.push(s);
-        world.events.push({ type: 'status.apply', id: e.id, status: id, durMs, x: e.x, y: e.y });
-      }
-    }
+    const dot = def.dot && o.hit ? (o.hit * def.pct) / Math.max(1, durMs / Balance.combat.dotTickMs) : 0;
+    const s = def.stack === 'stack'
+      ? applyStack(e, id, def, durMs, mag, o, dot)
+      : applySingle(world, e, id, def, durMs, mag, o, dot);
     if (def.shield) s.pool = Math.max(s.pool || 0, mag);
     if (id === 'frozen' || id === 'stunned') cancelWindup(world, e);
-    if (id === 'feared' && e.ai) { e.ai.fleeFrom = o.sourceId; }
+    if (id === 'feared' && e.ai) e.ai.fleeFrom = o.sourceId;
     bump(e);
     return s;
   }
@@ -81,7 +127,10 @@
   function remove(world, e, id) {
     const before = e.statuses.length;
     e.statuses = e.statuses.filter((s) => s.id !== id);
-    if (e.statuses.length !== before) { bump(e); world.events.push({ type: 'status.end', id: e.id, status: id }); }
+    if (e.statuses.length !== before) {
+      bump(e);
+      world.events.push({ type: 'status.end', id: e.id, status: id });
+    }
   }
   function cleanse(world, e, ids) { for (const id of ids) remove(world, e, id); }
 
@@ -95,12 +144,13 @@
     let changed = false;
     for (let i = 0; i < e.statuses.length; i++) {
       const s = e.statuses[i];
-      const def = SD[s.id];
+      const def = StatusData[s.id];
       if (s.dot) {
         s.tick -= dt;
         if (s.tick <= 0) {
-          s.tick += B.combat.dotTickMs;
-          const amounts = {}; amounts[s.element || 'phys'] = s.dot;
+          s.tick += Balance.combat.dotTickMs;
+          const amounts = {};
+          amounts[s.element || 'phys'] = s.dot;
           BD.sim.damage.dealDamage(world, {
             srcId: s.sourceId, tgtId: e.id, amounts, tags: ['dot', s.id],
             canCrit: false, canDodge: false, canBlock: false, mult: 1, isDot: true,
@@ -134,7 +184,7 @@
   function clockMult(world, e) {
     let k = 1;
     for (const s of e.statuses) {
-      const c = SD[s.id].clock;
+      const c = StatusData[s.id].clock;
       if (c === 0) return 0;
       if (c) k *= c;
     }
@@ -145,38 +195,53 @@
   function moveMult(world, e) {
     let k = 1;
     for (const s of e.statuses) {
-      const d = SD[s.id];
+      const d = StatusData[s.id];
       if (d.noMove) return Infinity;
-      if (d.moveSlow) k = Math.max(k, 1 / (1 - Math.min(0.9, s.magnitude || d.mag || 0.3)));
+      if (d.moveSlow) k = Math.max(k, 1 / (1 - Math.min(MAX_SLOW, s.magnitude || d.mag || DEFAULT_SLOW)));
     }
     return k;
   }
   /** damage-taken multiplier (shocked, vulnerable, exposed…) */
   function takenMult(world, e) {
     let k = 1;
-    for (const s of e.statuses) { const t = SD[s.id].takenMult; if (t) k += t; }
+    for (const s of e.statuses) {
+      const t = StatusData[s.id].takenMult;
+      if (t) k += t;
+    }
     return k;
   }
   function dealtMult(world, e) {
     let k = 1;
-    for (const s of e.statuses) { const t = SD[s.id].dealtMult; if (t) k += t; }
-    return Math.max(0.1, k);
+    for (const s of e.statuses) {
+      const t = StatusData[s.id].dealtMult;
+      if (t) k += t;
+    }
+    return Math.max(MIN_DEALT_MULT, k);
   }
-  function invulnerable(e) { for (const s of e.statuses) if (SD[s.id].invuln) return true; return false; }
+  function invulnerable(e) {
+    for (const s of e.statuses) if (StatusData[s.id].invuln) return true;
+    return false;
+  }
 
   /** stat contributions of buffs (player and monsters) */
   function statMods(world, e, add) {
     for (const s of e.statuses) {
-      const d = SD[s.id];
+      const d = StatusData[s.id];
       if (d.dmgPct) add('dmg_pct', s.magnitude, d.name);
       if (d.armorPct) add('armor_pct', s.magnitude, d.name);
       if (d.drPct) add('dr_pct', s.magnitude, d.name);
       if (d.movePct) add('move_pct', s.magnitude, d.name);
       if (d.regenPct) add('life_regen_pct', s.magnitude, d.name);
-      if (d.hasteMove) { add('move_pct', d.hasteMove, d.name); add('ias', d.hasteIas, d.name); }
+      if (d.hasteMove) {
+        add('move_pct', d.hasteMove, d.name);
+        add('ias', d.hasteIas, d.name);
+      }
       if (d.flag) add(d.flag, true, d.name);
       if (s.id === 'braced') add('dr_pct', s.magnitude, d.name);
-      if (s.id === 'oath') { add('dmg_pct', 25, d.name); add('dr_pct', 20, d.name); }
+      if (s.id === 'oath') {
+        add('dmg_pct', OATH_DMG_PCT, d.name);
+        add('dr_pct', OATH_DR_PCT, d.name);
+      }
     }
   }
 

@@ -4,8 +4,15 @@
   'use strict';
 
   const { makeRng } = BD.core.rng;
-  const E = BD.sim.entities;
+  const Entities = BD.sim.entities;
   const SAVE_VERSION = 1;
+
+  const ARENA_EXTRA_LIGHT = 8;        // boss arenas are lit beyond the light radius
+  const IDS_PER_FLOOR = 10000;        // generated monsters get ids floor × this + index...
+  const ARENA_ID_OFFSET = 5000;       // ...offset by this in a boss arena
+  const FIRST_RUNTIME_ID = 1000000;   // ids handed out at runtime start here, clear of generated ones
+  const PROP_CORPSE_LIFE = 20;        // max life a decorative corpse revives with
+  const ARRIVAL_SEARCH_RADIUS = 8;    // how far to look for a free tile around the arrival point
 
   /** Build the runtime floor object from a generated plan. */
   function instantiateFloor(world, plan, key) {
@@ -23,19 +30,23 @@
       reach: plan.reachDist || null, flow: null, flowFrom: -1, timeOnFloor: 0, fullyExplored: false, exploreDirty: true, extraLight: 0,
     };
     world.floor = f;
-    if (plan.arena) f.extraLight = 8;
+    if (plan.arena) f.extraLight = ARENA_EXTRA_LIGHT;
     for (let i = 0; i < N; i++) if (plan.reachDist && plan.reachDist[i] >= 0 && BD.data.tiles.WALK[plan.tiles[i]]) f.reachableCount++;
     // generated monsters get stable ids n×10000 + index
     let gi = 0;
-    const base = (typeof plan.n === 'number' ? plan.n : 0) * 10000 + (plan.arena ? 5000 : 0);
+    const floorN = typeof plan.n === 'number' ? plan.n : 0;
+    const base = floorN * IDS_PER_FLOOR + (plan.arena ? ARENA_ID_OFFSET : 0);
     for (const pack of plan.spawns) {
       for (const m of pack.members) {
         const id = base + gi++;
         if (BD.sim.monsters) {
           const e = BD.sim.monsters.create(world, f, id, m, pack);
           f.entities.set(id, e);
-          E.occupy(f, e);
-          if (m.keeper) { f.keeperId = id; f.hadKeeper = true; }
+          Entities.occupy(f, e);
+          if (m.keeper) {
+            f.keeperId = id;
+            f.hadKeeper = true;
+          }
         }
       }
     }
@@ -43,7 +54,9 @@
     for (const e of f.entities.values()) BD.sim.stats.bump(e);
     for (const o of plan.objects) {
       if (o.kind !== 'corpse_prop') continue;
-      f.corpses.push({ id: world.nextId++, def: o.def, x: o.x, y: o.y, packId: null, rank: 'normal', maxLife: 20, ms: 1e9, prop: true });
+      f.corpses.push({
+        id: world.nextId++, def: o.def, x: o.x, y: o.y, packId: null, rank: 'normal', maxLife: PROP_CORPSE_LIFE, ms: 1e9, prop: true,
+      });
     }
     return f;
   }
@@ -53,7 +66,7 @@
    */
   function createWorld(opts) {
     const world = {
-      version: SAVE_VERSION, time: 0, nextId: 1000000, nextSeq: 0,
+      version: SAVE_VERSION, time: 0, nextId: FIRST_RUNTIME_ID, nextSeq: 0,
       rng: makeRng(opts.seed + ':combat'), lootRng: makeRng(opts.seed + ':loot'),
       run: {
         seed: opts.seed, difficulty: opts.difficulty || 'penitent', ascension: opts.ascension || 0,
@@ -64,7 +77,7 @@
       player: null, floor: null, floorDeltas: {}, scheduled: [], commandQueue: [], events: [],
       paused: false,
     };
-    world.player = BD.sim.player ? BD.sim.player.create(world, opts) : E.makeEntity(1, 'player', opts.cls, 0, 0, { hp: 50 });
+    world.player = BD.sim.player ? BD.sim.player.create(world, opts) : Entities.makeEntity(1, 'player', opts.cls, 0, 0, { hp: 50 });
     return world;
   }
 
@@ -87,10 +100,13 @@
     if (BD.sim.floors) BD.sim.floors.restore(world, f);
     const p = world.player;
     const spot = arrive || plan.spawnPos;
-    p.x = spot.x; p.y = spot.y; p.move = null;
-    const free = E.nearestFree(f, p.x, p.y, 8) || spot;
-    p.x = free.x; p.y = free.y;
-    E.occupy(f, p);
+    p.x = spot.x;
+    p.y = spot.y;
+    p.move = null;
+    const free = Entities.nearestFree(f, p.x, p.y, ARRIVAL_SEARCH_RADIUS) || spot;
+    p.x = free.x;
+    p.y = free.y;
+    Entities.occupy(f, p);
     if (BD.sim.player) BD.sim.player.onFloorEnter(world);
     BD.sim.fov.refresh(world);
     world.events.push({ type: 'floor.enter', key, n: f.n, biome: f.biome });
@@ -117,7 +133,7 @@
 
   /** Hash of the gameplay-relevant state (tests: determinism, save round-trips). */
   function stateHash(world) {
-    const U = BD.core.util;
+    const Util = BD.core.util;
     const f = world.floor;
     const ents = [];
     for (const e of f.entities.values()) {
@@ -125,7 +141,7 @@
       ents.push([e.id, e.def, e.x, e.y, Math.round(e.hp * 100), statuses, e.ai ? e.ai.state : '']);
     }
     const p = world.player;
-    return U.hashOf({
+    return Util.hashOf({
       t: world.time, rng: world.rng.state(), loot: world.lootRng.state(), run: world.run,
       p: [p.x, p.y, Math.round(p.hp * 100), p.level, Math.round(p.xp), p.gold, p.attrs, p.skills, p.resources, p.statuses.map((s) => s.id)],
       ents, proj: f.projectiles.length, zones: f.zones.length, items: (f.items || []).map((i) => i.uid),

@@ -110,7 +110,6 @@
       p.charges = p.charges || {};
       p.charges[c.id] = { n: BD.sim.abilities.maxCharges(world, p, ab), ms: 0 };
     }
-
     world.events.push({ type: 'skill.learn', id: c.id, rank: p.skills[c.id] });
     return true;
   }, { ui: true });

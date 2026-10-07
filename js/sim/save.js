@@ -5,14 +5,17 @@
 (function (BD) {
   'use strict';
 
-  const U = BD.core.util;
+  const Util = BD.core.util;
   const VERSION = BD.sim.world.SAVE_VERSION;
   /** migrations[i] upgrades a save from version i+1 to i+2, so VERSION === migrations.length + 1 */
   const migrations = [];
 
+  const SANCTUM_FLOOR = BD.data.floors.LAST;   // its boss fight has no arena: a save there resumes at the floor start
+  const ANY_DISTANCE = 99;                     // a radius covering the whole floor
+
   const TRANSIENT = ['intent', 'attack', 'move', 'queued', 'lockId', 'airborne', '_zt', '_silentHit'];
   function cleanPlayer(p) {
-    const c = U.clone(p);
+    const c = Util.clone(p);
     for (const k of TRANSIENT) delete c[k];
     delete c.stash;
     c.statuses = (c.statuses || []).filter((s) => BD.data.statuses[s.id] && !BD.data.statuses[s.id].invuln && s.id !== 'healing');
@@ -24,7 +27,7 @@
     const f = world.floor, p = world.player;
     if (!f || !p || p.dead) return false;
     if (world.run.countdownMs > 0) return false;
-    if (BD.sim.bossfight && BD.sim.bossfight.liveFight(world) && (f.zones.length || anyAwake(world, 99))) return false;
+    if (BD.sim.bossfight && BD.sim.bossfight.liveFight(world) && (f.zones.length || anyAwake(world, ANY_DISTANCE))) return false;
     if (f.projectiles.length) return false;
     if (BD.core.scheduler.pendingFloorEvents(world)) return false;
     if (f.zones.some((z) => !z.resolved || z.faction === 'monster')) return false;
@@ -46,15 +49,18 @@
     const arena = typeof f.key === 'string' && f.key[0] === 'a';
     // a saved game never resumes inside a live boss fight: it resumes at the gate
     let key = f.key, pos = { x: world.player.x, y: world.player.y };
-    const inFight = (arena && !f.bossDead) || (f.n === 13 && BD.sim.bossfight && BD.sim.bossfight.liveFight(world));
-    if (inFight) { key = arena ? Number(f.key.slice(1)) : 13; pos = null; }
+    const inFight = (arena && !f.bossDead) || (f.n === SANCTUM_FLOOR && BD.sim.bossfight && BD.sim.bossfight.liveFight(world));
+    if (inFight) {
+      key = arena ? Number(f.key.slice(1)) : SANCTUM_FLOOR;
+      pos = null;
+    }
     const deltas = Object.assign({}, world.floorDeltas);
     if (key === f.key) deltas[f.key] = BD.sim.floors.snapshot(world);
     return {
-      v: VERSION, savedAt: savedAt || 0, seed: world.run.seed, run: U.clone(world.run), player: cleanPlayer(world.player),
+      v: VERSION, savedAt: savedAt || 0, seed: world.run.seed, run: Util.clone(world.run), player: cleanPlayer(world.player),
       worldTime: world.time, rngState: world.rng.state(), lootRngState: world.lootRng.state(), nextId: world.nextId,
-      floor: { key, pos, arenaRetreat: arena && !f.bossDead }, floorDeltas: U.clone(deltas),
-      scheduled: U.clone(BD.core.scheduler.runEvents(world)), nextSeq: world.nextSeq || 0,
+      floor: { key, pos, arenaRetreat: arena && !f.bossDead }, floorDeltas: Util.clone(deltas),
+      scheduled: Util.clone(BD.core.scheduler.runEvents(world)), nextSeq: world.nextSeq || 0,
     };
   }
 
@@ -67,7 +73,10 @@
     const D = BD.data, fixed = [];
     const known = (it) => it && D.bases[it.base];
     for (const slot in p.equip || {}) {
-      if (p.equip[slot] && !known(p.equip[slot])) { fixed.push('item ' + p.equip[slot].base); p.equip[slot] = null; }
+      if (p.equip[slot] && !known(p.equip[slot])) {
+        fixed.push('item ' + p.equip[slot].base);
+        p.equip[slot] = null;
+      }
     }
     p.pack = (p.pack || []).filter((e) => {
       const ok = known(e.item || e);
@@ -75,7 +84,11 @@
       return ok;
     });
     for (const id in p.skills || {}) {
-      if (!D.skills[id]) { fixed.push('skill ' + id); p.unspent.skill += p.skills[id]; delete p.skills[id]; }
+      if (!D.skills[id]) {
+        fixed.push('skill ' + id);
+        p.unspent.skill += p.skills[id];
+        delete p.skills[id];
+      }
     }
     for (const k in p.bar || {}) if (p.bar[k] && !D.skills[p.bar[k]]) p.bar[k] = null;
     p.statuses = (p.statuses || []).filter((st) => D.statuses[st.id]);
@@ -88,32 +101,39 @@
 
   /** @returns {any} world */
   function deserialize(save) {
-    let s = U.clone(save);
+    let s = Util.clone(save);
     for (let v = s.v || 1; v <= migrations.length; v++) s = migrations[v - 1](s);
     const fixed = reconcile(s.player);
-    if (fixed.length) U.warnOnce('save reconciled with current content: ' + fixed.join(', '));
+    if (fixed.length) Util.warnOnce('save reconciled with current content: ' + fixed.join(', '));
     const world = BD.sim.world.createWorld({ seed: s.seed, cls: s.player.cls, name: s.player.name, difficulty: s.run.difficulty });
     world.time = s.worldTime;
     world.nextId = s.nextId;
     world.rng.setState(s.rngState);
     world.lootRng.setState(s.lootRngState);
-    world.run = U.clone(s.run);
-    world.floorDeltas = U.clone(s.floorDeltas || {});
-    const p = Object.assign(world.player, U.clone(s.player));
-    p.intent = { kind: 'idle' }; p.attack = null; p.move = null;
+    world.run = Util.clone(s.run);
+    world.floorDeltas = Util.clone(s.floorDeltas || {});
+    const p = Object.assign(world.player, Util.clone(s.player));
+    p.intent = { kind: 'idle' };
+    p.attack = null;
+    p.move = null;
     BD.sim.stats.bump(p);
     world.floor = null;
     const key = s.floor.key;
-    const arrive = s.floor.pos ? { x: s.floor.pos.x, y: s.floor.pos.y, exact: true } : s.floor.arenaRetreat ? 'gate' : 'up';
-    BD.sim.run.travel(world, key, arrive);
+    BD.sim.run.travel(world, key, arrivalOf(s.floor));
     // arrival side effects (town restock, blessing offers) already happened before the save
-    world.run = U.clone(s.run);
+    world.run = Util.clone(s.run);
     world.rng.setState(s.rngState);
     world.lootRng.setState(s.lootRngState);
-    world.scheduled = U.clone(s.scheduled || []);
+    world.scheduled = Util.clone(s.scheduled || []);
     world.nextSeq = s.nextSeq || 0;
     world.events.length = 0;
     return world;
+  }
+
+  /** where a loaded save puts the player: the saved tile, or the gate / up stairs after a boss-fight retreat */
+  function arrivalOf(floor) {
+    if (floor.pos) return { x: floor.pos.x, y: floor.pos.y, exact: true };
+    return floor.arenaRetreat ? 'gate' : 'up';
   }
 
   /** the save test's hash: player, run, floor deltas (incl. the current floor's), both RNG states */
@@ -127,7 +147,7 @@
     }
     const p = cleanPlayer(world.player);
     delete p.statsVersion;
-    return U.hashOf({ p, run: world.run, deltas, rng: world.rng.state(), loot: world.lootRng.state() });
+    return Util.hashOf({ p, run: world.run, deltas, rng: world.rng.state(), loot: world.lootRng.state() });
   }
 
   BD.sim.save = { VERSION, migrations, serialize, deserialize, reconcile, isSafe, saveHash, cleanPlayer };

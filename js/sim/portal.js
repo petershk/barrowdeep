@@ -8,7 +8,7 @@
   const Interact = () => BD.sim.interact;
   const Commands = BD.sim.commands;
 
-  const SANCTUM_FLOOR = 13;        // Malgoth's Sanctum: a waypoint unlocked by a run flag, not by visiting
+  const SANCTUM_FLOOR = BD.data.floors.LAST;   // Malgoth's Sanctum: its waypoint is unlocked by a run flag, not a visit
   const PORTAL_SPOT_RADIUS = 3;    // how far from the reader a fresh portal may land
 
   function read(world, kind) {
