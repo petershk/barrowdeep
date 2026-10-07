@@ -7,12 +7,16 @@
   const { h, root, clear } = BD.ui.dom;
   let el = null, anchor = null, builder = null;
 
-  function mount() { el = h('div.tooltip.hidden'); root().appendChild(el); }
+  function mount() {
+    el = h('div.tooltip.hidden');
+    root().appendChild(el);
+  }
 
   /** show(anchorEl, buildFn(container, shiftHeld)) */
   function show(a, build) {
     if (!el) mount();
-    anchor = a; builder = build;
+    anchor = a;
+    builder = build;
     render();
   }
   function render() {
@@ -26,9 +30,14 @@
     if (y < 4) y = r.bottom + 8;
     x = Math.max(4, Math.min(window.innerWidth - tw - 4, x));
     y = Math.max(4, Math.min(window.innerHeight - th - 4, y));
-    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
   }
-  function hide() { if (el) el.classList.add('hidden'); anchor = null; builder = null; }
+  function hide() {
+    if (el) el.classList.add('hidden');
+    anchor = null;
+    builder = null;
+  }
 
   /** attach hover tooltips to an element */
   function bind(target, build) {
@@ -37,15 +46,25 @@
   }
 
   function init() {
-    window.addEventListener('keydown', (ev) => { if (ev.key === 'Shift' && anchor) render(); });
-    window.addEventListener('keyup', (ev) => { if (ev.key === 'Shift' && anchor) setTimeout(render, 0); });
+    window.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Shift' && anchor) render();
+    });
+    window.addEventListener('keyup', (ev) => {
+      if (ev.key === 'Shift' && anchor) setTimeout(render, 0);
+    });
+  }
+
+  /** "Keystone", or "Tier 2 · Rank 3" */
+  function tierLabel(d) {
+    if (d.keystone) return 'Keystone';
+    return 'Tier ' + d.tier + (d.rank ? ' · Rank ' + d.rank : '');
   }
 
   /** skill tooltip body (shared by bar, panel, creation) */
   function skillBody(world, p, id, shift, rank) {
     const d = BD.sim.describe.describe(world, p, id, rank);
     const kids = [h('div.tt-title', d.name), h('div.tt-sub', [
-      d.keystone ? 'Keystone' : 'Tier ' + d.tier + (d.rank ? ' · Rank ' + d.rank : ''),
+      tierLabel(d),
       d.cost ? ' · ' + d.cost : '',
       d.cooldown ? ' · Cooldown ' + d.cooldown : '',
     ])];

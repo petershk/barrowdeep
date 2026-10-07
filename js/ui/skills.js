@@ -5,7 +5,7 @@
   'use strict';
 
   const { h } = BD.ui.dom;
-  const CMD = () => BD.sim.commands;
+  const Commands = () => BD.sim.commands;
   const TIER_LVL = { 1: 1, 2: 6, 3: 12, 4: 18 };
 
   function build(el) {
@@ -31,10 +31,12 @@
       h('button.btn', { data: { action: 'close' } }, 'Close (K)'),
     ]));
     BD.ui.dom.delegate(el, {
-      learn: (t) => { if (CMD().apply(w, { type: 'SpendSkill', id: t.dataset.id })) BD.ui.panels.rebuild('skills'); },
+      learn: (t) => {
+        if (Commands().apply(w, { type: 'SpendSkill', id: t.dataset.id })) BD.ui.panels.rebuild('skills');
+      },
       assign: (t) => {
         const slot = t.dataset.slot;
-        CMD().apply(w, { type: 'SetBar', slot, id: p.bar[slot] === t.dataset.id ? null : t.dataset.id });
+        Commands().apply(w, { type: 'SetBar', slot, id: p.bar[slot] === t.dataset.id ? null : t.dataset.id });
         BD.ui.panels.rebuild('skills');
       },
       close: () => BD.ui.panels.close('skills'),
@@ -49,7 +51,9 @@
     const locked = p.level < TIER_LVL[ab.tier];
     const pips = h('div.pips-row');
     for (let i = 1; i <= max; i++) {
-      const fill = i <= hard ? '.on' : i <= rank ? '.soft' : '';
+      let fill = '';
+      if (i <= hard) fill = '.on';
+      else if (i <= rank) fill = '.soft';
       const bp = (i === 3 || i === 5) && max === 5 ? '.bp' : '';
       pips.appendChild(h('span.rp' + fill + bp));
     }
@@ -64,7 +68,11 @@
     const sub = (ab.keystone ? 'Keystone' : 'Tier ' + ab.tier)
       + (locked ? ' · level ' + TIER_LVL[ab.tier] : '')
       + (rank > hard ? ' · +' + (rank - hard) : '');
-    const el = h('div.skill-card' + (hard ? '.learned' : '') + (locked ? '.locked' : '') + (ab.keystone ? '.keystone' : ''), [
+    let tag = 'div.skill-card';
+    if (hard) tag += '.learned';
+    if (locked) tag += '.locked';
+    if (ab.keystone) tag += '.keystone';
+    const el = h(tag, [
       h('img.sk-icon', { src: BD.view.icons.url(ab.icon), alt: '' }),
       h('div.skill-meta', [h('div.skill-name', ab.name), h('div.skill-sub.muted', sub), pips]),
       h('button.btn.learn', { data: { action: 'learn', id: ab.id }, disabled: !can.ok, title: can.ok ? 'Learn' : can.why }, '+'),

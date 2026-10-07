@@ -20,8 +20,12 @@
     const existing = stack.find((s) => s.id === id);
     if (existing) { close(id); }
     const { h, root } = BD.ui.dom;
-    const el = h('div.panel.panel-' + id + (d.wide ? '.wide' : '') + (d.full ? '.full' : ''));
-    const shell = d.modal ? h('div.panel-shade' + (d.full ? '.menu-shade' : ''), [el]) : el;
+    let tag = 'div.panel.panel-' + id;
+    if (d.wide) tag += '.wide';
+    if (d.full) tag += '.full';
+    const el = h(tag);
+    const shadeTag = 'div.panel-shade' + (d.full ? '.menu-shade' : '');
+    const shell = d.modal ? h(shadeTag, [el]) : el;
     root().appendChild(shell);
     const entry = { id, el, shell, arg };
     stack.push(entry);
@@ -44,7 +48,10 @@
     return true;
   }
   function closeAll() { while (stack.length) close(); }
-  function toggle(id, arg) { if (isOpen(id)) close(id); else open(id, arg); }
+  function toggle(id, arg) {
+    if (isOpen(id)) close(id);
+    else open(id, arg);
+  }
   const isOpen = (id) => stack.some((s) => s.id === id);
   const top = () => stack[stack.length - 1] || null;
   function pausesWorld() { return stack.some((s) => defs[s.id].pausesWorld); }
@@ -76,8 +83,14 @@
   function onKey(ev, action) {
     const t = top();
     if (action === 'menu' || ev.code === 'Escape') {
-      if (t && defs[t.id].closeOnEsc) { close(); return true; }
-      if (!t && BD.app.state === 'playing') { open('pause'); return true; }
+      if (t && defs[t.id].closeOnEsc) {
+        close();
+        return true;
+      }
+      if (!t && BD.app.state === 'playing') {
+        open('pause');
+        return true;
+      }
       return !!t;
     }
     if (t && defs[t.id].onKey && defs[t.id].onKey(ev, t.el, t.arg)) return true;
@@ -86,7 +99,10 @@
   const HOTKEYS = { inventory: 'inventory', character: 'character', skills: 'skills', journal: 'journal' };
   function hotkey(action) {
     if (BD.app.state !== 'playing') return;
-    if (action === 'map') { if (BD.ui.minimap) BD.ui.minimap.toggle(); return; }
+    if (action === 'map') {
+      if (BD.ui.minimap) BD.ui.minimap.toggle();
+      return;
+    }
     const id = HOTKEYS[action];
     if (id && defs[id]) {
       const t = top();

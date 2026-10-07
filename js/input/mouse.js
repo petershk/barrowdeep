@@ -4,6 +4,7 @@
   'use strict';
 
   const iso = BD.view.iso;
+  const Grid = BD.core.grid;
   const m = { screen: { x: 0, y: 0 }, hoverTile: null, hoverEntity: null, inside: false };
 
   function toDevice(ev) {
@@ -17,22 +18,31 @@
     let best = null, bestD = Infinity;
     for (const e of f.entities.values()) {
       if (e.dead || e.faction === 'player' || e.untargetable) continue;
-      if (!f.visible[e.y * f.w + e.x]) continue;
+      if (!f.visible[Grid.idx(f, e.x, e.y)]) continue;
       const b = e._box;
       if (b && screen && screen.x >= b.x && screen.x <= b.x + b.w && screen.y >= b.y && screen.y <= b.y + b.h) {
         const d = Math.abs(screen.x - (b.x + b.w / 2)) + Math.abs(screen.y - (b.y + b.h / 2));
-        if (d < bestD) { bestD = d; best = e; }
+        if (d < bestD) {
+          bestD = d;
+          best = e;
+        }
       }
     }
     if (best) return best;
     if (!tile) return null;
-    const id = f.occ[tile.y * f.w + tile.x];
-    if (id && id !== world.player.id) { const e = f.entities.get(id); if (e && e.faction !== 'player' && !e.untargetable) return e; }
+    const id = f.occ[Grid.idx(f, tile.x, tile.y)];
+    if (id && id !== world.player.id) {
+      const e = f.entities.get(id);
+      if (e && e.faction !== 'player' && !e.untargetable) return e;
+    }
     if (r) {
       for (const e of f.entities.values()) {
-        if (e.dead || e.faction === 'player' || e.untargetable || !f.visible[e.y * f.w + e.x]) continue;
+        if (e.dead || e.faction === 'player' || e.untargetable || !f.visible[Grid.idx(f, e.x, e.y)]) continue;
         const d = Math.hypot(e.x - tile.x, e.y - tile.y);
-        if (d <= r && d < bestD) { bestD = d; best = e; }
+        if (d <= r && d < bestD) {
+          bestD = d;
+          best = e;
+        }
       }
     }
     return best;
@@ -52,7 +62,10 @@
       update(ev);
       BD.app.userGesture();
       if (ev.button === 0) BD.input.intent.leftDown(m.hoverTile, m.screen, ev.shiftKey);
-      else if (ev.button === 2) { BD.input.intent.hold.keys.rmb = true; BD.input.intent.skill('rmb', m.hoverTile, m.screen, false); }
+      else if (ev.button === 2) {
+        BD.input.intent.hold.keys.rmb = true;
+        BD.input.intent.skill('rmb', m.hoverTile, m.screen, false);
+      }
       ev.preventDefault();
     });
     window.addEventListener('mouseup', (ev) => {

@@ -14,7 +14,10 @@
     for (const perk of BD.data.shrine) {
       const owned = !!m.unlocks[perk.id];
       const locked = perk.requires && !m.unlocks[perk.requires];
-      list.appendChild(h('div.shrine-perk' + (owned ? '.owned' : '') + (locked ? '.locked' : ''), [
+      let tag = 'div.shrine-perk';
+      if (owned) tag += '.owned';
+      if (locked) tag += '.locked';
+      list.appendChild(h(tag, [
         h('div', [h('b', perk.name), h('div.muted.small', perk.desc)]),
         owned
           ? h('span.gold', 'Unlocked')
@@ -38,11 +41,15 @@
       buy: (t) => {
         const perk = BD.data.shrine.find((p) => p.id === t.dataset.id);
         if (!perk || m.unlocks[perk.id] || m.souls < perk.cost) return;
-        m.souls -= perk.cost; m.unlocks[perk.id] = true;
+        m.souls -= perk.cost;
+        m.unlocks[perk.id] = true;
         BD.ui.meta.save();
         BD.ui.panels.rebuild('shrine');
       },
-      back: () => { BD.ui.panels.close('shrine'); BD.ui.menu.open(); },
+      back: () => {
+        BD.ui.panels.close('shrine');
+        BD.ui.menu.open();
+      },
     });
   }
 

@@ -25,7 +25,12 @@
     try { localStorage.setItem(KEY, JSON.stringify(opts)); } catch (e) { BD.core.util.warnOnce('options save failed', e); }
   }
   function get(k) { return opts[k]; }
-  function set(k, v) { opts[k] = v; save(); apply(); for (const fn of listeners) fn(k, v); }
+  function set(k, v) {
+    opts[k] = v;
+    save();
+    apply();
+    for (const fn of listeners) fn(k, v);
+  }
   function onChange(fn) { listeners.push(fn); }
   function apply() {
     if (typeof document !== 'undefined') {

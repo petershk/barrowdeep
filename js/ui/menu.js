@@ -5,6 +5,12 @@
 
   const { h } = BD.ui.dom;
 
+  /** close one panel, then open another in its place */
+  function swap(from, to) {
+    BD.ui.panels.close(from);
+    BD.ui.panels.open(to);
+  }
+
   function buildMain(el) {
     BD.app.state = 'menu';
     el.appendChild(h('div.title', [
@@ -24,9 +30,9 @@
     ];
     el.appendChild(h('div.menu-btns', btns));
     BD.ui.dom.delegate(el, {
-      new: () => { BD.ui.panels.close('menu'); BD.ui.panels.open('create'); },
-      load: () => { BD.ui.panels.close('menu'); BD.ui.panels.open('load'); },
-      shrine: () => { BD.ui.panels.close('menu'); BD.ui.panels.open('shrine'); },
+      new: () => swap('menu', 'create'),
+      load: () => swap('menu', 'load'),
+      shrine: () => swap('menu', 'shrine'),
       options: () => BD.ui.panels.open('options'),
       controls: () => BD.ui.panels.open('controls'),
       credits: () => BD.ui.panels.open('credits'),
@@ -48,10 +54,13 @@
     el.appendChild(h('div.row', { style: 'margin-top:12px;justify-content:center' }, [h('span.muted', 'Seed'), seed]));
     BD.ui.dom.delegate(el, {
       resume: () => BD.ui.panels.close('pause'),
-      journal: () => { BD.ui.panels.close('pause'); BD.ui.panels.open('journal'); },
+      journal: () => swap('pause', 'journal'),
       options: () => BD.ui.panels.open('options'),
       controls: () => BD.ui.panels.open('controls'),
-      quit: () => { if (BD.app.saveNow) BD.app.saveNow('quit'); BD.app.toMenu(); },
+      quit: () => {
+        if (BD.app.saveNow) BD.app.saveNow('quit');
+        BD.app.toMenu();
+      },
     });
   }
 
@@ -71,5 +80,10 @@
   BD.ui.panels.register({ id: 'pause', build: buildPause });
   BD.ui.panels.register({ id: 'credits', build: buildCredits });
 
-  BD.ui.menu = { open: () => { BD.ui.panels.closeAll(); BD.ui.panels.open('menu'); } };
+  function open() {
+    BD.ui.panels.closeAll();
+    BD.ui.panels.open('menu');
+  }
+
+  BD.ui.menu = { open };
 })(globalThis.BD);

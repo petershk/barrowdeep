@@ -5,14 +5,17 @@
   'use strict';
 
   const { h } = BD.ui.dom;
-  const CMD = () => BD.sim.commands;
-  const EC = () => BD.sim.economy;
+  const Commands = () => BD.sim.commands;
+  const Economy = () => BD.sim.economy;
   let sel = null, tab = 'wares', stashTab = 0;
+
+  /** a selector suffix such as '.sel' when the condition holds, else nothing */
+  const flag = (on, cls) => (on ? cls : '');
 
   function cell(w, item, opts) {
     const d = BD.sim.items.derive(item);
     const usable = BD.sim.inventory.canEquip(w, w.player, item).ok;
-    const cellSel = 'div.it-cell.r-' + item.rarity + (sel === item.uid ? '.selected' : '') + (usable ? '' : '.unusable');
+    const cellSel = 'div.it-cell.r-' + item.rarity + flag(sel === item.uid, '.selected') + flag(!usable, '.unusable');
     const el = h(cellSel, { data: opts.data }, [
       h('img.it-icon', { src: BD.view.sprites.dataURL(BD.view.itemArt.artFor(d.category), 3), alt: '' }),
       h('span.it-cell-name', d.name + (item.enhance ? ' +' + item.enhance : '')),
@@ -66,67 +69,103 @@
 
   // ---------------- Smith ----------------
   function buildSmith(el) {
-    const w = BD.app.world, t = EC().townState(w), cs = EC().costs(w);
+    const w = BD.app.world, t = Economy().townState(w), cs = Economy().costs(w);
     header(el, 'Garran the Smith', 'Arms and armour of the town\'s forge. Stock changes when you reroll or a new act begins.');
-    const tabBtn = (id, label) => h('button.btn.tiny' + (tab === id ? '.primary' : ''), { data: { action: 'tab', t: id } }, label);
+    const tabBtn = (id, label) => h('button.btn.tiny' + flag(tab === id, '.primary'), { data: { action: 'tab', t: id } }, label);
     const tabs = h('div.row.tabs', [tabBtn('wares', 'Wares'), tabBtn('buyback', 'Buyback (' + t.buyback.length + ')')]);
+    const wares = buildSmithWares(w, t);
+    const svc = buildSmithServices(w, cs);
+    el.appendChild(h('div.shop-cols', [
+      h('div.col', [tabs, wares, svc]),
+      h('div.col', [packColumn(w, 'Sell', Economy().sellPrice), h('div.muted.small', 'Equipped (select to enhance):'), equippedColumn(w)]),
+    ]));
+    wireSmith(el, w);
+  }
+
+  /** the stock (or buyback) list with prices */
+  function buildSmithWares(w, t) {
     const wares = h('div.pack-list.shop-wares');
     const list = tab === 'buyback' ? t.buyback : t.stock;
     list.forEach((it, i) => {
-      const price = tab === 'buyback' ? EC().sellPrice(it) : EC().price(it);
+      const price = tab === 'buyback' ? Economy().sellPrice(it) : Economy().price(it);
       wares.appendChild(cell(w, it, { data: { action: 'buy', idx: i }, price, priceLabel: 'Price' }));
     });
     if (!list.length) wares.appendChild(h('div.muted', tab === 'buyback' ? 'Nothing sold this visit.' : 'Sold out.'));
-    const selItem = sel ? EC().findItem(w, sel) : null;
-    const enhanceOff = !selItem || (selItem.enhance || 0) >= 5 || w.player.gold < EC().enhanceCost(w, selItem);
+    return wares;
+  }
+
+  /** reroll and enhance buttons, plus reforge for a selected rare */
+  function buildSmithServices(w, cs) {
+    const selItem = sel ? Economy().findItem(w, sel) : null;
+    const enhanceOff = !selItem || (selItem.enhance || 0) >= 5 || w.player.gold < Economy().enhanceCost(w, selItem);
     const enhanceLabel = selItem
-      ? 'Enhance ' + BD.sim.items.derive(selItem).name + ' to +' + ((selItem.enhance || 0) + 1) + ' (' + EC().enhanceCost(w, selItem) + 'g)'
+      ? 'Enhance ' + BD.sim.items.derive(selItem).name + ' to +' + ((selItem.enhance || 0) + 1)
+        + ' (' + Economy().enhanceCost(w, selItem) + 'g)'
       : 'Enhance (select an item)';
     const svc = h('div.services', [
       h('button.btn', { data: { action: 'reroll' }, disabled: w.player.gold < cs.reroll },
         'Reroll stock (' + (cs.reroll ? cs.reroll + 'g' : 'free') + ')'),
       h('button.btn', { data: { action: 'enhance' }, disabled: enhanceOff }, enhanceLabel),
     ]);
-    if (selItem && selItem.rarity === 'rare') {
-      const d = BD.sim.items.derive(selItem);
-      const rf = h('div.reforge', [h('span.muted', 'Reforge one affix (' + cs.reforge + 'g): ')]);
-      d.lines.filter((l) => !l.implicit).forEach((l, j) => {
-        const text = BD.sim.itemsDescribe.view(w, w.player, selItem).lines[d.lines.indexOf(l)].text;
-        rf.appendChild(h('button.btn.tiny', { data: { action: 'reforge', j }, disabled: w.player.gold < cs.reforge }, text));
-      });
-      svc.appendChild(rf);
-    }
-    el.appendChild(h('div.shop-cols', [
-      h('div.col', [tabs, wares, svc]),
-      h('div.col', [packColumn(w, 'Sell', EC().sellPrice), h('div.muted.small', 'Equipped (select to enhance):'), equippedColumn(w)]),
-    ]));
+    if (selItem && selItem.rarity === 'rare') svc.appendChild(buildReforgeRow(w, cs, selItem));
+    return svc;
+  }
+
+  function buildReforgeRow(w, cs, selItem) {
+    const d = BD.sim.items.derive(selItem);
+    const rf = h('div.reforge', [h('span.muted', 'Reforge one affix (' + cs.reforge + 'g): ')]);
+    d.lines.filter((l) => !l.implicit).forEach((l, j) => {
+      const text = BD.sim.itemsDescribe.view(w, w.player, selItem).lines[d.lines.indexOf(l)].text;
+      rf.appendChild(h('button.btn.tiny', { data: { action: 'reforge', j }, disabled: w.player.gold < cs.reforge }, text));
+    });
+    return rf;
+  }
+
+  function wireSmith(el, w) {
     const f = footer(el, 'smith');
     const rb = () => BD.ui.panels.rebuild('smith');
-    rightClickSell(el, w, (uid) => { CMD().apply(w, { type: 'Sell', uid }); rb(); });
+    rightClickSell(el, w, (uid) => {
+      Commands().apply(w, { type: 'Sell', uid });
+      rb();
+    });
     el.addEventListener('click', (ev) => {
       const c = /** @type {HTMLElement} */ (ev.target).closest('[data-action="packClick"]');
       if (c && /** @type {MouseEvent} */ (ev).shiftKey) {
-        CMD().apply(w, { type: 'Sell', uid: c.dataset.uid });
+        Commands().apply(w, { type: 'Sell', uid: c.dataset.uid });
         ev.stopPropagation();
         rb();
       }
     }, true);
     BD.ui.dom.delegate(el, Object.assign(f, {
-      tab: (tg) => { tab = tg.dataset.t; rb(); },
-      buy: (tg) => {
-        CMD().apply(w, { type: 'Buy', idx: Number(tg.dataset.idx), from: tab === 'buyback' ? 'buyback' : 'stock' });
+      tab: (tg) => {
+        tab = tg.dataset.t;
         rb();
       },
-      reroll: () => { CMD().apply(w, { type: 'Reroll' }); rb(); },
-      enhance: () => { CMD().apply(w, { type: 'Enhance', uid: sel }); rb(); },
+      buy: (tg) => {
+        Commands().apply(w, { type: 'Buy', idx: Number(tg.dataset.idx), from: tab === 'buyback' ? 'buyback' : 'stock' });
+        rb();
+      },
+      reroll: () => {
+        Commands().apply(w, { type: 'Reroll' });
+        rb();
+      },
+      enhance: () => {
+        Commands().apply(w, { type: 'Enhance', uid: sel });
+        rb();
+      },
       reforge: (tg) => {
-        const it = EC().findItem(w, sel); const d = BD.sim.items.derive(it);
+        const it = Economy().findItem(w, sel);
+        const d = BD.sim.items.derive(it);
         const nonImpl = d.lines.filter((l) => !l.implicit);
         const target = nonImpl[Number(tg.dataset.j)];
         const idx = it.affixes.findIndex((a) => a.id === target.affix);
-        CMD().apply(w, { type: 'Reforge', uid: sel, affixIdx: idx }); rb();
+        Commands().apply(w, { type: 'Reforge', uid: sel, affixIdx: idx });
+        rb();
       },
-      packClick: (tg) => { sel = sel === tg.dataset.uid ? null : tg.dataset.uid; rb(); },
+      packClick: (tg) => {
+        sel = sel === tg.dataset.uid ? null : tg.dataset.uid;
+        rb();
+      },
     }));
   }
 
@@ -136,18 +175,21 @@
     ['cloak', 'Cloak'], ['amulet', 'Amulet'], ['ring', 'Ring'],
   ];
   function buildCurio(el, arg) {
-    const w = BD.app.world, cs = EC().costs(w);
+    const w = BD.app.world, cs = Economy().costs(w);
     header(el, 'Vesk the Curio Dealer', 'Pick a slot and pay. 60% magic, 32% rare, 8% legendary — at the act\'s item level.');
     const grid = h('div.gamble-grid', GAMBLE_SLOTS.map(([s, n]) =>
       h('button.btn', { data: { action: 'gamble', slot: s }, disabled: w.player.gold < cs.gamble }, n + ' — ' + cs.gamble + 'g')));
-    const last = arg && arg.last ? EC().findItem(w, arg.last) : null;
+    const last = arg && arg.last ? Economy().findItem(w, arg.last) : null;
     const received = last ? h('div.col', [h('div.muted', 'You receive:'), cell(w, last, { data: {} })]) : null;
-    el.appendChild(h('div.shop-cols', [h('div.col', [grid, received]), packColumn(w, 'Sell', EC().sellPrice)]));
+    el.appendChild(h('div.shop-cols', [h('div.col', [grid, received]), packColumn(w, 'Sell', Economy().sellPrice)]));
     const f = footer(el, 'curio');
-    rightClickSell(el, w, (uid) => { CMD().apply(w, { type: 'Sell', uid }); BD.ui.panels.rebuild('curio'); });
+    rightClickSell(el, w, (uid) => {
+      Commands().apply(w, { type: 'Sell', uid });
+      BD.ui.panels.rebuild('curio');
+    });
     BD.ui.dom.delegate(el, Object.assign(f, {
       gamble: (tg) => {
-        const uid = CMD().apply(w, { type: 'Gamble', slot: tg.dataset.slot });
+        const uid = Commands().apply(w, { type: 'Gamble', slot: tg.dataset.slot });
         const s = BD.ui.panels.stack.find((x) => x.id === 'curio');
         if (s && uid) s.arg = { last: uid };
         BD.ui.panels.rebuild('curio');
@@ -158,7 +200,7 @@
 
   // ---------------- Temple ----------------
   function buildTemple(el) {
-    const w = BD.app.world, r = w.run, t = EC().townState(w), cs = EC().costs(w), p = w.player;
+    const w = BD.app.world, r = w.run, t = Economy().townState(w), cs = Economy().costs(w), p = w.player;
     header(el, 'Mother Alys of the Temple', 'Scrolls, blessings for the road, and the unmaking of choices.');
     const bless = h('div.col', [h('h3', 'Blessing — until you next return to town (' + cs.blessing + 'g)')]);
     if (r.blessing) {
@@ -185,10 +227,23 @@
     const f = footer(el, 'temple');
     const rb = () => BD.ui.panels.rebuild('temple');
     BD.ui.dom.delegate(el, Object.assign(f, {
-      bless: (tg) => { CMD().apply(w, { type: 'Bless', id: tg.dataset.id }); rb(); },
-      scroll: () => { CMD().apply(w, { type: 'BuyScroll', kind: 'portal' }); rb(); },
-      flask: () => { CMD().apply(w, { type: 'FlaskUpgrade' }); rb(); },
-      respec: () => { if (confirm('Unlearn every skill and attribute point?')) { CMD().apply(w, { type: 'Respec' }); rb(); } },
+      bless: (tg) => {
+        Commands().apply(w, { type: 'Bless', id: tg.dataset.id });
+        rb();
+      },
+      scroll: () => {
+        Commands().apply(w, { type: 'BuyScroll', kind: 'portal' });
+        rb();
+      },
+      flask: () => {
+        Commands().apply(w, { type: 'FlaskUpgrade' });
+        rb();
+      },
+      respec: () => {
+        if (!confirm('Unlearn every skill and attribute point?')) return;
+        Commands().apply(w, { type: 'Respec' });
+        rb();
+      },
     }));
   }
 
@@ -201,7 +256,7 @@
     header(el, 'Your Hearth', 'Rest is free. The stash is shared by every character you make.');
     const tabRow = h('div.row.tabs', [h('button.btn', { data: { action: 'rest' } }, 'Rest (full restore, refill the flask)')]);
     for (let i = 0; i < n; i++) {
-      tabRow.appendChild(h('button.btn.tiny' + (i === stashTab ? '.primary' : ''), { data: { action: 'stab', i } }, 'Tab ' + (i + 1)));
+      tabRow.appendChild(h('button.btn.tiny' + flag(i === stashTab, '.primary'), { data: { action: 'stab', i } }, 'Tab ' + (i + 1)));
     }
     const tabItems = tabs[stashTab] || [];
     const list = h('div.pack-list.shop-wares');
@@ -216,24 +271,48 @@
       packColumn(w, 'Stash', null),
     ]));
     const f = footer(el, 'home');
-    const rb = () => { BD.app.bus.emit({ type: 'stash.changed' }); BD.ui.panels.rebuild('home'); };
-    rightClickSell(el, w, (uid) => { CMD().apply(w, { type: 'Stash', uid, tab: stashTab }); rb(); });
+    const rb = () => {
+      BD.app.bus.emit({ type: 'stash.changed' });
+      BD.ui.panels.rebuild('home');
+    };
+    rightClickSell(el, w, (uid) => {
+      Commands().apply(w, { type: 'Stash', uid, tab: stashTab });
+      rb();
+    });
     BD.ui.dom.delegate(el, Object.assign(f, {
-      rest: () => { CMD().apply(w, { type: 'Rest' }); BD.app.dispatch(w); BD.ui.log.line('You rest by the hearth.'); },
-      stab: (tg) => { stashTab = Number(tg.dataset.i); BD.ui.panels.rebuild('home'); },
-      unstash: (tg) => { CMD().apply(w, { type: 'Unstash', uid: tg.dataset.uid, tab: stashTab }); rb(); },
-      packClick: (tg, ev) => { if (ev.shiftKey) { CMD().apply(w, { type: 'Stash', uid: tg.dataset.uid, tab: stashTab }); rb(); } },
+      rest: () => {
+        Commands().apply(w, { type: 'Rest' });
+        BD.app.dispatch(w);
+        BD.ui.log.line('You rest by the hearth.');
+      },
+      stab: (tg) => {
+        stashTab = Number(tg.dataset.i);
+        BD.ui.panels.rebuild('home');
+      },
+      unstash: (tg) => {
+        Commands().apply(w, { type: 'Unstash', uid: tg.dataset.uid, tab: stashTab });
+        rb();
+      },
+      packClick: (tg, ev) => {
+        if (!ev.shiftKey) return;
+        Commands().apply(w, { type: 'Stash', uid: tg.dataset.uid, tab: stashTab });
+        rb();
+      },
     }));
   }
 
   /** Shift-click from the inventory: sell at a shop, stash at home */
   BD.ui.transfer = (uid) => {
     const w = BD.app.world;
-    if (BD.ui.panels.isOpen('home')) CMD().apply(w, { type: 'Stash', uid, tab: stashTab });
-    else if (BD.ui.panels.isOpen('smith') || BD.ui.panels.isOpen('curio')) CMD().apply(w, { type: 'Sell', uid });
+    if (BD.ui.panels.isOpen('home')) Commands().apply(w, { type: 'Stash', uid, tab: stashTab });
+    else if (BD.ui.panels.isOpen('smith') || BD.ui.panels.isOpen('curio')) Commands().apply(w, { type: 'Sell', uid });
   };
 
-  const opts = { wide: true, onOpen: () => { sel = null; tab = 'wares'; } };
+  function onOpen() {
+    sel = null;
+    tab = 'wares';
+  }
+  const opts = { wide: true, onOpen };
   BD.ui.panels.register(Object.assign({ id: 'smith', build: buildSmith }, opts));
   BD.ui.panels.register(Object.assign({ id: 'curio', build: buildCurio }, opts));
   BD.ui.panels.register(Object.assign({ id: 'temple', build: buildTemple }, opts));

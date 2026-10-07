@@ -5,7 +5,7 @@
 (function (BD) {
   'use strict';
 
-  const G = () => BD.input.gamepad;
+  const Gamepad = () => BD.input.gamepad;
   let ui = null, stick = null, knob = null, stickId = null, origin = null;
   const R = 56;
 
@@ -16,32 +16,50 @@
   function enable() {
     if (ui) return;
     const { h, root } = BD.ui.dom;
-    const B = G().BTN;
-    const btn = (label, b, cls) => {
-      const el = h('div.touch-btn' + (cls ? '.' + cls : ''), label);
-      const set = (on) => { const v = G().virtual.buttons[b]; v.pressed = on; v.value = on ? 1 : 0; el.classList.toggle('down', on); };
-      el.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        BD.app.userGesture();
-        set(true);
-      }, { passive: false });
-      el.addEventListener('touchend', (e) => { e.preventDefault(); set(false); }, { passive: false });
-      el.addEventListener('touchcancel', () => set(false));
-      return el;
-    };
-    stick = h('div.touch-stick'); knob = h('div.touch-knob'); stick.appendChild(knob);
+    const BTN = Gamepad().BTN;
+    const btn = (label, b, cls) => touchButton(h, label, b, cls);
+    stick = h('div.touch-stick');
+    knob = h('div.touch-knob');
+    stick.appendChild(knob);
     ui = h('div.touch-ui', [
       stick,
       h('div.touch-btns', [
-        btn('Attack', B.A, 'big'), btn('RMB', B.RT), btn('1', B.X), btn('2', B.Y), btn('3', B.B), btn('4', B.RB),
-        btn('Evade', B.LB), btn('Flask', B.LT), btn('Use', B.UP),
+        btn('Attack', BTN.A, 'big'), btn('RMB', BTN.RT), btn('1', BTN.X), btn('2', BTN.Y), btn('3', BTN.B), btn('4', BTN.RB),
+        btn('Evade', BTN.LB), btn('Flask', BTN.LT), btn('Use', BTN.UP),
       ]),
-      h('div.touch-top', [btn('Pause', B.BACK, 'small'), btn('Bag', B.START, 'small'), btn('Map', B.RS, 'small')]),
+      h('div.touch-top', [btn('Pause', BTN.BACK, 'small'), btn('Bag', BTN.START, 'small'), btn('Map', BTN.RS, 'small')]),
     ]);
     root().appendChild(ui);
     document.body.classList.add('touch');
-    G().virtual.active = true;
+    Gamepad().virtual.active = true;
+    listenStick();
+  }
+
+  /** a button that holds virtual-pad button b down while touched */
+  function touchButton(h, label, b, cls) {
+    const el = h('div.touch-btn' + (cls ? '.' + cls : ''), label);
+    const set = (on) => {
+      const v = Gamepad().virtual.buttons[b];
+      v.pressed = on;
+      v.value = on ? 1 : 0;
+      el.classList.toggle('down', on);
+    };
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      BD.app.userGesture();
+      set(true);
+    }, { passive: false });
+    el.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      set(false);
+    }, { passive: false });
+    el.addEventListener('touchcancel', () => set(false));
+    return el;
+  }
+
+  /** the stick follows one touch from touchstart on it until that touch ends */
+  function listenStick() {
     stick.addEventListener('touchstart', (e) => {
       e.preventDefault();
       BD.app.userGesture();
@@ -53,25 +71,33 @@
     }, { passive: false });
     window.addEventListener('touchmove', (e) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (t.identifier === stickId) { e.preventDefault(); move(t); }
+        if (t.identifier === stickId) {
+          e.preventDefault();
+          move(t);
+        }
       }
     }, { passive: false });
     const end = (e) => {
       for (const t of Array.from(e.changedTouches)) {
         if (t.identifier !== stickId) continue;
         stickId = null;
-        G().virtual.axes[0] = G().virtual.axes[1] = 0;
+        Gamepad().virtual.axes[0] = Gamepad().virtual.axes[1] = 0;
         knob.style.transform = '';
       }
     };
-    window.addEventListener('touchend', end); window.addEventListener('touchcancel', end);
+    window.addEventListener('touchend', end);
+    window.addEventListener('touchcancel', end);
   }
   function move(t) {
     let dx = t.clientX - origin.x, dy = t.clientY - origin.y;
     const l = Math.hypot(dx, dy);
-    if (l > R) { dx = (dx / l) * R; dy = (dy / l) * R; }
+    if (l > R) {
+      dx = (dx / l) * R;
+      dy = (dy / l) * R;
+    }
     knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-    G().virtual.axes[0] = dx / R; G().virtual.axes[1] = dy / R;
+    Gamepad().virtual.axes[0] = dx / R;
+    Gamepad().virtual.axes[1] = dy / R;
   }
 
   /** long-press anything with a hover tooltip: show it and swallow the click that follows */
@@ -92,7 +118,13 @@
     }, { passive: true });
     const cancel = () => clearTimeout(timer);
     window.addEventListener('touchmove', cancel, { passive: true });
-    window.addEventListener('touchend', (e) => { cancel(); if (fired) { e.preventDefault(); fired = false; } }, { passive: false });
+    window.addEventListener('touchend', (e) => {
+      cancel();
+      if (fired) {
+        e.preventDefault();
+        fired = false;
+      }
+    }, { passive: false });
   }
 
   BD.input.touch = { attach, enable };

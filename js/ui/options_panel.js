@@ -4,24 +4,27 @@
   'use strict';
 
   const { h } = BD.ui.dom;
-  const O = () => BD.ui.options;
+  const Options = () => BD.ui.options;
 
   function slider(key, label, min, max, step, suffix) {
-    const val = h('span.opt-val', String(O().get(key)) + (suffix || ''));
-    const inp = /** @type {HTMLInputElement} */ (h('input', { type: 'range', min, max, step, value: O().get(key) }));
-    inp.addEventListener('input', () => { O().set(key, Number(inp.value)); val.textContent = inp.value + (suffix || ''); });
+    const val = h('span.opt-val', String(Options().get(key)) + (suffix || ''));
+    const inp = /** @type {HTMLInputElement} */ (h('input', { type: 'range', min, max, step, value: Options().get(key) }));
+    inp.addEventListener('input', () => {
+      Options().set(key, Number(inp.value));
+      val.textContent = inp.value + (suffix || '');
+    });
     return h('div.opt-row', [h('span.opt-label', label), inp, val]);
   }
   function toggle(key, label) {
     const inp = /** @type {HTMLInputElement} */ (h('input', { type: 'checkbox' }));
-    inp.checked = !!O().get(key);
-    inp.addEventListener('change', () => O().set(key, inp.checked));
+    inp.checked = !!Options().get(key);
+    inp.addEventListener('change', () => Options().set(key, inp.checked));
     return h('label.opt-row', [h('span.opt-label', label), inp]);
   }
   function choice(key, label, opts) {
     const sel = /** @type {HTMLSelectElement} */ (h('select', opts.map(([v, t]) => h('option', { value: v }, t))));
-    sel.value = String(O().get(key));
-    sel.addEventListener('change', () => O().set(key, isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
+    sel.value = String(Options().get(key));
+    sel.addEventListener('change', () => Options().set(key, isNaN(Number(sel.value)) ? sel.value : Number(sel.value)));
     return h('div.opt-row', [h('span.opt-label', label), sel]);
   }
 
@@ -61,15 +64,15 @@
 
   let waiting = null;
   function buildControls(el) {
-    const B = BD.input.bindings;
+    const Bindings = BD.input.bindings;
     el.appendChild(h('h2', 'Controls'));
     el.appendChild(h('div.muted',
       'Mouse: left click to move, attack and interact (hold to keep moving; hold on an enemy to keep attacking). '
       + 'Right click: the right-mouse skill. Shift + left click: attack in place. Wheel: zoom.'));
     const grid = h('div.bind-grid');
-    for (const k in B.DEFAULTS) {
-      grid.appendChild(h('span', B.LABELS[k]));
-      const label = waiting === k ? 'Press a key…' : B.pretty(B.keyOf(k));
+    for (const k in Bindings.DEFAULTS) {
+      grid.appendChild(h('span', Bindings.LABELS[k]));
+      const label = waiting === k ? 'Press a key…' : Bindings.pretty(Bindings.keyOf(k));
       grid.appendChild(h('button.btn.tiny' + (waiting === k ? '.primary' : ''), { data: { action: 'rebind', key: k } }, label));
     }
     el.appendChild(grid);
@@ -81,14 +84,27 @@
       h('button.btn', { data: { action: 'close' } }, 'Close'),
     ]));
     BD.ui.dom.delegate(el, {
-      rebind: (t) => { waiting = t.dataset.key; BD.ui.panels.rebuild('controls'); },
-      defaults: () => { BD.input.bindings.load(null); O().save(); BD.ui.panels.rebuild('controls'); },
-      close: () => { waiting = null; BD.ui.panels.close('controls'); },
+      rebind: (t) => {
+        waiting = t.dataset.key;
+        BD.ui.panels.rebuild('controls');
+      },
+      defaults: () => {
+        BD.input.bindings.load(null);
+        Options().save();
+        BD.ui.panels.rebuild('controls');
+      },
+      close: () => {
+        waiting = null;
+        BD.ui.panels.close('controls');
+      },
     });
   }
   function controlsKey(ev) {
     if (!waiting) return false;
-    if (ev.code !== 'Escape') { BD.input.bindings.set(waiting, ev.code); O().save(); }
+    if (ev.code !== 'Escape') {
+      BD.input.bindings.set(waiting, ev.code);
+      Options().save();
+    }
     waiting = null;
     BD.ui.panels.rebuild('controls');
     return true;

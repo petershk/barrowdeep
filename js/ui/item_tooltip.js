@@ -6,16 +6,17 @@
   'use strict';
 
   const { h } = BD.ui.dom;
-  const P = () => BD.view.palette;
+  const Palette = () => BD.view.palette;
   const seen = new Set();   // legendary "unveil" shimmer the first time it is hovered
 
   function body(c, world, item, opts) {
     const p = world.player;
     const v = BD.sim.itemsDescribe.view(world, p, item);
-    const tag = P().RARITY_TAG[item.rarity];
+    const tag = Palette().RARITY_TAG[item.rarity];
     const unveil = item.rarity === 'legendary' && !seen.has(item.uid);
     if (unveil) seen.add(item.uid);
-    const title = (tag ? tag + ' ' : '') + v.name + (v.enhance ? ' +' + v.enhance : '');
+    const prefix = tag ? tag + ' ' : '';
+    const title = prefix + v.name + (v.enhance ? ' +' + v.enhance : '');
     c.appendChild(h('div.it-name.r-' + item.rarity + (unveil ? '.unveil' : ''), title));
     c.appendChild(h('div.tt-sub', v.type + ' · item level ' + v.ilvl));
     for (const b of v.base) c.appendChild(h('div.it-base', b));
@@ -28,10 +29,15 @@
     if (opts && opts.compare === false) return;
     const cmp = BD.sim.itemsDescribe.compare(world, p, item);
     /** a ▲ / ▼ comparison row */
-    const delta = (n, label) => h('div.' + (n > 0 ? 'up' : 'down'), (n > 0 ? '▲ +' : '▼ ') + n + ' ' + label);
+    const delta = (n, label) => {
+      const up = n > 0;
+      const arrow = up ? '▲ +' : '▼ ';
+      return h('div.' + (up ? 'up' : 'down'), arrow + n + ' ' + label);
+    };
     for (const cm of cmp) {
       if (cm.equipped && cm.equipped.uid === item.uid) continue;
-      const ring = cmp.length > 1 ? ' (' + (cm.slot === 'ring1' ? 'left' : 'right') + ' ring)' : '';
+      const side = cm.slot === 'ring1' ? 'left' : 'right';
+      const ring = cmp.length > 1 ? ' (' + side + ' ring)' : '';
       const head = cm.equipped ? 'Compared with ' + BD.sim.items.derive(cm.equipped).name + ring : 'Slot empty';
       const box = h('div.it-cmp', [h('div.it-cmp-head', head)]);
       const dps = Math.round(cm.dps * 10) / 10;

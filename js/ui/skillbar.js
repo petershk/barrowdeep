@@ -26,8 +26,14 @@
         ev.stopPropagation();
         const w = BD.app.world;
         if (!w || BD.app.paused()) return;
-        if (s === 'evade') { BD.input.intent.issue({ type: 'Evade', dirX: 0, dirY: 0 }); return; }
-        if (ev.button === 2 || ev.shiftKey) { BD.ui.panels.open('skills'); return; }
+        if (s === 'evade') {
+          BD.input.intent.issue({ type: 'Evade', dirX: 0, dirY: 0 });
+          return;
+        }
+        if (ev.button === 2 || ev.shiftKey) {
+          BD.ui.panels.open('skills');
+          return;
+        }
         BD.input.intent.issue({ type: 'UseSkill', slot: s, aim: 'auto' });
       });
       box.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -50,7 +56,10 @@
   }
 
   function frame(world, ms) {
-    if (!el) { if (!document.querySelector('.hud .bar-slot')) return; mount(); }
+    if (!el) {
+      if (!document.querySelector('.hud .bar-slot')) return;
+      mount();
+    }
     const p = world.player;
     for (const s of SLOTS.concat(['evade'])) {
       const sl = slots[s];
@@ -58,7 +67,8 @@
       if (sl.id !== id) {
         sl.id = id;
         const ab = id && id !== 'evade' ? BD.data.skills[id] : null;
-        sl.icon.src = id ? BD.view.icons.url(id === 'evade' ? 'evade' : ab.icon) : '';
+        const iconId = id === 'evade' ? 'evade' : ab && ab.icon;
+        sl.icon.src = id ? BD.view.icons.url(iconId) : '';
         sl.icon.style.visibility = id ? 'visible' : 'hidden';
       }
       let frac = 0, label = '';
@@ -90,7 +100,10 @@
       sl.edge.style.display = frac > 0 && frac < 1 ? '' : 'none';
       if (sl.wasCd && frac === 0) flashes[s] = 320;
       sl.wasCd = frac > 0;
-      if (flashes[s] > 0) { flashes[s] -= ms; sl.box.classList.add('ready'); } else sl.box.classList.remove('ready');
+      if (flashes[s] > 0) {
+        flashes[s] -= ms;
+        sl.box.classList.add('ready');
+      } else sl.box.classList.remove('ready');
       setText(sl.cnt, label);
     }
   }

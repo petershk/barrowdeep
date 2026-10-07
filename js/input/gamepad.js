@@ -11,6 +11,7 @@
     BACK: 8, START: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15,
   };
   const SLOT = { [BTN.X]: 's1', [BTN.Y]: 's2', [BTN.B]: 's3', [BTN.RB]: 's4', [BTN.RT]: 'rmb' };
+  const Grid = BD.core.grid;
   const DEAD = 0.28, CONE = (35 * Math.PI) / 180, LOCK_RANGE = 9, MOVE_REPEAT = 120;
   const INTERACT_LABEL = {
     STAIRS_DOWN: 'Descend', STAIRS_UP: 'Ascend', STAIRS_SEALED: 'Sealed stairs', WAYPOINT: 'Use waypoint',
@@ -27,15 +28,26 @@
   };
 
   function attach() {
-    window.addEventListener('gamepadconnected', (e) => { pad.index = /** @type {any} */ (e).gamepad.index; });
-    window.addEventListener('gamepaddisconnected', () => { pad.index = -1; setActive(false); });
-    window.addEventListener('mousemove', () => { if (pad.active && !virtual.active) setActive(false); });
+    window.addEventListener('gamepadconnected', (e) => {
+      pad.index = /** @type {any} */ (e).gamepad.index;
+    });
+    window.addEventListener('gamepaddisconnected', () => {
+      pad.index = -1;
+      setActive(false);
+    });
+    window.addEventListener('mousemove', () => {
+      if (pad.active && !virtual.active) setActive(false);
+    });
   }
   function setActive(on) {
     if (pad.active === on) return;
     pad.active = on;
     document.body.classList.toggle('pad', on);
-    if (!on) { pad.target = null; showPrompt(null); clearFocus(); }
+    if (!on) {
+      pad.target = null;
+      showPrompt(null);
+      clearFocus();
+    }
   }
   // touch drives a virtual pad through the same code path
   const virtual = {
@@ -47,7 +59,12 @@
     if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
     const list = navigator.getGamepads();
     if (pad.index >= 0 && list[pad.index]) return list[pad.index];
-    for (const g of list) if (g && g.connected) { pad.index = g.index; return g; }
+    for (const g of list) {
+      if (g && g.connected) {
+        pad.index = g.index;
+        return g;
+      }
+    }
     return null;
   }
 
@@ -67,19 +84,28 @@
     const p = w.player, f = w.floor;
     let best = null, bestScore = Infinity;
     for (const e of f.entities.values()) {
-      if (e.dead || e.faction === 'player' || e.untargetable || !f.visible[e.y * f.w + e.x]) continue;
+      if (e.dead || e.faction === 'player' || e.untargetable || !f.visible[Grid.idx(f, e.x, e.y)]) continue;
       const dx = e.x - p.x, dy = e.y - p.y, d = Math.hypot(dx, dy);
       if (d > LOCK_RANGE || d === 0) continue;
       const off = Math.abs(Math.atan2(dx * dir.y - dy * dir.x, dx * dir.x + dy * dir.y));
       if (off > CONE) continue;
       const score = d + off * 4;
-      if (score < bestScore) { bestScore = score; best = e; }
+      if (score < bestScore) {
+        bestScore = score;
+        best = e;
+      }
     }
     return best;
   }
 
+  /** ' <item name>' / ' gold' for the pick-up prompt */
+  function pickupSuffix(it) {
+    if (it.item) return ' ' + BD.sim.items.derive(it.item).name;
+    return it.kind === 'gold' ? ' gold' : '';
+  }
+
   function nearbyInteract(w) {
-    const p = w.player, f = w.floor, I = BD.sim.interact;
+    const p = w.player, f = w.floor, Interact = BD.sim.interact;
     const T = BD.data.tiles.T, PROPS = BD.data.tiles.PROPS;
     let best = null, bd = Infinity;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
@@ -87,16 +113,20 @@
       if (x < 0 || y < 0 || x >= f.w || y >= f.h) continue;
       const d = Math.max(Math.abs(dx), Math.abs(dy)) + (dx || dy ? 0 : -0.5);
       if (d >= bd) continue;
-      const o = I.objectAt(w, x, y);
-      if (o) { best = { x, y, label: OBJ_LABEL[o.kind] || 'Use' }; bd = d; continue; }
+      const o = Interact.objectAt(w, x, y);
+      if (o) {
+        best = { x, y, label: OBJ_LABEL[o.kind] || 'Use' };
+        bd = d;
+        continue;
+      }
       const it = (f.items || []).find((q) => q.x === x && q.y === y);
       if (it) {
-        const what = it.item ? ' ' + BD.sim.items.derive(it.item).name : it.kind === 'gold' ? ' gold' : '';
+        const what = pickupSuffix(it);
         best = { x, y, item: it.uid, label: 'Pick up' + what };
         bd = d;
         continue;
       }
-      const t = f.tiles[y * f.w + x];
+      const t = f.tiles[Grid.idx(f, x, y)];
       if (PROPS[t] && PROPS[t].interact) {
         const name = Object.keys(T).find((k) => T[k] === t);
         best = { x, y, label: INTERACT_LABEL[name] || 'Use' };
@@ -111,7 +141,10 @@
     const txt = it ? '⬆ ' + it.label : null;
     if (txt === pad.prompt) return;
     pad.prompt = txt;
-    if (!promptEl) { promptEl = BD.ui.dom.h('div.pad-prompt'); BD.ui.dom.root().appendChild(promptEl); }
+    if (!promptEl) {
+      promptEl = BD.ui.dom.h('div.pad-prompt');
+      BD.ui.dom.root().appendChild(promptEl);
+    }
     promptEl.textContent = txt || '';
     promptEl.classList.toggle('show', !!txt);
   }
@@ -132,7 +165,10 @@
     const els = Array.from(scope.querySelectorAll('button, [data-action], .slot, .item-row, input, select, .focusable'));
     return els.filter((el) => /** @type {HTMLElement} */ (el).offsetParent !== null && !/** @type {any} */ (el).disabled);
   }
-  function clearFocus() { if (pad.focus) pad.focus.classList.remove('focus', 'pad-focus'); pad.focus = null; }
+  function clearFocus() {
+    if (pad.focus) pad.focus.classList.remove('focus', 'pad-focus');
+    pad.focus = null;
+  }
   function setFocus(el) {
     clearFocus();
     pad.focus = el;
@@ -147,7 +183,10 @@
   function nav(dx, dy) {
     const els = focusables();
     if (!els.length) return;
-    if (!pad.focus || !els.includes(pad.focus)) { setFocus(els[0]); return; }
+    if (!pad.focus || !els.includes(pad.focus)) {
+      setFocus(els[0]);
+      return;
+    }
     const a = pad.focus.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
     let best = null, bs = Infinity;
     for (const el of els) {
@@ -157,46 +196,119 @@
       if (along <= 1) continue;
       const perp = Math.abs((bx - ax) * dy - (by - ay) * dx);
       const s = along + 2 * perp;
-      if (s < bs) { bs = s; best = el; }
+      if (s < bs) {
+        bs = s;
+        best = el;
+      }
     }
     if (best) setFocus(best);
   }
 
   // ---------------- per frame ----------------
+  /** stick axis with the dead zone cut out */
+  const deadZone = (v) => (Math.abs(v) > DEAD ? v : 0);
+
   function frame(realMs) {
     const g = getPad();
     if (!g) return;
     const btn = g.buttons.map((b) => b.pressed || b.value > 0.5);
     const pressed = (i) => btn[i] && !pad.prev[i];
-    const sx = Math.abs(g.axes[0]) > DEAD ? g.axes[0] : 0, sy = Math.abs(g.axes[1]) > DEAD ? g.axes[1] : 0;
+    const sx = deadZone(g.axes[0]), sy = deadZone(g.axes[1]);
     if (btn.some(Boolean) || sx || sy) setActive(true);
-    if (!pad.active) { pad.prev = btn; return; }
+    if (!pad.active) {
+      pad.prev = btn;
+      return;
+    }
     const app = BD.app, w = app.world;
     const menu = BD.ui.panels.top() || app.state !== 'playing';
+    const input = { btn, pressed, sx, sy, realMs };
 
     if (menu) {
-      showPrompt(null);
-      let dir = null;
-      if (btn[BTN.UP] || sy < -0.5) dir = [0, -1]; else if (btn[BTN.DOWN] || sy > 0.5) dir = [0, 1];
-      else if (btn[BTN.LEFT] || sx < -0.5) dir = [-1, 0]; else if (btn[BTN.RIGHT] || sx > 0.5) dir = [1, 0];
-      const key = dir ? dir.join() : null;
-      if (key !== pad.navDir) { pad.navDir = key; pad.navT = 0; if (dir) nav(dir[0], dir[1]); }
-      else if (dir && (pad.navT += realMs) >= 360) { pad.navT = 360 - 140; nav(dir[0], dir[1]); }
-      if (pressed(BTN.A) && pad.focus) { app.userGesture(); pad.focus.click(); }
-      if (pressed(BTN.B) || (pressed(BTN.START) && BD.ui.panels.top() && BD.ui.panels.top().id === 'inventory')) {
-        const t = BD.ui.panels.top();
-        if (t && BD.ui.panels.defs[t.id].closeOnEsc) BD.ui.panels.close();
-      }
-      if (pressed(BTN.BACK) && app.tactical) app.togglePause();
-      if (!virtual.active && !pad.focus && dir === null && focusables().length) setFocus(focusables()[0]);
+      menuFrame(app, input);
       pad.prev = btn;
       return;
     }
     clearFocus();
-    if (!w || app.paused()) { if (pressed(BTN.BACK)) app.togglePause(); pad.prev = btn; return; }
-    const p = w.player, I = BD.input.intent;
+    if (!w || app.paused()) {
+      if (pressed(BTN.BACK)) app.togglePause();
+      pad.prev = btn;
+      return;
+    }
+    playFrame(app, w, input);
+    pad.prev = btn;
+  }
 
-    // movement + lock
+  /** the menu-navigation direction from the d-pad or stick, or null */
+  function menuDir(btn, sx, sy) {
+    if (btn[BTN.UP] || sy < -0.5) return [0, -1];
+    if (btn[BTN.DOWN] || sy > 0.5) return [0, 1];
+    if (btn[BTN.LEFT] || sx < -0.5) return [-1, 0];
+    if (btn[BTN.RIGHT] || sx > 0.5) return [1, 0];
+    return null;
+  }
+
+  /** a panel is open: spatial focus navigation (360 ms initial / 140 ms repeat), A clicks, B / Start back out */
+  function menuFrame(app, { btn, pressed, sx, sy, realMs }) {
+    showPrompt(null);
+    const dir = menuDir(btn, sx, sy);
+    const key = dir ? dir.join() : null;
+    if (key !== pad.navDir) {
+      pad.navDir = key;
+      pad.navT = 0;
+      if (dir) nav(dir[0], dir[1]);
+    } else if (dir) {
+      pad.navT += realMs;
+      if (pad.navT >= 360) {
+        pad.navT = 360 - 140;
+        nav(dir[0], dir[1]);
+      }
+    }
+    if (pressed(BTN.A) && pad.focus) {
+      app.userGesture();
+      pad.focus.click();
+    }
+    if (pressed(BTN.B) || (pressed(BTN.START) && BD.ui.panels.top() && BD.ui.panels.top().id === 'inventory')) {
+      const t = BD.ui.panels.top();
+      if (t && BD.ui.panels.defs[t.id].closeOnEsc) BD.ui.panels.close();
+    }
+    if (pressed(BTN.BACK) && app.tactical) app.togglePause();
+    if (!virtual.active && !pad.focus && dir === null && focusables().length) setFocus(focusables()[0]);
+  }
+
+  /** in the world: move + lock, aim, attack, skills, evade / flask, interact, hotkeys */
+  function playFrame(app, w, input) {
+    const { pressed } = input;
+    const p = w.player, Intent = BD.input.intent;
+    moveAndLock(w, input);
+    // aim point: the target, else a few tiles ahead
+    const tgt = pad.target;
+    const aimTile = tgt ? { x: tgt.x, y: tgt.y } : { x: Math.round(p.x + pad.face.x * 3), y: Math.round(p.y + pad.face.y * 3) };
+    const m = BD.input.mouse;
+    m.hoverTile = aimTile;
+    m.hoverEntity = tgt;
+    attackAndSkills(Intent, input, tgt, aimTile);
+    if (pressed(BTN.LB)) {
+      const s = snap(pad.face);
+      Intent.issue({ type: 'Evade', dirX: s.x, dirY: s.y });
+    }
+    if (pressed(BTN.LT)) Intent.issue({ type: 'DrinkFlask' });
+    const near = nearbyInteract(w);
+    showPrompt(near);
+    if (pressed(BTN.UP) && near) {
+      if (near.item) Intent.issue({ type: 'Pickup', itemUid: near.item, x: near.x, y: near.y });
+      else Intent.issue({ type: 'Interact', x: near.x, y: near.y });
+    }
+    if (pressed(BTN.DOWN)) Intent.issue({ type: 'ReadScroll', kind: 'portal' });
+    if (pressed(BTN.START)) BD.ui.panels.hotkey('inventory');
+    if (pressed(BTN.BACK)) app.togglePause();
+    if (pressed(BTN.LEFT)) BD.ui.panels.hotkey('skills');
+    if (pressed(BTN.RIGHT)) BD.ui.panels.hotkey('character');
+    if (pressed(BTN.RS)) BD.ui.panels.hotkey('map');
+  }
+
+  /** left stick: walk in 8 directions and keep the best-aligned enemy locked */
+  function moveAndLock(w, { btn, sx, sy, realMs }) {
+    const p = w.player, Intent = BD.input.intent;
     if (sx || sy) {
       const d = stickToWorld(sx, sy);
       pad.face = d;
@@ -204,55 +316,47 @@
       const s = snap(d);
       if ((pad.moveT -= realMs) <= 0 && !btn[BTN.A]) {
         pad.moveT = MOVE_REPEAT;
-        const f = w.floor, E = BD.sim.entities;
+        const f = w.floor, Entities = BD.sim.entities;
         let tx = p.x + s.x * 2, ty = p.y + s.y * 2;
-        if (!E.walkable(f, tx, ty)) { tx = p.x + s.x; ty = p.y + s.y; }
-        if (E.walkable(f, tx, ty)) I.issue({ type: 'Move', x: tx, y: ty });
+        if (!Entities.walkable(f, tx, ty)) {
+          tx = p.x + s.x;
+          ty = p.y + s.y;
+        }
+        if (Entities.walkable(f, tx, ty)) Intent.issue({ type: 'Move', x: tx, y: ty });
       }
       pad.lastStick = true;
     } else {
-      if (pad.lastStick) { I.issue({ type: 'Stop' }); pad.lastStick = false; }
+      if (pad.lastStick) {
+        Intent.issue({ type: 'Stop' });
+        pad.lastStick = false;
+      }
       pad.moveT = 0;
       const tg = pad.target;
       if (tg && (tg.dead || Math.hypot(tg.x - p.x, tg.y - p.y) > LOCK_RANGE + 2)) pad.target = bestTarget(w, pad.face);
       if (!pad.target) pad.target = bestTarget(w, pad.face);
     }
-    // aim point: the target, else a few tiles ahead
-    const tgt = pad.target;
-    const aimTile = tgt ? { x: tgt.x, y: tgt.y } : { x: Math.round(p.x + pad.face.x * 3), y: Math.round(p.y + pad.face.y * 3) };
-    const m = BD.input.mouse;
-    m.hoverTile = aimTile; m.hoverEntity = tgt;
+  }
 
-    // attack
+  /** A attacks (held = locked engage); skill buttons cast, held ones recast through intent's hold loop */
+  function attackAndSkills(Intent, { btn, pressed }, tgt, aimTile) {
     if (pressed(BTN.A)) {
-      if (tgt) { I.hold.lockId = tgt.id; I.issue({ type: 'Engage', entityId: tgt.id, hold: true }); }
-      else I.issue({ type: 'ForceAttack', x: aimTile.x, y: aimTile.y });
+      if (tgt) {
+        Intent.hold.lockId = tgt.id;
+        Intent.issue({ type: 'Engage', entityId: tgt.id, hold: true });
+      } else Intent.issue({ type: 'ForceAttack', x: aimTile.x, y: aimTile.y });
     }
-    if (!btn[BTN.A] && pad.prev[BTN.A] && I.hold.lockId) { I.issue({ type: 'HoldEnd' }); I.hold.lockId = null; }
-    // skills (held buttons recast through intent's hold loop)
+    if (!btn[BTN.A] && pad.prev[BTN.A] && Intent.hold.lockId) {
+      Intent.issue({ type: 'HoldEnd' });
+      Intent.hold.lockId = null;
+    }
     for (const b in SLOT) {
       const slot = SLOT[b];
       if (pressed(+b)) {
-        I.hold.keys[slot] = true;
+        Intent.hold.keys[slot] = true;
         const aim = tgt ? { entityId: tgt.id, x: tgt.x, y: tgt.y } : { x: aimTile.x, y: aimTile.y };
-        I.issue({ type: 'UseSkill', slot, aim, hold: false });
-      } else if (!btn[+b] && pad.prev[+b]) I.hold.keys[slot] = false;
+        Intent.issue({ type: 'UseSkill', slot, aim, hold: false });
+      } else if (!btn[+b] && pad.prev[+b]) Intent.hold.keys[slot] = false;
     }
-    if (pressed(BTN.LB)) { const s = snap(pad.face); I.issue({ type: 'Evade', dirX: s.x, dirY: s.y }); }
-    if (pressed(BTN.LT)) I.issue({ type: 'DrinkFlask' });
-    const near = nearbyInteract(w);
-    showPrompt(near);
-    if (pressed(BTN.UP) && near) {
-      if (near.item) I.issue({ type: 'Pickup', itemUid: near.item, x: near.x, y: near.y });
-      else I.issue({ type: 'Interact', x: near.x, y: near.y });
-    }
-    if (pressed(BTN.DOWN)) I.issue({ type: 'ReadScroll', kind: 'portal' });
-    if (pressed(BTN.START)) BD.ui.panels.hotkey('inventory');
-    if (pressed(BTN.BACK)) app.togglePause();
-    if (pressed(BTN.LEFT)) BD.ui.panels.hotkey('skills');
-    if (pressed(BTN.RIGHT)) BD.ui.panels.hotkey('character');
-    if (pressed(BTN.RS)) BD.ui.panels.hotkey('map');
-    pad.prev = btn;
   }
 
   function wire(bus) {

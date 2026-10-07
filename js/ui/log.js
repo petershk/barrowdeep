@@ -12,7 +12,9 @@
     banner = h('div.announce');
     feed = h('div.feed');
     reject = h('div.reject');
-    root().appendChild(banner); root().appendChild(feed); root().appendChild(reject);
+    root().appendChild(banner);
+    root().appendChild(feed);
+    root().appendChild(reject);
   }
   function announce(text, style) {
     if (!banner) mount();
@@ -41,8 +43,14 @@
   }
   function frame(world, ms) {
     if (!banner) mount();
-    if (bannerT > 0) { bannerT -= ms; if (bannerT <= 0) banner.classList.remove('show'); }
-    if (rejectT > 0) { rejectT -= ms; if (rejectT <= 0) reject.classList.remove('show'); }
+    if (bannerT > 0) {
+      bannerT -= ms;
+      if (bannerT <= 0) banner.classList.remove('show');
+    }
+    if (rejectT > 0) {
+      rejectT -= ms;
+      if (rejectT <= 0) reject.classList.remove('show');
+    }
     if (BD.ui.minimap && world.floor) BD.ui.minimap.setQuest(questText(world));
   }
 
