@@ -1,0 +1,125 @@
+// @ts-check
+// Boot, main loop and wiring. The only file that owns real time.
+(function (BD) {
+  'use strict';
+
+  const STEP_MS = BD.core.scheduler.STEP_MS;
+  const bus = BD.core.events.makeBus();
+
+  const app = {
+    world: null, state: 'boot', bus, showLabels: false, showBars: false, tactical: false,
+    hitstopMs: 0, lastHitstopAt: -1e9, realNow: 0, debug: /[?&]debug=1/.test(location.search),
+    paused() { return app.state !== 'playing' || app.tactical || (BD.ui.panels ? BD.ui.panels.pausesWorld() : false) || (app.world && app.world.run.paused); },
+    togglePause() { app.tactical = !app.tactical; bus.emit({ type: 'ui.pause', on: app.tactical }); },
+    userGesture() { if (BD.audio.audio) BD.audio.audio.resume(); },
+    /** request a presentation-level freeze (≤70 ms, at most once per 240 ms) */
+    hitstop(ms) {
+      const B = BD.data.balance.combat;
+      if (app.realNow - app.lastHitstopAt < B.hitstopMinGapMs) return;
+      app.lastHitstopAt = app.realNow;
+      app.hitstopMs = Math.min(B.hitstopMaxMs, ms);
+    },
+  };
+  BD.app = app;
+
+  /** Drain sim events to subscribers. */
+  function dispatch(world) {
+    const evs = world.events;
+    if (!evs.length) return;
+    world.events = [];
+    for (let i = 0; i < evs.length; i++) bus.emit(evs[i]);
+  }
+
+  /** Advance the sim by ms (fixed steps), dispatching events after each step. */
+  function stepSim(ms) {
+    const w = app.world;
+    let n = Math.round(ms / STEP_MS);
+    while (n-- > 0) { BD.sim.world.step(w, STEP_MS); dispatch(w); }
+  }
+
+  let acc = 0, last = 0;
+  function frame(now) {
+    const real = Math.min(250, now - last || 16);
+    last = now;
+    app.realNow = now;
+    const w = app.world;
+    if (w && app.state === 'playing') {
+      BD.input.mouse.frame();
+      BD.input.intent.frame(real);
+      if (BD.input.gamepad) BD.input.gamepad.frame(real);
+      if (!app.paused()) {
+        if (app.hitstopMs > 0) app.hitstopMs -= real;
+        else acc += real * (BD.ui.options ? (BD.ui.options.get('slowmo') ? 0.7 : 1) : 1);
+        let guard = 0;
+        while (acc >= STEP_MS && guard++ < 20) {
+          BD.sim.world.step(w, STEP_MS);
+          dispatch(w);
+          acc -= STEP_MS;
+        }
+        if (guard >= 20) acc = 0;
+      } else dispatch(w);
+      BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
+    }
+    if (BD.ui.hud && w) BD.ui.hud.frame(w, real);
+    if (BD.ui.panels) BD.ui.panels.frame(real);
+    if (BD.audio.music) BD.audio.music.frame(real);
+    requestAnimationFrame(frame);
+  }
+
+  function newSeed() {
+    const a = new Uint32Array(2);
+    crypto.getRandomValues(a);
+    return a[0].toString(36) + a[1].toString(36).slice(0, 4);
+  }
+
+  /** Start a run (from character creation or debug). */
+  function startRun(opts) {
+    const seed = opts.seed || newSeed();
+    const world = BD.sim.world.createWorld(Object.assign({}, opts, { seed }));
+    if (BD.sim.run) BD.sim.run.begin(world, opts);
+    else BD.sim.world.enterFloor(world, opts.floor || 1);
+    setWorld(world);
+    return world;
+  }
+  function setWorld(world) {
+    app.world = world;
+    app.state = 'playing';
+    acc = 0;
+    bus.emit({ type: 'app.world', world });
+    dispatch(world);
+  }
+
+  function boot() {
+    if (BD.ui.options) BD.ui.options.load();
+    const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('world'));
+    BD.view.render.init(canvas);
+    if (BD.ui.options) BD.view.render.setZoom(BD.ui.options.get('zoom'));
+    window.addEventListener('resize', () => BD.view.render.resize());
+    if (BD.view.wire) BD.view.wire(bus);
+    if (BD.audio.wire) BD.audio.wire(bus);
+    if (BD.ui.wire) BD.ui.wire(bus);
+    BD.input.mouse.attach(canvas);
+    BD.input.keyboard.attach();
+    if (BD.input.gamepad) BD.input.gamepad.attach();
+    if (BD.input.touch) BD.input.touch.attach();
+    document.addEventListener('visibilitychange', () => { if (BD.audio.audio) BD.audio.audio.visibility(document.hidden); });
+    window.addEventListener('beforeunload', () => { if (BD.app.saveNow) BD.app.saveNow('quit'); });
+    if (app.debug) loadDebug();
+    if (BD.ui.menu) BD.ui.menu.open();
+    else startRun({ cls: 'fighter', name: 'Wanderer' });
+    requestAnimationFrame((t) => { last = t; frame(t); });
+  }
+
+  function loadDebug() {
+    const files = ['overlay', 'arena', 'autotest'];
+    for (const f of files) {
+      const s = document.createElement('script');
+      s.src = 'js/debug/' + f + '.js';
+      s.async = false;
+      document.body.appendChild(s);
+    }
+  }
+
+  Object.assign(app, { boot, startRun, setWorld, stepSim, dispatch, newSeed });
+  BD.boot = boot;
+})(globalThis.BD);

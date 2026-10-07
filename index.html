@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Barrowdeep</title>
+<link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+<canvas id="world"></canvas>
+<div id="ui-root"></div>
+
+<!-- core -->
+<script src="js/core/ns.js"></script>
+<script src="js/core/rng.js"></script>
+<script src="js/core/events.js"></script>
+<script src="js/core/util.js"></script>
+<script src="js/core/grid.js"></script>
+<script src="js/core/scheduler.js"></script>
+<!-- data -->
+<script src="js/data/tiles.js"></script>
+<script src="js/data/biomes.js"></script>
+<script src="js/data/setpieces.js"></script>
+<script src="js/data/floors.js"></script>
+<script src="js/data/balance.js"></script>
+<script src="js/data/strings.js"></script>
+<!-- sim/gen -->
+<script src="js/sim/gen/carve.js"></script>
+<script src="js/sim/gen/setpieces.js"></script>
+<script src="js/sim/gen/layout_rooms.js"></script>
+<script src="js/sim/gen/validate.js"></script>
+<script src="js/sim/gen/floor.js"></script>
+<!-- sim -->
+<script src="js/sim/entities.js"></script>
+<script src="js/sim/world.js"></script>
+<script src="js/sim/movement.js"></script>
+<script src="js/sim/fov.js"></script>
+<script src="js/sim/player.js"></script>
+<script src="js/sim/commands.js"></script>
+<script src="js/sim/interact.js"></script>
+<script src="js/sim/run.js"></script>
+<!-- view -->
+<script src="js/view/iso.js"></script>
+<script src="js/view/camera.js"></script>
+<script src="js/view/palette.js"></script>
+<script src="js/view/sprite_art.js"></script>
+<script src="js/view/prop_art.js"></script>
+<script src="js/view/sprites.js"></script>
+<script src="js/view/tiles.js"></script>
+<script src="js/view/lighting.js"></script>
+<script src="js/view/entities.js"></script>
+<script src="js/view/render.js"></script>
+<script src="js/view/overlays.js"></script>
+<!-- ui -->
+<script src="js/ui/options.js"></script>
+<script src="js/ui/dom.js"></script>
+<script src="js/ui/panels.js"></script>
+<script src="js/ui/minimap.js"></script>
+<script src="js/ui/hud.js"></script>
+<!-- input -->
+<script src="js/input/bindings.js"></script>
+<script src="js/input/intent.js"></script>
+<script src="js/input/mouse.js"></script>
+<script src="js/input/keyboard.js"></script>
+<!-- app -->
+<script src="js/app.js"></script>
+<script>BD.boot();</script>
+</body>
+</html>

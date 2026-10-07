@@ -1,0 +1,79 @@
+// @ts-check
+// Entity creation, lookup and the one-entity-per-tile occupancy grid.
+(function (BD) {
+  'use strict';
+
+  const { WALK } = BD.data.tiles;
+  const { DIRS } = BD.core.util;
+
+  /** @returns {any} */
+  function makeEntity(id, kind, def, x, y, extra) {
+    return Object.assign({
+      id, kind, def, x, y, move: null, dir: 2, hp: 1, rank: 'normal', mods: [], packId: null, home: { x, y },
+      statuses: [], cooldowns: {}, ai: null, statsVersion: 0, faction: kind === 'monster' ? 'monster' : 'player', dead: false,
+    }, extra || {});
+  }
+
+  const get = (world, id) => (id == null ? null : id === world.player.id ? world.player : world.floor.entities.get(id) || null);
+
+  function inBounds(f, x, y) { return x >= 0 && y >= 0 && x < f.w && y < f.h; }
+  /** tile walkable (terrain + dynamic blockers like bone walls) */
+  function walkable(f, x, y) { return inBounds(f, x, y) && WALK[f.tiles[y * f.w + x]] === 1 && !f.block[y * f.w + x]; }
+  const occupant = (f, x, y) => (inBounds(f, x, y) ? f.occ[y * f.w + x] : 0);
+  const isFree = (f, x, y) => walkable(f, x, y) && occupant(f, x, y) === 0;
+
+  function occupy(f, e) { f.occ[e.y * f.w + e.x] = e.id; }
+  function vacate(f, e) { const i = e.y * f.w + e.x; if (f.occ[i] === e.id) f.occ[i] = 0; }
+
+  /** Move an entity's logical tile immediately (reservation). */
+  function relocate(f, e, x, y) { vacate(f, e); e.x = x; e.y = y; occupy(f, e); }
+
+  /** Add a spawned entity to the floor on the nearest free tile to (x,y); null if none. */
+  function addToFloor(world, e) {
+    const f = world.floor;
+    const spot = isFree(f, e.x, e.y) ? { x: e.x, y: e.y } : nearestFree(f, e.x, e.y, 4);
+    if (!spot) return null;
+    e.x = spot.x; e.y = spot.y;
+    f.entities.set(e.id, e);
+    occupy(f, e);
+    return e;
+  }
+
+  /** Nearest free walkable tile reachable by ring search (BFS over walkable tiles). */
+  function nearestFree(f, x, y, maxR = 6, pred) {
+    const seen = new Set([y * f.w + x]);
+    let frontier = [[x, y]];
+    for (let r = 0; r <= maxR && frontier.length; r++) {
+      const next = [];
+      for (const [cx, cy] of frontier) {
+        if ((r > 0 || true) && isFree(f, cx, cy) && (!pred || pred(cx, cy))) return { x: cx, y: cy };
+        for (const [dx, dy] of DIRS) {
+          const nx = cx + dx, ny = cy + dy, k = ny * f.w + nx;
+          if (!inBounds(f, nx, ny) || seen.has(k)) continue;
+          seen.add(k);
+          if (walkable(f, nx, ny)) next.push([nx, ny]);
+        }
+      }
+      frontier = next;
+    }
+    return null;
+  }
+
+  /** Visual position for interpolation (also used for float projectiles aiming). */
+  function posOf(e) {
+    if (!e.move) return { x: e.x, y: e.y };
+    const t = Math.min(1, e.move.elapsed / e.move.dur);
+    return { x: e.move.fromX + (e.move.toX - e.move.fromX) * t, y: e.move.fromY + (e.move.toY - e.move.fromY) * t };
+  }
+
+  /** Every living entity on the floor including the player. */
+  function* all(world) {
+    if (world.player && !world.player.dead) yield world.player;
+    for (const e of world.floor.entities.values()) if (!e.dead) yield e;
+  }
+  function* enemiesOf(world, faction) {
+    for (const e of all(world)) if (e.faction !== faction && e.hp > 0) yield e;
+  }
+
+  BD.sim.entities = { makeEntity, get, inBounds, walkable, occupant, isFree, occupy, vacate, relocate, addToFloor, nearestFree, posOf, all, enemiesOf };
+})(globalThis.BD);
