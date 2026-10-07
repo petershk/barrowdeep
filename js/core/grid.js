@@ -37,7 +37,10 @@
         else if (kind === 'diamond') ok = Math.abs(dx) + Math.abs(dy) <= r;
         else if (kind === 'square') ok = Math.max(Math.abs(dx), Math.abs(dy)) <= r;
         else if (kind === 'cross') ok = (dx === 0 || dy === 0) && Math.abs(dx) + Math.abs(dy) <= Math.max(1, r);
-        else if (kind === 'annulus') { const d = dx * dx + dy * dy; ok = d <= (r + 0.5) * (r + 0.5) && d > (r - 0.5) * (r - 0.5); }
+        else if (kind === 'annulus') {
+          const d = dx * dx + dy * dy;
+          ok = d <= (r + 0.5) * (r + 0.5) && d > (r - 0.5) * (r - 0.5);
+        }
         if (ok) out.push([dx, dy]);
       }
     }
@@ -58,14 +61,20 @@
     if (s === 'single') return [[cx, cy]];
     if (s === 'arc3') {
       const out = [];
-      for (const d of [dir + 7, dir, dir + 1]) { const v = DIRS[d % 8]; out.push([cx + v[0], cy + v[1]]); }
+      for (const d of [dir + 7, dir, dir + 1]) {
+        const v = DIRS[d % 8];
+        out.push([cx + v[0], cy + v[1]]);
+      }
       return out;
     }
     if (s === 'ring8') return shapeOffsets('ring', 1).map(([dx, dy]) => [cx + dx, cy + dy]);
-    if (s === 'line') return rayTiles(cx, cy, aimVec ? aimVec.x : DIRS[dir][0], aimVec ? aimVec.y : DIRS[dir][1], area.length || 1);
+    if (s === 'line') {
+      const [ax, ay] = aimOf(aimVec, dir);
+      return rayTiles(cx, cy, ax, ay, area.length || 1);
+    }
     if (s === 'cone') {
       const len = area.length || area.radius || 1, ang = ((area.angle || 90) * Math.PI) / 180 / 2;
-      const ax = aimVec ? aimVec.x : DIRS[dir][0], ay = aimVec ? aimVec.y : DIRS[dir][1];
+      const [ax, ay] = aimOf(aimVec, dir);
       const al = Math.hypot(ax, ay) || 1;
       const out = [];
       for (const [dx, dy] of shapeOffsets('circle', len)) {
@@ -79,6 +88,9 @@
     return shapeOffsets(kind, area.radius || 0).map(([dx, dy]) => [cx + dx, cy + dy]);
   }
 
+  /** the aim vector if given, else the unit step of facing `dir` */
+  const aimOf = (aimVec, dir) => (aimVec ? [aimVec.x, aimVec.y] : DIRS[dir]);
+
   /**
    * Tiles visited by a ray from the centre of (x0,y0) in direction (dx,dy), excluding the start,
    * up to `len` tiles. Amanatides–Woo traversal.
@@ -87,16 +99,29 @@
     const out = [];
     const l = Math.hypot(dx, dy);
     if (!l) return out;
-    dx /= l; dy /= l;
+    dx /= l;
+    dy /= l;
     let x = x0, y = y0;
-    const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1;
-    const tdx = dx ? Math.abs(1 / dx) : Infinity, tdy = dy ? Math.abs(1 / dy) : Infinity;
-    let tmx = dx ? 0.5 * tdx : Infinity, tmy = dy ? 0.5 * tdy : Infinity;
+    const stepX = dx > 0 ? 1 : -1;
+    const stepY = dy > 0 ? 1 : -1;
+    const tdx = dx ? Math.abs(1 / dx) : Infinity;
+    const tdy = dy ? Math.abs(1 / dy) : Infinity;
+    let tmx = dx ? 0.5 * tdx : Infinity;
+    let tmy = dy ? 0.5 * tdy : Infinity;
     let guard = 0;
     while (out.length < len && guard++ < 1000) {
-      if (Math.abs(tmx - tmy) < 1e-9) { x += stepX; y += stepY; tmx += tdx; tmy += tdy; }
-      else if (tmx < tmy) { x += stepX; tmx += tdx; }
-      else { y += stepY; tmy += tdy; }
+      if (Math.abs(tmx - tmy) < 1e-9) {
+        x += stepX;
+        y += stepY;
+        tmx += tdx;
+        tmy += tdy;
+      } else if (tmx < tmy) {
+        x += stepX;
+        tmx += tdx;
+      } else {
+        y += stepY;
+        tmy += tdy;
+      }
       out.push([x, y]);
     }
     return out;
@@ -111,15 +136,26 @@
     if (x0 === x1 && y0 === y1) return true;
     let x = x0, y = y0;
     const dx = x1 - x0, dy = y1 - y0;
-    const stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1;
-    const tdx = dx ? Math.abs(1 / dx) : Infinity, tdy = dy ? Math.abs(1 / dy) : Infinity;
-    let tmx = dx ? 0.5 * tdx : Infinity, tmy = dy ? 0.5 * tdy : Infinity;
+    const stepX = dx > 0 ? 1 : -1;
+    const stepY = dy > 0 ? 1 : -1;
+    const tdx = dx ? Math.abs(1 / dx) : Infinity;
+    const tdy = dy ? Math.abs(1 / dy) : Infinity;
+    let tmx = dx ? 0.5 * tdx : Infinity;
+    let tmy = dy ? 0.5 * tdy : Infinity;
     for (let guard = 0; guard < 400; guard++) {
       if (Math.abs(tmx - tmy) < 1e-9) {
         if (!clear(x + stepX, y) && !clear(x, y + stepY)) return false;
-        x += stepX; y += stepY; tmx += tdx; tmy += tdy;
-      } else if (tmx < tmy) { x += stepX; tmx += tdx; }
-      else { y += stepY; tmy += tdy; }
+        x += stepX;
+        y += stepY;
+        tmx += tdx;
+        tmy += tdy;
+      } else if (tmx < tmy) {
+        x += stepX;
+        tmx += tdx;
+      } else {
+        y += stepY;
+        tmy += tdy;
+      }
       if (x === x1 && y === y1) return true;
       if (!clear(x, y)) return false;
     }
@@ -148,7 +184,10 @@
     for (const [sx, sy] of sources) {
       if (!inB(w, h, sx, sy)) continue;
       const i = sy * w + sx;
-      if (dist[i] === -1) { dist[i] = 0; q[tail++] = i; }
+      if (dist[i] === -1) {
+        dist[i] = 0;
+        q[tail++] = i;
+      }
     }
     while (head < tail) {
       const i = q[head++];
@@ -179,7 +218,8 @@
     for (const [sx, sy] of sources) {
       if (!inB(w, h, sx, sy)) continue;
       const i = sy * w + sx;
-      cost[i] = 0; heap.push(i, 0);
+      cost[i] = 0;
+      heap.push(i, 0);
     }
     while (heap.size) {
       const i = heap.pop();
@@ -194,7 +234,10 @@
         if (!canStep(x, y, dx, dy, walk)) continue;
         const ni = ny * w + nx;
         const nc = c + (dx && dy ? 14 : 10);
-        if (cost[ni] === -1 || nc < cost[ni]) { cost[ni] = nc; heap.push(ni, nc); }
+        if (cost[ni] === -1 || nc < cost[ni]) {
+          cost[ni] = nc;
+          heap.push(ni, nc);
+        }
       }
     }
     return cost;
@@ -207,19 +250,27 @@
       size: 0, lastPri: 0,
       push(id, p) {
         if (heap.size >= ids.length) {
-          const ni = new Int32Array(ids.length * 2); ni.set(ids); ids = ni;
-          const np = new Float64Array(pri.length * 2); np.set(pri); pri = np;
+          const ni = new Int32Array(ids.length * 2);
+          ni.set(ids);
+          ids = ni;
+          const np = new Float64Array(pri.length * 2);
+          np.set(pri);
+          pri = np;
         }
         let i = heap.size++;
         while (i > 0) {
           const par = (i - 1) >> 1;
           if (pri[par] <= p) break;
-          ids[i] = ids[par]; pri[i] = pri[par]; i = par;
+          ids[i] = ids[par];
+          pri[i] = pri[par];
+          i = par;
         }
-        ids[i] = id; pri[i] = p;
+        ids[i] = id;
+        pri[i] = p;
       },
       pop() {
-        const top = ids[0]; heap.lastPri = pri[0];
+        const top = ids[0];
+        heap.lastPri = pri[0];
         const n = --heap.size;
         if (n > 0) {
           const id = ids[n], p = pri[n];
@@ -229,9 +280,12 @@
             if (c >= n) break;
             if (c + 1 < n && pri[c + 1] < pri[c]) c++;
             if (pri[c] >= p) break;
-            ids[i] = ids[c]; pri[i] = pri[c]; i = c;
+            ids[i] = ids[c];
+            pri[i] = pri[c];
+            i = c;
           }
-          ids[i] = id; pri[i] = p;
+          ids[i] = id;
+          pri[i] = p;
         }
         return top;
       },
@@ -254,9 +308,13 @@
     const from = new Int32Array(N).fill(-1);
     const closed = new Uint8Array(N);
     const heap = makeHeap(256);
-    const H = (x, y) => { const dx = Math.abs(x - gx), dy = Math.abs(y - gy); return 10 * Math.max(dx, dy) + 4 * Math.min(dx, dy); };
+    const H = (x, y) => {
+      const dx = Math.abs(x - gx), dy = Math.abs(y - gy);
+      return 10 * Math.max(dx, dy) + 4 * Math.min(dx, dy);
+    };
     const s = sy * w + sx, goal = gy * w + gx;
-    g[s] = 0; heap.push(s, H(sx, sy));
+    g[s] = 0;
+    heap.push(s, H(sx, sy));
     let expanded = 0, best = s, bestH = H(sx, sy);
     while (heap.size) {
       const i = heap.pop();
@@ -266,7 +324,10 @@
       if (++expanded > budget) break;
       const x = i % w, y = (i / w) | 0;
       const hh = H(x, y);
-      if (hh < bestH) { bestH = hh; best = i; }
+      if (hh < bestH) {
+        bestH = hh;
+        best = i;
+      }
       for (let k = 0; k < 8; k++) {
         const dx = DIRS[k][0], dy = DIRS[k][1];
         const nx = x + dx, ny = y + dy;
@@ -275,13 +336,22 @@
         const ni = ny * w + nx;
         if (closed[ni]) continue;
         const ng = g[i] + (dx && dy ? 14 : 10);
-        if (ng < g[ni]) { g[ni] = ng; from[ni] = i; heap.push(ni, ng + H(nx, ny)); }
+        if (ng < g[ni]) {
+          g[ni] = ng;
+          from[ni] = i;
+          heap.push(ni, ng + H(nx, ny));
+        }
       }
     }
-    let end = closed[goal] ? goal : opts.partial ? best : -1;
+    let end = -1;
+    if (closed[goal]) end = goal;
+    else if (opts.partial) end = best;
     if (end < 0 || end === s) return end === s && end === goal ? [] : null;
     const path = [];
-    while (end !== s && end >= 0) { path.push([end % w, (end / w) | 0]); end = from[end]; }
+    while (end !== s && end >= 0) {
+      path.push([end % w, (end / w) | 0]);
+      end = from[end];
+    }
     return path.reverse();
   }
 
