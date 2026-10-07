@@ -22,13 +22,29 @@
     if (mode && w && w.floor) tick(w, r);
   };
 
-  window.addEventListener('keydown', (e) => { if (e.code === 'F3') { e.preventDefault(); setMode((mode + 1) % 3); } });
-  function setMode(m) { mode = m; if (box) box.style.display = m ? '' : 'none'; }
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'F3') return;
+    e.preventDefault();
+    setMode((mode + 1) % 3);
+  });
+  function setMode(m) {
+    mode = m;
+    if (box) box.style.display = m ? '' : 'none';
+  }
 
   function tick(w, realMs) {
-    frames++; acc += realMs;
-    if (acc >= 500) { fps = Math.round((frames * 1000) / acc); frames = 0; acc = 0; }
-    if (!box) { box = document.createElement('pre'); box.className = 'debug-overlay'; document.body.appendChild(box); }
+    frames++;
+    acc += realMs;
+    if (acc >= 500) {
+      fps = Math.round((frames * 1000) / acc);
+      frames = 0;
+      acc = 0;
+    }
+    if (!box) {
+      box = document.createElement('pre');
+      box.className = 'debug-overlay';
+      document.body.appendChild(box);
+    }
     const f = w.floor;
     let mons = 0, awake = 0;
     for (const e of f.entities.values()) {
@@ -50,6 +66,12 @@
   }
 
   const a = { x: 0, y: 0 };
+  /** label colour for an AI state: red winding up, grey asleep, yellow otherwise */
+  function aiStateColor(st) {
+    if (st === 'windup') return '#ff6040';
+    if (st === 'idle' || st === 'dormant') return '#9a9a9a';
+    return '#ffe080';
+  }
   BD.view.render.hooks.top.push((ctx, w) => {
     if (mode !== 2) return;
     const f = w.floor, S = iso.view.S;
@@ -60,7 +82,7 @@
     if (f.reach) {
       ctx.fillStyle = 'rgba(255,40,40,0.3)';
       for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
-        const i = y * f.w + x;
+        const i = BD.core.grid.idx(f, x, y);
         if (!f.explored[i] || f.reach[i] >= 0 || !BD.sim.entities.walkable(f, x, y)) continue;
         iso.toScreen(x, y, a);
         ctx.beginPath();
@@ -73,13 +95,16 @@
     }
     for (const z of f.zones) {
       ctx.fillStyle = z.faction === 'player' ? 'rgba(80,160,255,0.35)' : 'rgba(255,200,40,0.35)';
-      for (const [x, y] of z.tiles || []) { iso.toScreen(x, y, a); ctx.fillRect(a.x - 3 * S, a.y - 1.5 * S, 6 * S, 3 * S); }
+      for (const [x, y] of z.tiles || []) {
+        iso.toScreen(x, y, a);
+        ctx.fillRect(a.x - 3 * S, a.y - 1.5 * S, 6 * S, 3 * S);
+      }
     }
     for (const e of f.entities.values()) {
-      if (e.dead || e.faction !== 'monster' || !f.visible[e.y * f.w + e.x]) continue;
+      if (e.dead || e.faction !== 'monster' || !f.visible[BD.core.grid.idx(f, e.x, e.y)]) continue;
       iso.toScreen(e.x, e.y, a);
       const st = e.ai ? e.ai.state : '?';
-      ctx.fillStyle = st === 'windup' ? '#ff6040' : st === 'idle' || st === 'dormant' ? '#9a9a9a' : '#ffe080';
+      ctx.fillStyle = aiStateColor(st);
       ctx.fillText(st + (e.packId != null ? ' #' + e.packId : ''), a.x, a.y - 30 * S);
     }
     ctx.restore();

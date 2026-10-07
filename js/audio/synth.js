@@ -4,13 +4,14 @@
 (function (BD) {
   'use strict';
 
-  const A = () => BD.audio.audio;
+  const Audio = () => BD.audio.audio;
   const VOICES = 32, LIMIT_N = 3, LIMIT_MS = 40, FALL = 18;
   let voices = [];                 // end times of live sounds
   const recent = new Map();        // sound id → recent start times (ms, audio clock)
 
   function tone(ctx, out, L, t0, pitch, vol) {
-    const reps = L.repeat ? L.repeat.n : 1, dt = L.repeat ? L.repeat.dt : 0;
+    const reps = L.repeat ? L.repeat.n : 1;
+    const dt = L.repeat ? L.repeat.dt : 0;
     for (let r = 0; r < reps; r++) {
       const t = t0 + L.t + r * dt;
       const k = pitch * (L.rand ? 1 + (Math.random() - 0.5) * (L.rand / L.f[0]) * 0.5 : 1);
@@ -21,24 +22,33 @@
       g.gain.setValueAtTime(0.0001, t);
       g.gain.exponentialRampToValueAtTime(Math.max(0.0002, L.vol * vol), t + Math.min(0.01, L.dur * 0.2));
       g.gain.exponentialRampToValueAtTime(0.0001, t + L.dur);
-      o.connect(g); g.connect(out);
-      o.start(t); o.stop(t + L.dur + 0.02);
+      o.connect(g);
+      g.connect(out);
+      o.start(t);
+      o.stop(t + L.dur + 0.02);
     }
   }
   function noise(ctx, out, L, t0, pitch, vol) {
-    const reps = L.repeat ? L.repeat.n : 1, dt = L.repeat ? L.repeat.dt : 0;
+    const reps = L.repeat ? L.repeat.n : 1;
+    const dt = L.repeat ? L.repeat.dt : 0;
     for (let r = 0; r < reps; r++) {
       const t = t0 + L.t + r * dt;
-      const src = ctx.createBufferSource(); src.buffer = A().noiseBuf;
-      const f = ctx.createBiquadFilter(); f.type = L.noise; f.Q.value = L.q || 1;
+      const src = ctx.createBufferSource();
+      src.buffer = Audio().noiseBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = L.noise;
+      f.Q.value = L.q || 1;
       const k = pitch * (L.rand ? 1 + (Math.random() - 0.5) * 0.4 : 1);
       f.frequency.setValueAtTime(L.f[0] * k, t);
       f.frequency.exponentialRampToValueAtTime(Math.max(20, L.f[1] * k), t + L.dur);
       const g = ctx.createGain();
       g.gain.setValueAtTime(L.vol * vol, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + L.dur);
-      src.connect(f); f.connect(g); g.connect(out);
-      src.start(t, Math.random() * 0.2); src.stop(t + L.dur + 0.02);
+      src.connect(f);
+      f.connect(g);
+      g.connect(out);
+      src.start(t, Math.random() * 0.2);
+      src.stop(t + L.dur + 0.02);
     }
   }
 
@@ -56,7 +66,7 @@
    * stack: 1-based repeat index for escalating sounds (ki charges climb in pitch)
    */
   function play(id, o) {
-    const a = A();
+    const a = Audio();
     if (!a || !a.live()) return false;
     const spec = BD.audio.sounds[id];
     if (!spec) return false;
@@ -76,9 +86,15 @@
     const stack = spec.stackPitch && o.stack ? 1 + spec.stackPitch * (o.stack - 1) : 1;   // rising pitch per combo stack
     const pitch = (o.pitch || 1) * (1 + (Math.random() * 2 - 1) * (j.pitch || 0)) * stack;
     const vol = (o.vol == null ? 1 : o.vol) * pl.gain * (1 + (Math.random() * 2 - 1) * (j.vol || 0));
-    const pan = ctx.createStereoPanner(); pan.pan.value = pl.pan;
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = pl.pan;
     pan.connect(o.bus === 'music' ? a.music : a.sfx);
-    if (o.reverb && a.reverb) { const s = ctx.createGain(); s.gain.value = o.reverb; pan.connect(s); s.connect(a.reverb); }
+    if (o.reverb && a.reverb) {
+      const s = ctx.createGain();
+      s.gain.value = o.reverb;
+      pan.connect(s);
+      s.connect(a.reverb);
+    }
     const t0 = now + (o.at || 0) + 0.005;
     let end = t0;
     for (const L of spec.layers) {

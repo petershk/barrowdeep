@@ -8,7 +8,11 @@ BD.debug.autotests.perf = (D) => {
     BD.sim.monsters.spawn(w, roster[i % roster.length].id, x, y, { noLoot: true });
   }
   // harmless crowd: the scene measures drawing, not survival
-  for (const e of w.floor.entities.values()) if (e.kind === 'monster') { e.ai.held = true; e.ai.state = 'idle'; }
+  for (const e of w.floor.entities.values()) {
+    if (e.kind !== 'monster') continue;
+    e.ai.held = true;
+    e.ai.state = 'idle';
+  }
   const times = [];
   for (let i = 0; i < 150; i++) {
     D.step(16);
@@ -20,7 +24,7 @@ BD.debug.autotests.perf = (D) => {
   }
   times.sort((a, b) => a - b);
   const mons = [...w.floor.entities.values()]
-    .filter((e) => e.kind === 'monster' && !e.dead && w.floor.visible[e.y * w.floor.w + e.x]).length;
+    .filter((e) => e.kind === 'monster' && !e.dead && w.floor.visible[BD.core.grid.idx(w.floor, e.x, e.y)]).length;
   const d = document.createElement('pre');
   d.style.cssText = 'position:fixed;top:40px;left:20px;color:#9f9;z-index:99;background:#000c;font-size:16px;padding:8px';
   const median = times[times.length >> 1].toFixed(2);

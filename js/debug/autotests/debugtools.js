@@ -1,9 +1,9 @@
 BD.debug.autotests.debugtools = (D) => {
   D.newRun({ cls: 'magician', floor: 4 });
-  const A = BD.debug.arena;
-  A.setLevel(12);
-  A.spawn('skeleton', 'champion', 0, 3);
-  A.dummy();
+  const Arena = BD.debug.arena;
+  Arena.setLevel(12);
+  Arena.spawn('skeleton', 'champion', 0, 3);
+  Arena.dummy();
   BD.debug.overlay.setMode(2);
   D.step(1500);
   BD.ui.panels.open('arena');
