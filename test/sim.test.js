@@ -120,6 +120,24 @@ module.exports = (T) => {
     }
   });
 
+  T.test('Pilgrim: elites and bosses get their extra life multipliers, other difficulties none', () => {
+    const lifeOf = (difficulty, key, pick) => {
+      const w = BD.sim.world.createWorld({ seed: 'diff', cls: 'valkyrie', name: 't', difficulty });
+      w.run.flags.key3 = true;
+      BD.sim.run.travel(w, key, 'spawn');
+      const e = [...w.floor.entities.values()].find(pick);
+      return BD.sim.stats.statsOf(w, e).maxLife;
+    };
+    const D = BD.data.difficulties;
+    const isBoss = (e) => BD.sim.entities.isBoss(e);
+    const isKeeper = (e) => e.rank === 'keeper';
+    const bossRatio = lifeOf('pilgrim', 'a3', isBoss) / lifeOf('penitent', 'a3', isBoss);
+    T.near(bossRatio, D.pilgrim.hp * D.pilgrim.bossHp.grulk, 0.01);
+    const keeperRatio = lifeOf('pilgrim', 1, isKeeper) / lifeOf('penitent', 1, isKeeper);
+    T.near(keeperRatio, D.pilgrim.hp * D.pilgrim.eliteHp.keeper[1], 0.01);
+    T.ok(!D.penitent.bossHp && !D.martyr.bossHp, 'only Pilgrim changes elite and boss life');
+  });
+
   T.test('bosses take reduced CC (freeze → chill, stun ×0.3)', () => {
     const w = newWorld('boss');
     const m = firstMonster(w);
