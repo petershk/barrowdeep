@@ -83,9 +83,36 @@
     const map = { chest: o.opened ? 'prop_chest_open' : 'prop_chest', pile: 'prop_pile', shrine: 'prop_shrine', lever: 'prop_lever' };
     if (o.kind === 'trap') { if (o.visible && !o.disarmed) drawTrap(o); return; }
     if (o.kind === 'pile' && o.used) return;
+    if (o.kind === 'npc') {
+      const n = Object.values(BD.data.town.npcs).find((q) => q.role === o.role);
+      if (n) { R.shadow(o.x, o.y, 1); R.drawArt(n.art, 'idle', 0, o.x, o.y, { pal: n.pal, palKey: 'npc_' + o.role, flip: o.x > world.player.x }); }
+      return;
+    }
+    if (o.kind === 'portal' || o.kind === 'exit_portal') { drawPortal(o, world); return; }
     const id = map[o.kind];
     if (id) R.drawArt(id, 'idle', 0, o.x, o.y, { alpha: o.kind === 'shrine' && o.used ? 0.6 : 1 });
   }
+  function drawPortal(o, world) {
+    const ctx = R.ctx, zk = iso.view.Z * iso.view.dpr;
+    iso.toScreen(o.x, o.y, tmp);
+    const t = R.timeMs / 1000;
+    const col = o.kind === 'exit_portal' ? '#ffd27a' : '#b06aff';
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.35 - i * 0.08;
+      ctx.drawImage(BD.view.fx.glow(col), tmp.x - (14 + i * 6) * zk, tmp.y - (52 + i * 4) * zk, (28 + i * 12) * zk, (52 + i * 8) * zk);
+    }
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = col; ctx.lineWidth = 2 * zk;
+    ctx.beginPath(); ctx.ellipse(tmp.x, tmp.y - 22 * zk, 9 * zk, 20 * zk, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 0.5 + 0.2 * Math.sin(t * 4);
+    ctx.fillStyle = P.rgba(col, 0.4);
+    ctx.beginPath(); ctx.ellipse(tmp.x, tmp.y - 22 * zk, 7 * zk, 17 * zk, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    BD.view.lighting.add(o.x, o.y, 3, col, 0.9, 0.15);
+    if (Math.random() < 0.3) BD.view.fx.spark(o.x + (Math.random() - 0.5) * 0.5, o.y + (Math.random() - 0.5) * 0.5, { z: 10 + Math.random() * 30, vz: 0.02, g: -0.00003, life: 700, size: 2, color: col, ambient: true });
+  }
+
   function drawTrap(o) {
     OV().diamondPath(R.ctx, o.x, o.y, 0.6);
     R.ctx.strokeStyle = 'rgba(160,130,90,0.55)'; R.ctx.lineWidth = iso.view.dpr; R.ctx.stroke();

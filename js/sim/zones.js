@@ -63,8 +63,9 @@
       return;
     }
     if (p.type === 'packet') {
-      for (const e of victims(world, z)) {
-        const r = BD.sim.damage.dealDamage(world, { srcId: z.srcId, tgtId: e.id, amounts: p.amounts, tags: ['zone', 'aoe'].concat(p.tags || []), canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: p.abilityId || null, noFaction: !!z.noFaction });
+      let sum = 0; for (const k in p.amounts) sum += p.amounts[k];
+      if (sum > 0.01 || (p.statuses && p.statuses.length)) for (const e of victims(world, z)) {
+        const r = sum <= 0.01 ? { total: 0 } : BD.sim.damage.dealDamage(world, { srcId: z.srcId, tgtId: e.id, amounts: p.amounts, tags: ['zone', 'aoe'].concat(p.tags || []), canCrit: false, canDodge: false, canBlock: false, mult: 1, abilityId: p.abilityId || null, noFaction: !!z.noFaction });
         if (r) {
           for (const st of p.statuses || []) BD.sim.status.apply(world, e, st.id, { durMs: st.durMs, magnitude: st.mag, sourceId: z.srcId, hit: r.total });
           if (p.knockback) BD.sim.hits.knockback(world, e, z.cx, z.cy, p.knockback);

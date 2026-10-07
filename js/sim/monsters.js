@@ -82,6 +82,7 @@
     let k = 1;
     for (const id of e.mods) { const m = CM()[id]; if (m && m.speedMult) k *= m.speedMult; }
     if (world.run.ascension >= 2) k *= 1.1;
+    if (e.bossSpeed) k *= e.bossSpeed;
     return k;
   }
 

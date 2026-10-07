@@ -15,6 +15,7 @@
       tiles: plan.tiles, decor: plan.decor, hidden: plan.hidden.slice(), objects: plan.objects,
       rooms: plan.rooms, keeperRoom: plan.keeperRoom, upPos: plan.upPos, downPos: plan.downPos,
       waypointPos: plan.waypointPos, gatePos: plan.gatePos, spawnPos: plan.spawnPos, arena: plan.arena || null,
+      portalPos: plan.portalPos || null, road: plan.road || null, decal: plan.decal || null, town: plan.town || null,
       explored: new Uint8Array(N), seen: new Uint8Array(N), visible: new Uint8Array(N), seenCount: 0,
       reachableCount: 0, occ: new Int32Array(N), block: new Uint8Array(N),
       entities: new Map(), items: [], zones: [], projectiles: [], corpses: [], allies: [],
@@ -22,6 +23,7 @@
       flow: null, flowFrom: -1, timeOnFloor: 0, fullyExplored: false, exploreDirty: true, extraLight: 0,
     };
     world.floor = f;
+    if (plan.arena) f.extraLight = 8;
     for (let i = 0; i < N; i++) if (plan.reachDist && plan.reachDist[i] >= 0 && BD.data.tiles.WALK[plan.tiles[i]]) f.reachableCount++;
     // generated monsters get stable ids n×10000 + index
     let gi = 0;
@@ -69,8 +71,8 @@
     if (T0 && BD.sim.floors) BD.sim.floors.leave(world);
     let plan;
     if (key === 'town') plan = BD.sim.gen.town.generate({ seed: world.run.seed });
-    else if (typeof key === 'string' && key[0] === 'a') plan = BD.sim.gen.arena.generate({ n: Number(key.slice(1)), seed: world.run.seed + ':arena' });
-    else plan = BD.sim.gen.generateFloor({ n: key, seed: world.run.seed, difficulty: world.run.difficulty });
+    else if (typeof key === 'string' && key[0] === 'a') plan = BD.sim.gen.arena.generate({ n: Number(key.slice(1)), seed: world.run.seed });
+    else plan = BD.sim.gen.generateFloor({ n: key, seed: world.run.seed, difficulty: world.run.difficulty, ascension: world.run.ascension || 0, unlocks: { champion_lore: !!world.run.flags.championLore } });
     const f = instantiateFloor(world, plan, key);
     world.floor = f;
     if (BD.sim.floors) BD.sim.floors.restore(world, f);

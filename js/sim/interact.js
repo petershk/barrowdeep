@@ -46,9 +46,12 @@
       case T.GATE:
         if (run) run.useGate(world);
         return true;
-      case T.TOWN_DOOR:
-        if (BD.sim.town) BD.sim.town.door(world, x, y);
+      case T.TOWN_DOOR: {
+        const d = f.town && f.town.doors.find((q) => Math.abs(q.x - x) <= 1 && q.y === y);
+        const n = d && Object.values(BD.data.town.npcs).find((q) => q.role === d.role);
+        if (n) world.events.push({ type: 'npc.talk', role: n.role, panel: n.panel, name: n.name, x, y });
         return true;
+      }
       default:
         return false;
     }

@@ -132,9 +132,10 @@
     const key = biome + '|' + kind;
     let p = prismCache.get(key);
     if (p) return p;
-    const pal = BD.data.biomes[biome].pal;
-    const H = kind === 'pillar' ? iso.WALL_H + 7 : kind === 'stub' ? 5 : iso.WALL_H;
+    let pal = BD.data.biomes[biome].pal;
+    const H = kind === 'pillar' ? iso.WALL_H + 7 : kind === 'stub' ? 5 : kind === 'building' || kind === 'door' ? iso.WALL_H + 12 : iso.WALL_H;
     const hw = kind === 'pillar' ? 10 : 16, hh = hw / 2;
+    if (kind === 'building' || kind === 'door') pal = Object.assign({}, pal, { wallTop: kind === 'door' ? '#6a3a2a' : '#7a3e2a', wallFace: '#8a7458', wallSide: '#6a5840' });
     const c = mk(32, 16 + H + 1);
     const g = c.getContext('2d');
     const x0 = 16 - hw;
@@ -160,6 +161,17 @@
     // a lit front edge
     g.fillStyle = 'rgba(255,255,255,0.10)';
     g.fillRect(15, 8 + hh, 1, H - 2);
+    if (kind === 'building') {
+      // timber beams and a lit window on the faces
+      g.fillStyle = '#3a2a1a';
+      g.fillRect(0, 8 + 5, 16, 1); g.fillRect(16, 8 + hh - 3, 16, 1);
+      g.fillStyle = 'rgba(255,190,90,0.75)'; g.fillRect(6, 8 + 9, 3, 4); g.fillRect(23, 8 + hh + 2, 3, 4);
+    }
+    if (kind === 'door') {
+      g.fillStyle = '#1a0f08';
+      g.fillRect(4, 8 + 2 + 8, 9, H - 10); g.fillRect(19, 8 + hh + 2, 9, H - 10);
+      g.fillStyle = 'rgba(255,170,80,0.5)'; g.fillRect(6, 8 + 12, 5, 3); g.fillRect(21, 8 + hh + 4, 5, 3);
+    }
     p = { canvas: c, ax: 16, ay: 8 + H, H };
     prismCache.set(key, p);
     return p;

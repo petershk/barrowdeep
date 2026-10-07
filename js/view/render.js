@@ -206,7 +206,12 @@
       if (f.gatePos && x === f.gatePos.x + 1 && y === f.gatePos.y + 1) drawArt(f.gateOpen ? 'prop_gate_open' : 'prop_gate', 'idle', 0, x - 0.5, y - 0.5, { scale: 1 });
       return;
     }
-    const kind = t === T.PILLAR ? 'pillar' : 'wall';
+    let kind = t === T.PILLAR ? 'pillar' : 'wall';
+    if (f.town) {
+      if (!f._bset) { f._bset = new Set(); for (const k in f.town.buildings) for (const [bx, by] of f.town.buildings[k]) f._bset.add(by * f.w + bx); }
+      if (t === T.TOWN_DOOR) kind = 'door';
+      else if (f._bset.has(i)) kind = 'building';
+    }
     const pr = BD.view.tiles.getPrism(biome, kind);
     const al = cutawayAlpha(f, i, x, y, pp, realMs, hover);
     const S = iso.view.S;

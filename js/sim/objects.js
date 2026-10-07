@@ -40,6 +40,10 @@
     else { o.used = true; BD.sim.status.apply(world, world.player, 'shrine_damage', { durMs: 0, magnitude: 25 }); }
   });
   reg('trap', (world, o) => { if (BD.sim.traps) BD.sim.traps.startDisarm(world, o); });
+  reg('npc', (world, o) => {
+    const n = Object.values(BD.data.town.npcs).find((x) => x.role === o.role);
+    world.events.push({ type: 'npc.talk', role: o.role, panel: n ? n.panel : o.role, name: n ? n.name : o.role, x: o.x, y: o.y });
+  });
 
   BD.sim.objects = {};
 })(globalThis.BD);

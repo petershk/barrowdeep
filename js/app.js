@@ -59,6 +59,7 @@
         }
         if (guard >= 20) acc = 0;
       } else dispatch(w);
+      tickSaves();
       BD.view.render.draw(w, Math.min(1, acc / STEP_MS), real);
     }
     if (BD.ui.hud && w) BD.ui.hud.frame(w, real);
@@ -91,6 +92,18 @@
   function startRun(opts) {
     const seed = opts.seed || newSeed();
     const world = BD.sim.world.createWorld(Object.assign({}, opts, { seed }));
+    world.run.charId = opts.charId || newSeed();
+    const meta = BD.ui.meta ? BD.ui.meta.get() : null;
+    if (meta) {
+      const u = meta.unlocks || {};
+      world.run.flags.ledger = u.ledger3 ? 3 : u.ledger2 ? 2 : u.ledger1 ? 1 : 0;
+      world.run.flags.wayfinder = !!u.wayfinder;
+      world.run.flags.championLore = !!u.champion_lore;
+      world.run.flags.merchantsFavor = !!u.merchants_favor;
+      if (u.deep_flask) { world.player.flask.permMax = 5; world.player.flask.max += 1; world.player.flask.charges += 1; }
+      world.run.flags.stashTabs = 1 + (u.stash2 ? 1 : 0) + (u.stash3 ? 1 : 0);
+    }
+    if (BD.sim.economy && BD.sim.economy.onRunStart) BD.sim.economy.onRunStart(world, opts);
     if (BD.sim.run) BD.sim.run.begin(world, opts);
     else BD.sim.world.enterFloor(world, opts.floor || 1);
     setWorld(world);
@@ -99,6 +112,8 @@
   function setWorld(world) {
     app.world = world;
     app.state = 'playing';
+    app.lastSaveAt = world.time;
+    app.lastSafe = null;
     acc = 0;
     bus.emit({ type: 'app.world', world });
     dispatch(world);
@@ -113,6 +128,17 @@
     if (BD.view.wire) BD.view.wire(bus);
     if (BD.audio.wire) BD.audio.wire(bus);
     if (BD.ui.wire) BD.ui.wire(bus);
+    bus.on('save.request', (ev) => saveNow(ev.why || 'travel'));
+    bus.on('run.death', () => { saveNow('death'); setTimeout(() => BD.ui.panels.open('death'), 1200); });
+    bus.on('run.harvest', (ev) => { if (BD.ui.meta) BD.ui.meta.addSouls(ev.souls); if (app.world && BD.ui.saves) BD.ui.saves.markDead(app.world.run.charId); });
+    bus.on('run.victory', (ev) => {
+      const w = app.world;
+      if (BD.ui.meta) { const m = BD.ui.meta.get(); m.victories++; m.ascension[w.run.difficulty] = Math.max(m.ascension[w.run.difficulty] || 0, (w.run.ascension || 0) + 1); BD.ui.meta.addSouls(ev.souls); }
+      saveNow('victory');
+      if (BD.ui.saves) BD.ui.saves.markDead(w.run.charId);
+      app.slowmoMs = 1000;
+      setTimeout(() => BD.ui.panels.open('victory', { souls: ev.souls }), 2500);
+    });
     BD.input.mouse.attach(canvas);
     BD.input.keyboard.attach();
     if (BD.input.gamepad) BD.input.gamepad.attach();
@@ -135,6 +161,26 @@
     }
   }
 
+  /** Save if the world is in a safe state; on quit fall back to the last safe snapshot. */
+  function saveNow(why) {
+    const w = app.world;
+    if (!w || !w.run.charId || !BD.ui.saves) return false;
+    if (w.run.dead && why !== 'death') return false;
+    if (why === 'death' || BD.sim.save.isSafe(w)) {
+      app.lastSaveAt = w.time;
+      return BD.ui.saves.saveChar(w, why);
+    }
+    if (why === 'quit' && app.lastSafe) return BD.ui.saves.write('char_' + w.run.charId, app.lastSafe);
+    return false;
+  }
+  /** keep an in-memory safe snapshot every ~2 s of world time (for quitting mid-fight) */
+  function tickSaves() {
+    const w = app.world;
+    if (!w || w.run.dead || !w.run.charId) return;
+    if (w.time - (app.lastSnapAt || 0) >= 2000 && BD.sim.save.isSafe(w)) { app.lastSnapAt = w.time; app.lastSafe = BD.sim.save.serialize(w, Date.now()); }
+    if (w.time - app.lastSaveAt >= BD.data.balance.player.autosaveMs) saveNow('auto');
+  }
+
   function toMenu() {
     app.world = null;
     app.state = 'menu';
@@ -142,6 +188,6 @@
     if (BD.ui.menu) BD.ui.menu.open();
   }
 
-  Object.assign(app, { boot, startRun, setWorld, stepSim, dispatch, newSeed, toMenu });
+  Object.assign(app, { boot, startRun, setWorld, stepSim, dispatch, newSeed, toMenu, saveNow });
   BD.boot = boot;
 })(globalThis.BD);

@@ -204,3 +204,35 @@ body.deny-flash #world { filter: brightness(1.15) sepia(0.3); }
 .it-cell:hover .drop-x { display: block; }
 .confirm { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; padding: 6px; border: 1px solid #6a2020; background: rgba(60, 10, 10, 0.4); }
 @media (max-width: 900px) { .inv-cols { grid-template-columns: 1fr; } }
+
+/* ---- boss bar / nameplate ---- */
+.bossbar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 62%; text-align: center; pointer-events: none; }
+.bb-name { color: #e8c0a0; font-variant: small-caps; font-size: 18px; letter-spacing: 0.06em; text-shadow: 0 0 6px #000, 0 1px 0 #000; margin-bottom: 4px; }
+.bb-track { position: relative; height: 14px; background: rgba(10, 4, 4, 0.85); border: 1px solid #6a2a1a; box-shadow: 0 0 10px rgba(0,0,0,0.8); }
+.bb-fill { height: 100%; background: linear-gradient(#c02010, #6a0a04); transition: width 0.12s; }
+.bb-q { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, 0.6); }
+.bb-phase { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #ffd23a; box-shadow: 0 0 4px #ffd23a; }
+.nameplate { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); min-width: 220px; text-align: center; pointer-events: none; background: rgba(8, 6, 4, 0.7); border: 1px solid #3a2a18; padding: 4px 10px; }
+.bossbar:not(.hidden) ~ .nameplate { top: 64px; }
+.np-name { font-variant: small-caps; color: var(--bone); }
+.np-name.rank-champion { color: #7aa0ff; } .np-name.rank-unique, .np-name.rank-keeper { color: var(--gold); }
+.np-sub { font-size: 11px; color: var(--muted); }
+.np-track { height: 5px; background: #200; margin: 3px 0; }
+.np-fill { height: 100%; background: #c02020; }
+.np-mods { font-size: 11px; color: #c8a0ff; }
+.announce.boss { color: #ff7050; font-size: 40px; }
+.announce.countdown { font-size: 96px; top: 28%; color: #ffd23a; }
+.announce.keeper { color: var(--gold); font-size: 32px; }
+
+/* ---- death / victory / load ---- */
+.death-title { color: #c03020 !important; font-size: 2.2rem; }
+.victory-title { color: #ffd23a !important; font-size: 2.2rem; }
+.death-cause { text-align: center; font-size: 1.2rem; color: var(--bone); }
+.death-sub { text-align: center; margin-bottom: 12px; }
+.death-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 760px; }
+.death-choice { border: 1px solid #3a3020; padding: 12px; background: rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; gap: 6px; }
+.death-result { text-align: center; margin-top: 10px; color: var(--gold); }
+.load-row { display: grid; grid-template-columns: 48px 1fr auto; gap: 10px; align-items: center; }
+.load-art { height: 44px; image-rendering: pixelated; }
+.feed-line.bad { color: var(--bad); }
+body.save-failed .minimap { border-color: var(--bad); }

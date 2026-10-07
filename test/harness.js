@@ -26,6 +26,7 @@ function loadBD(opts = {}) {
     RangeError, Uint8Array, Int32Array, Float64Array, Float32Array, Uint16Array, Int8Array, Uint32Array,
     ArrayBuffer, isFinite, parseInt, parseFloat, Infinity, NaN, Symbol, WeakMap, Promise, RegExp };
   ctx.globalThis = ctx;
+  if (opts.globals) Object.assign(ctx, opts.globals);
   vm.createContext(ctx);
   const files = simScripts().concat(opts.extra || []);
   for (const f of files) {

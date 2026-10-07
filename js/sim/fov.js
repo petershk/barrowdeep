@@ -48,6 +48,12 @@
     const f = world.floor, p = world.player;
     if (!f || !p) return;
     const radius = Math.round(BD.sim.stats ? BD.sim.stats.statsOf(world, p).light_radius : 6) + (f.extraLight || 0);
+    if (f.biome === 'town') {
+      // Brennor is open ground under the sky: everything is seen
+      if (!f.townLit) { f.visible.fill(1); f.explored.fill(1); f.seen.fill(1); f.townLit = true; f.exploreDirty = true; }
+      f.fovVersion = (f.fovVersion || 0) + 1; f.fovRadius = 30;
+      return;
+    }
     f.visible.fill(0);
     const tiles = f.tiles, w = f.w;
     shadowcast(f.w, f.h, p.x, p.y, f.biome === 'town' ? 30 : radius, (x, y) => !SEE[tiles[y * w + x]],(x, y) => {

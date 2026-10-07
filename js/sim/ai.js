@@ -42,6 +42,7 @@
       ai.lastSeenMs = world.time;
       if (wasDormant) BD.sim.stats.bump(e);
       world.events.push({ type: 'monster.alert', id: e.id, x: e.x, y: e.y, rank: e.rank, keeper: e.keeper });
+      if ((e.rank === 'boss' || e.rank === 'malgoth') && BD.sim.bosses) BD.sim.bosses.onWake(world, e);
       if (e.keeper && BD.sim.floors) BD.sim.floors.keeperSeen(world, e);
       // the pack wakes with it (Unseen's hidden first hit doesn't alert the rest)
       if (e.packId != null && !(src && src.kind === 'player' && src._silentHit)) {
@@ -74,6 +75,7 @@
   }
 
   function notice(world, e) {
+    if (e.ai.held) return;
     const p = world.player;
     const d = MON.defOf(e);
     const ai = e.ai;
