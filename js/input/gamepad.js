@@ -17,7 +17,7 @@
   function attach() {
     window.addEventListener('gamepadconnected', (e) => { pad.index = /** @type {any} */ (e).gamepad.index; });
     window.addEventListener('gamepaddisconnected', () => { pad.index = -1; setActive(false); });
-    window.addEventListener('mousemove', () => { if (pad.active) setActive(false); });
+    window.addEventListener('mousemove', () => { if (pad.active && !virtual.active) setActive(false); });
   }
   function setActive(on) {
     if (pad.active === on) return;
@@ -25,7 +25,10 @@
     document.body.classList.toggle('pad', on);
     if (!on) { pad.target = null; showPrompt(null); clearFocus(); }
   }
+  // touch drives a virtual pad through the same code path
+  const virtual = { active: false, index: -1, connected: true, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
   function getPad() {
+    if (virtual.active) return virtual;
     if (typeof navigator === 'undefined' || !navigator.getGamepads) return null;
     const list = navigator.getGamepads();
     if (pad.index >= 0 && list[pad.index]) return list[pad.index];
@@ -152,7 +155,7 @@
         if (t && BD.ui.panels.defs[t.id].closeOnEsc) BD.ui.panels.close();
       }
       if (pressed(BTN.BACK) && app.tactical) app.togglePause();
-      if (!pad.focus && dir === null && focusables().length) setFocus(focusables()[0]);
+      if (!virtual.active && !pad.focus && dir === null && focusables().length) setFocus(focusables()[0]);
       pad.prev = btn;
       return;
     }
@@ -221,5 +224,5 @@
     bus.on('slam', () => rumble(0.6, 0.4, 160));
   }
 
-  BD.input.gamepad = { attach, frame, wire, stickToWorld, pad, BTN };
+  BD.input.gamepad = { attach, frame, wire, stickToWorld, bestTarget, pad, BTN, virtual };
 })(globalThis.BD);
