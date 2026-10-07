@@ -65,7 +65,7 @@
   BD.core.scheduler.register('earthshaker.after', (world, pl) => {
     const p = world.player;
     if (p.dead) return;
-    const ab = BD.sim.abilities.resolved(BD.data.skills.earthshaker, pl.rank);
+    const ab = BD.sim.abilities.resolved(BD.data.skills.earthshaker, pl.rank, p);
     const ctx = FX.baseCtx(world, p, ab, pl.rank, null);
     ctx.packetMult = pl.mult / ab.effects[0].mult;
     world.events.push({ type: 'ability.impact', id: p.id, abilityId: 'earthshaker', x: pl.x, y: pl.y, tx: pl.x, ty: pl.y, kind: 'aftershock', area: ab.area });

@@ -86,6 +86,15 @@
     bus.on('portal.open', (ev) => FX().play('portal', ev.x, ev.y));
     bus.on('waypoint.activate', (ev) => FX().play('portal', ev.x, ev.y, { school: 'storm' }));
     bus.on('revive', (ev) => FX().play('blink', ev.x, ev.y, { school: 'shadow' }));
+    bus.on('loot.drop', (ev) => {
+      BD.view.items.onDrop(ev);
+      if (ev.rarity === 'legendary') FX().play('levelup', ev.x, ev.y, { scale: 0.6 });
+      else if (ev.rarity === 'rare') FX().play('blink', ev.x, ev.y, { school: 'gold' });
+    });
+    bus.on('gold', (ev) => FT().merge('gold', ev.amount, ev.x, ev.y, 'gold', (n) => '+' + n + ' gold'));
+    bus.on('flask.charge', (ev) => FT().add('+1 flask', ev.x, ev.y, 'heal'));
+    bus.on('loot.fountain', (ev) => FX().play('loot_fountain', ev.x, ev.y));
+    bus.on('power.nova', (ev) => FX().play('zone_hit', ev.x, ev.y, { school: ev.school === 'holy' ? 'holy' : ev.school || 'fire' }));
     bus.on('floor.explored', () => { const p = W().player; FX().play('explored', p.x, p.y); });
   }
 

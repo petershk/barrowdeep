@@ -29,7 +29,7 @@
     return (eff[k] || 0) * (1 + 0.2 * (rank - 1));
   }
   /** apply breakpoints: returns { effects, set } for this rank */
-  function resolved(ab, rank) {
+  function resolved(ab, rank, p) {
     const out = Object.assign({}, ab);
     out.effects = (ab.effects || []).slice();
     out.selfEffects = (ab.selfEffects || []).slice();
@@ -39,7 +39,7 @@
       if (bp.addSelf) out.selfEffects = out.selfEffects.concat(bp.addSelf);
       if (bp.set) for (const k in bp.set) out[k] = typeof bp.set[k] === 'object' && !Array.isArray(bp.set[k]) ? Object.assign({}, out[k], bp.set[k]) : bp.set[k];
     }
-    if (BD.sim.powers) BD.sim.powers.modifyAbility(out, rank);
+    if (BD.sim.powers && p) BD.sim.powers.modifyAbility(out, rank, p);
     return out;
   }
 
@@ -57,7 +57,7 @@
       ab.area = { shape: 'line', length: w.reachLine };
       ab.tags = ['attack', 'basic', 'melee'];
     } else ab.tags = ['attack', 'basic', 'melee'];
-    if (BD.sim.powers) BD.sim.powers.modifyAbility(ab, 1);
+    if (BD.sim.powers) BD.sim.powers.modifyAbility(ab, 1, p);
     return ab;
   }
 
@@ -170,7 +170,7 @@
     if (!base) return 'reject';
     const rank = rankOf(world, p, abilityId);
     if (!rank) { reject(world, p, base, 'not_ready'); return 'reject'; }
-    const ab = resolved(base, rank);
+    const ab = resolved(base, rank, p);
     if (abilityId === 'attack') { ab.targeting = base.targeting; ab.delivery = base.delivery; ab.area = base.area; ab.tags = base.tags; }
     // channel: holding re-issues keep it alive
     if (p.attack && p.attack.phase === 'channel' && p.attack.abilityId === abilityId) {
@@ -247,7 +247,7 @@
     if (a.phase === 'channel') {
       a.heldMs += dt;
       if (a.remaining <= 0) {
-        const ab = resolved(def(a.abilityId), a.rank);
+        const ab = resolved(def(a.abilityId), a.rank, p);
         const cost = (ab.channel.costPerSec * ab.channel.tickMs) / 1000;
         if (a.heldMs > 260 || !R().canPay(p, ab.resource.type, cost)) { cancel(world, p, 'released'); return; }
         R().spend(world, p, ab.resource.type, cost);
@@ -257,7 +257,7 @@
       return;
     }
     if (a.phase === 'windup' && a.remaining <= 0) {
-      const ab = a.abilityId === 'attack' ? basicFor(world, p) : resolved(def(a.abilityId), a.rank);
+      const ab = a.abilityId === 'attack' ? basicFor(world, p) : resolved(def(a.abilityId), a.rank, p);
       a.phase = 'recover';
       const left = a.remaining;
       a.remaining = a.recover + left;

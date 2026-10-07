@@ -51,7 +51,7 @@
     if (p.type === 'ability') {
       const caster = E.get(world, p.casterId);
       if (!caster || caster.dead) return;
-      const ab = AB().resolved(AB().def(p.abilityId), p.rank);
+      const ab = AB().resolved(AB().def(p.abilityId), p.rank, caster);
       const ctx = BD.sim.effects.baseCtx(world, caster, ab, p.rank, null);
       ctx.srcId = p.srcId != null ? p.srcId : caster.id; ctx.combo = p.combo || 0; ctx.focus = p.focus || 0; ctx.packetMult = p.mult || 1; ctx.aoe = true;
       ctx.cx = z.cx; ctx.cy = z.cy; ctx.centerId = null;
@@ -93,7 +93,7 @@
     if (z.tickPayload) { // ability tick zones (Blizzard, Rain of Arrows)
       const caster = E.get(world, z.tickPayload.casterId);
       if (!caster || caster.dead) return;
-      const ab = AB().resolved(AB().def(z.tickPayload.abilityId), z.tickPayload.rank);
+      const ab = AB().resolved(AB().def(z.tickPayload.abilityId), z.tickPayload.rank, caster);
       const ctx = BD.sim.effects.baseCtx(world, caster, ab, z.tickPayload.rank, null);
       ctx.srcId = z.srcId; ctx.packetMult = z.tickPayload.mult || 1; ctx.aoe = true; ctx.cx = z.cx; ctx.cy = z.cy; ctx.focus = z.tickPayload.focus || 0;
       world.events.push({ type: 'zone.tick', zoneId: z.id, kind: z.kind, tiles: z.tiles, cx: z.cx, cy: z.cy, abilityId: ab.id });

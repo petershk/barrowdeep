@@ -150,6 +150,17 @@
       const kind = { C: 'chest', B: 'pile', S: 'shrine', T: 'trap', L: 'lever' }[m.ch];
       if (kind) p.objects.push({ kind, x: m.x, y: m.y, sp: m.sp });
     }
+    // a few chests and loot piles in rooms (not on packs, not near the stairs)
+    const roomTiles = new Set();
+    for (const r of p.rooms) if (!r.setpiece && r !== p.upRoom) for (const [x, y] of C.roomTiles(p, r)) roomTiles.add(y * p.w + x);
+    const free = floorList.filter(([x, y]) => roomTiles.has(y * p.w + x) && !taken.has(y * p.w + x));
+    const nChest = rng.int(1, 3), nPile = rng.int(1, 2);
+    for (let i = 0; i < nChest + nPile && i < free.length; i++) {
+      const [x, y] = free[(i * 7919) % free.length];
+      if (taken.has(y * p.w + x)) continue;
+      taken.add(y * p.w + x);
+      p.objects.push({ kind: i < nChest ? 'chest' : 'pile', x, y });
+    }
     if (BD.sim.gen.objects) BD.sim.gen.objects.run(p, rng, fl, spec, taken);
     p.budget = budget;
   }

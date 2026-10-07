@@ -72,6 +72,8 @@
     if (it.kind === 'move') followPath(world, p, it);
     else if (it.kind === 'engage' || it.kind === 'approachThenCast') engage(world, p, it);
     else if (it.kind === 'interact') interact(world, p, it);
+    else if (it.kind === 'pickup') pickupWalk(world, p, it);
+    else if (it.kind === 'approachPoint') approachPoint(world, p, it);
   }
 
   function tickTimers(world, p, dt) {
@@ -120,6 +122,26 @@
     const [nx, ny] = it.path[0];
     if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); }
     else it.path = null;
+  }
+
+  function pickupWalk(world, p, it) {
+    const g = world.floor.items.find((x) => x.uid === it.uid);
+    if (!g) { p.intent = { kind: 'idle' }; return; }
+    if (cheb(p.x, p.y, g.x, g.y) <= 1) { p.intent = { kind: 'idle' }; BD.sim.inventory.pickup(world, it.uid); return; }
+    if (!it.path || !it.path.length) { it.path = pathTo(world, p, g.x, g.y, true) || []; if (!it.path.length) { p.intent = { kind: 'idle' }; return; } }
+    const [nx, ny] = it.path[0];
+    if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); } else it.path = null;
+  }
+  /** point-targeted skill out of range: walk until in range, then cast through the same gate */
+  function approachPoint(world, p, it) {
+    if (within(p.x, p.y, it.x, it.y, it.range) && BD.sim.targeting.hasLOS(world, p.x, p.y, it.x, it.y)) {
+      const ok = BD.sim.abilities.fireApproach(world, p, it);
+      if (!ok || !it.hold) p.intent = { kind: 'idle' };
+      return;
+    }
+    if (!it.path || !it.path.length) { it.path = pathTo(world, p, it.x, it.y, true) || []; if (!it.path.length) { p.intent = { kind: 'idle' }; return; } }
+    const [nx, ny] = it.path[0];
+    if (M.startStep(world, p, nx, ny, moveMs(world, p))) { it.path.shift(); onStep(world, p); } else it.path = null;
   }
 
   /** Whirlwind and other channels: drift toward the held cursor at reduced speed. */

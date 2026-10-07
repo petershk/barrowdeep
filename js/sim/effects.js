@@ -82,6 +82,7 @@
     if (ab.resource && ab.resource.combo === 'build' && landed.length) R.addCombo(world, p, ab.resource.comboAdd || 1);
     if (ab.resource && ab.resource.combo === 'finish' && landed.length) R.takeCombo(world, p);
     special(world, p, ab, rank, 'landed', { a, landed, results });
+    if (BD.sim.powers) BD.sim.powers.afterHits(world, p, ab, rank, landed);
   }
 
   function melee(world, ctx, ab, tx, ty, target) {
@@ -172,7 +173,7 @@
   BD.core.scheduler.register('ability.land', (world, pl) => {
     const caster = E.get(world, pl.casterId);
     if (!caster || caster.dead) return;
-    const ab = BD.sim.abilities.resolved(BD.sim.abilities.def(pl.abilityId), pl.rank);
+    const ab = BD.sim.abilities.resolved(BD.sim.abilities.def(pl.abilityId), pl.rank, caster);
     const ctx = baseCtx(world, caster, ab, pl.rank, null);
     if (caster.kind === 'player') BD.sim.player.onStep(world, caster);
     world.events.push({ type: 'ability.land', id: caster.id, abilityId: ab.id, x: pl.x, y: pl.y, area: ab.area });

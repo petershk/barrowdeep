@@ -83,7 +83,7 @@
     const caster = E.get(world, pl.casterId);
     if (!caster) return;
     const ab = BD.sim.abilities.def(pl.abilityId) || BD.data.basicAttack;
-    const rab = pl.abilityId === 'attack' ? BD.sim.abilities.basicFor(world, caster) : BD.sim.abilities.resolved(ab, pl.rank);
+    const rab = pl.abilityId === 'attack' ? BD.sim.abilities.basicFor(world, caster) : BD.sim.abilities.resolved(ab, pl.rank, caster);
     const ctx = BD.sim.effects.baseCtx(world, caster, rab, pl.rank, null);
     ctx.srcId = pr.srcId; ctx.combo = pl.combo; ctx.focus = pl.focus; ctx.forceCrit = pl.forceCrit; ctx.critAdd = pl.critAdd || 0; ctx.packetMult = pl.packetMult || 1;
     ctx.cx = pr.x - pr.dx; ctx.cy = pr.y - pr.dy; ctx.centerId = tgt.id; ctx.projectile = pr;
@@ -121,7 +121,7 @@
         if (tx < 0 || ty < 0 || tx >= f.w || ty >= f.h || !SEE[f.tiles[ty * f.w + tx]] || f.block[ty * f.w + tx]) {
           if (pr.ricochet > 0) { pr.ricochet--; pr.dx = -pr.dx; pr.dy = -pr.dy; nx = pr.x; ny = pr.y; return false; }
           world.events.push({ type: 'projectile.hit', id: pr.id, kind: pr.kind, wall: true, x: pr.x, y: pr.y });
-          if (pr.payload.type === 'ability') { const rab = BD.sim.abilities.def(pr.payload.abilityId); if (rab && rab.delivery && rab.delivery.explode) { const caster = E.get(world, pr.payload.casterId); if (caster) explode(world, pr, Math.round(pr.x), Math.round(pr.y), BD.sim.abilities.resolved(rab, pr.payload.rank), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null)); } }
+          if (pr.payload.type === 'ability') { const rab = BD.sim.abilities.def(pr.payload.abilityId); if (rab && rab.delivery && rab.delivery.explode) { const caster = E.get(world, pr.payload.casterId); if (caster) explode(world, pr, Math.round(pr.x), Math.round(pr.y), BD.sim.abilities.resolved(rab, pr.payload.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null)); } }
           dead = true; return false;
         }
         const id = f.occ[ty * f.w + tx];
@@ -137,7 +137,7 @@
         if (pr.stopAt && tx === pr.stopAt.x && ty === pr.stopAt.y) {
           const rab = BD.sim.abilities.def(pr.payload.abilityId);
           const caster = E.get(world, pr.payload.casterId);
-          if (rab && caster && rab.delivery && rab.delivery.explode) explode(world, pr, tx, ty, BD.sim.abilities.resolved(rab, pr.payload.rank), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null));
+          if (rab && caster && rab.delivery && rab.delivery.explode) explode(world, pr, tx, ty, BD.sim.abilities.resolved(rab, pr.payload.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pr.payload.rank, null));
           dead = true; return false;
         }
         return true;

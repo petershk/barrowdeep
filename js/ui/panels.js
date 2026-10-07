@@ -54,8 +54,15 @@
   function rebuild(id) {
     const s = stack.find((x) => x.id === id);
     if (!s) return;
-    BD.ui.dom.clear(s.el);
+    // a fresh element each rebuild, so listeners attached by build() never accumulate
+    const fresh = /** @type {HTMLElement} */ (s.el.cloneNode(false));
+    const scroll = s.el.scrollTop;
+    s.el.replaceWith(fresh);
+    if (s.shell === s.el) s.shell = fresh;
+    s.el = fresh;
     defs[id].build(s.el, s.arg);
+    s.el.scrollTop = scroll;
+    if (BD.ui.tooltip) BD.ui.tooltip.hide();
     if (BD.ui.pad) BD.ui.pad.invalidate();
   }
   function markDirty(id) { dirty.add(id); }

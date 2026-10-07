@@ -13,7 +13,7 @@
   /** damage numbers per damage effect at a rank: [{lo, hi, amountsLo, amountsHi, eff}] */
   function numbers(world, p, id, rank, ctx) {
     const base = id === 'attack' ? AB().basicFor(world, p) : AB().def(id);
-    const ab = AB().resolved(base, rank);
+    const ab = AB().resolved(base, rank, p);
     const out = [];
     for (const eff of ab.effects.concat(ab.selfEffects || [])) {
       if (eff.type !== 'damage') continue;
@@ -62,7 +62,7 @@
   function describe(world, p, id, rankOverride) {
     const base = id === 'attack' ? AB().basicFor(world, p) : AB().def(id);
     const rank = rankOverride != null ? rankOverride : Math.max(1, AB().rankOf(world, p, id));
-    const ab = AB().resolved(base, rank);
+    const ab = AB().resolved(base, rank, p);
     const out = {
       id, name: base.name, rank, hard: p.skills[id] || 0, maxRank: base.tier === 4 ? 1 : 5, tier: base.tier, branch: base.branch, keystone: !!base.keystone,
       cost: base.keystone ? '' : costText(ab), cooldown: ab.charges ? ab.charges + ' charges, ' + sec(AB().cdTime(world, p, ab)) + ' each' : ab.cooldownMs ? sec(AB().cdTime(world, p, ab)) : '',
