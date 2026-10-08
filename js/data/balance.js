@@ -29,13 +29,15 @@
       moveMs: 250, diagMult: Math.SQRT2,
       evadeTiles: 2, evadeMs: 180, evadeInvulnMs: 120, evadeCdMs: 3000,
       lifeBase: 40, lifePerLevel: 4, lifePerVit: 3,
-      manaBase: 30, manaPerLevel: 2, manaPerMag: 1.5,
-      manaRegenBase: 1.5, manaRegenPerMag: 0.04, surgeDelayMs: 2500, surgeMult: 3,
-      rageMax: 100, rageBasicGen: 6, rageDecay: 8, rageDecayDelayMs: 3000,
+      manaBase: 30, manaPerLevel: 1, manaPerMag: 0.75,
+      manaRegenBase: 1.5, manaRegenPerMag: 0.12, surgeDelayMs: 2500, surgeMult: 3,
+      manaCostPerLevel: 0.03,                           // mana costs ×(1 + this × (level − 1)), keeping pace with the pool
+      rageMax: 100, rageBasicGen: 15, rageDecay: 8, rageDecayDelayMs: 3000,
+      rageFloor: 20,                                    // rage never decays below this (and starts here): an opening Charge or Bash
       momentumThresh: 50, momentumDmg: 10, momentumIas: 10,
-      energyMax: 100, energyRegen: 10,                // energy pays for finishers and utility; builders are free
-      comboMax: 3, comboWindowMs: 6000, comboBasicBonus: 0.4,
-      focusMax: 5, focusStillMs: 1000, focusLoseMs: 4000, focusSameTargetGapMs: 500, focusCritPer: 4,
+      energyMax: 100, energyRegen: 12,                // every skill costs energy; only the basic attack is free
+      comboMax: 3, comboWindowMs: 6000,
+      focusMax: 5, focusStillMs: 350, focusLoseMs: 4000, focusSameTargetGapMs: 0, focusKnockPct: 8, focusCritPer: 4,
       lifeRegenPct: 0.4, oocRegenPct: 3, oocDelayMs: 4000,
       attrPerLevel: 5, skillPerLevel: 1, levelCap: 30,
       flaskBase: 4, flaskHealPct: 45, flaskHealMs: 500, flaskCdMs: 1000, flaskPermMax: 7,
@@ -58,14 +60,14 @@
         minion: { hp: 1.5, dmg: 1.1, xp: 1.5 },
         champion: { hp: 3.2, dmg: 1.2, xp: 3 },
         unique: { hp: 11, dmg: 1.4, xp: 7 },
-        keeper: { hp: 11, dmg: 1.4, xp: 7, fearless: true, steady: true },
+        keeper: { hp: 9.5, dmg: 1.4, xp: 7, fearless: true, steady: true },
         boss: { hp: 35, dmg: 1.8, xp: 40, boss: true, fearless: true, steady: true },
-        malgoth: { hp: 160, dmg: 1.0, xp: 0, boss: true, fearless: true, steady: true },
+        malgoth: { hp: 125, dmg: 0.8, xp: 0, boss: true, fearless: true, steady: true },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 0.98, 2: 1.1, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
+      actDmg: { 1: 1.04, 2: 1.1, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },
-      keeperAct: { 1: 1, 2: 0.88, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
+      keeperAct: { 1: 1, 2: 1, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
       trashXpBase: 10,                                  // xp of a normal monster at AL 1 (grows by xpGrowth per AL)
       dormantDrPct: 40,                                 // statues take this much less damage until they wake
@@ -157,7 +159,7 @@
       // eat_corpse: eats only below this life share; cooldown, wind-up, then enraged this long
       eat_corpse: { belowLifeFrac: 0.8, cooldownMs: 6000, windupMs: 700, enrageMs: 5000 },
       // bone_wall: raised with the player between these distances; the wall stands this long
-      bone_wall: { minDist: 2.5, maxDist: 6, windupMs: 600, lifeMs: 6000 },
+      bone_wall: { minDist: 2.5, maxDist: 6, windupMs: 600, lifeMs: 4000 },
       // burrow: from this far; travel, emerge telegraph, emerge damage multiplier, bosses Exposed after emerging
       burrow: { minDist: 2.5, travelMs: 900, telegraphMs: 800, mult: 1.5, bossExposedMs: 1400 },
       // charge_line: from this far; cooldown, damage multiplier, Exposed after hitting a wall

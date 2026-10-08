@@ -182,11 +182,11 @@
     explode(world, pr, x, y, BD.sim.abilities.resolved(rab, pl.rank, caster), BD.sim.effects.baseCtx(world, caster, rab, pl.rank, null));
   }
 
-  /** off the map, opaque, or a blocking object */
+  /** off the map, opaque, or a blocking object (low ones, like bone walls, let shots over) */
   function blocksShot(f, x, y) {
     if (x < 0 || y < 0 || x >= f.w || y >= f.h) return true;
     const k = Grid.idx(f, x, y);
-    return !SEE[f.tiles[k]] || !!f.block[k];
+    return !SEE[f.tiles[k]] || (!!f.block[k] && !(f.low && f.low[k]));
   }
 
   /**

@@ -23,12 +23,13 @@
   const SKILL_SLOTS = ['rmb', 's1', 's2', 's3', 's4'];
 
   /** can this skill sit on the left-click slot? a free, aimed skill with no cooldown (a builder or cantrip) */
+  /** a skill can sit on left click when it's a plain targeted action: no channel, charges or cooldown.
+   *  It may cost resource: when the hero can't pay, the click falls back to the basic attack. */
   function canBePrimary(ab) {
     if (!ab || ab.passive || ab.channel || ab.charges || ab.cooldownMs) return false;
-    const cost = ab.resource ? ab.resource.cost : 0;
-    return (cost === 0 || cost == null) && !!ab.targeting && ab.targeting.mode !== 'self';
+    return !!ab.targeting && ab.targeting.mode !== 'self';
   }
-  /** where a newly learned skill goes: a cantrip takes the free left click, anything else the first free slot */
+  /** where a newly learned skill goes: a cantrip takes the left click, anything else the first free slot */
   function defaultSlot(p, ab) {
     if (ab.tags.includes('cantrip') && canBePrimary(ab) && !p.bar.lmb) return 'lmb';
     return SKILL_SLOTS.find((k) => !p.bar[k]) || null;
@@ -67,8 +68,23 @@
         }
       }
     }
+    if (ab.resource && ab.resource.type === 'mana' && typeof ab.resource.cost === 'number' && p) {
+      out.resource = Object.assign({}, out.resource, { cost: manaCost(ab.resource.cost, p.level) });
+    }
     if (BD.sim.powers && p) BD.sim.powers.modifyAbility(out, rank, p);
     return out;
+  }
+  /** mana costs grow with character level, as the mana pool does (rage, energy and focus pools don't grow) */
+  function manaCost(base, level) {
+    return Math.round(base * (1 + BD.data.balance.player.manaCostPerLevel * Math.max(0, (level || 1) - 1)));
+  }
+  /** can the hero pay for this learned skill right now (cost at their rank, after modifiers)? */
+  function affordable(world, p, id) {
+    const base = def(id);
+    const rank = rankOf(world, p, id);
+    if (!base || !rank) return false;
+    const res = resolved(base, rank, p).resource;
+    return !res || Resources().canPay(p, res.type, res.cost, res.minStart);
   }
 
   /** basic attack specialised to the equipped weapon */
@@ -393,7 +409,7 @@
   }
 
   BD.sim.abilities = {
-    canBePrimary, defaultSlot,
+    canBePrimary, defaultSlot, manaCost, affordable,
     def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing,
     tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods,
   };

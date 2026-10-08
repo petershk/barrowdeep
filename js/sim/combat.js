@@ -12,11 +12,24 @@
   const Grid = BD.core.grid;
 
   const AIR_SWING_SNAP_RADIUS = 1.5;   // a force-attack near an enemy snaps onto it
+  const SHORT_NOTICE_MS = 1200;        // how often "not enough resource" is announced while falling back
 
-  /** what a left click on an enemy casts: the skill on the left-click slot, else the basic attack */
-  function primaryId(world, p) {
+  /** the skill on the left-click slot, if it can sit there (ignores whether it's affordable) */
+  function slottedPrimary(p) {
     const id = p.bar.lmb;
-    return id && p.skills[id] && Abilities().canBePrimary(BD.data.skills[id]) ? id : 'attack';
+    return id && p.skills[id] && Abilities().canBePrimary(BD.data.skills[id]) ? id : null;
+  }
+  /** what a left click on an enemy casts: the left-click skill while the hero can pay for it, else the basic attack */
+  function primaryId(world, p) {
+    const id = slottedPrimary(p);
+    return id && Abilities().affordable(world, p, id) ? id : 'attack';
+  }
+  /** the click fell back to the basic attack for lack of resource: say so (throttled) so the orb can flash */
+  function noteShort(world, p, id) {
+    const want = slottedPrimary(p);
+    if (id !== 'attack' || !want || world.time - (p.shortNoticeMs || -1e9) < SHORT_NOTICE_MS) return;
+    p.shortNoticeMs = world.time;
+    world.events.push({ type: 'resource.short', id: p.id, abilityId: want, res: BD.sim.resources.kind(p) });
   }
 
   function basicRange(world, p) {
@@ -30,7 +43,9 @@
   /** Engage intent fires this when in range. */
   function playerBasicAttack(world, p, t) {
     if (p.attack) return false;
-    return Abilities().tryCast(world, p, primaryId(world, p), { entityId: t.id, x: t.x, y: t.y }) === 'cast';
+    const id = primaryId(world, p);
+    noteShort(world, p, id);
+    return Abilities().tryCast(world, p, id, { entityId: t.id, x: t.x, y: t.y }) === 'cast';
   }
 
   /** Shift+click: attack the tile in place (no movement). */
@@ -41,6 +56,7 @@
     const t = occ && occ !== p.id ? Entities.get(world, occ) : null;
     const id = primaryId(world, p);
     if (t && t.faction !== 'player') {
+      noteShort(world, p, id);
       Abilities().tryCast(world, p, id, { entityId: t.id, x: t.x, y: t.y });
       return;
     }

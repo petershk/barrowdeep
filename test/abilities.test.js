@@ -105,7 +105,7 @@ module.exports = (T) => {
     T.near(BD.sim.abilities.scale({ mult: 3.2 }, 5), 5.76, 1e-9);
   });
 
-  T.test('the left-click slot: a cantrip starts there and a click on an enemy casts it; costly or cooldown skills are refused', () => {
+  T.test('the left-click slot: a cantrip starts there and a click casts it while affordable, else the basic attack', () => {
     const w = BD.sim.world.createWorld({ seed: 'lmb', cls: 'magician', name: 't', firstSkill: 'firebolt' });
     BD.sim.run.travel(w, 1, 'spawn');
     const p = w.player;
@@ -116,24 +116,45 @@ module.exports = (T) => {
     p.level = 20;
     p.skills.fireball = 1;
     p.skills.teleport = 1;
-    T.ok(!BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: 'fireball' }), 'a mana spell is refused');
+    p.resources.mana.cur = 0;
+    T.eq(BD.sim.combat.primaryId(w, p), 'attack', 'out of mana: the click falls back to the basic attack');
+    p.resources.mana.cur = p.resources.mana.max = 200;
+    T.eq(BD.sim.combat.primaryId(w, p), 'firebolt');
+    T.ok(BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: 'fireball' }), 'a costly spell may sit on left click');
     T.ok(!BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: 'teleport' }), 'a cooldown skill is refused');
     BD.sim.commands.apply(w, { type: 'SetBar', slot: 'lmb', id: null });
     T.eq(BD.sim.combat.primaryId(w, p), 'attack');
     // a fighter's Bash may go there; it doesn't by default
     const f = BD.sim.world.createWorld({ seed: 'lmb2', cls: 'fighter', name: 't', firstSkill: 'bash' });
     T.eq(f.player.bar.rmb, 'bash');
-    T.ok(BD.sim.commands.apply(f, { type: 'SetBar', slot: 'lmb', id: 'bash' }), 'Bash is a free builder');
+    T.ok(BD.sim.commands.apply(f, { type: 'SetBar', slot: 'lmb', id: 'bash' }), 'Bash may sit on left click');
   });
 
-  T.test('Aimed Shot needs 2 focus; Tiger Strike is free', () => {
+  T.test('every active skill costs its class resource; only the basic attack is free', () => {
+    for (const ab of Object.values(BD.data.skills)) {
+      if (ab.passive || ab.keystone || !ab.resource) continue;
+      const r = ab.resource;
+      const costs = r.cost === 'all' || r.cost > 0 || (ab.channel && ab.channel.costPerSec > 0);
+      T.ok(costs, ab.id + ' costs ' + r.type);
+    }
+  });
+
+  T.test('mana costs grow with character level; other resources do not', () => {
+    const k = BD.data.balance.player.manaCostPerLevel;
+    T.eq(BD.sim.abilities.manaCost(14, 1), 14);
+    T.eq(BD.sim.abilities.manaCost(14, 21), Math.round(14 * (1 + 20 * k)));
+    const w = setup('assassin', 'tiger_strike', 1);
+    w.player.level = 20;
+    T.eq(BD.sim.abilities.resolved(BD.data.skills.tiger_strike, 1, w.player).resource.cost, BD.data.skills.tiger_strike.resource.cost);
+  });
+
+  T.test('Aimed Shot needs 2 focus', () => {
     const w = setup('valkyrie', 'aimed_shot', 1);
     const p = w.player;
     p.resources.focus.n = 1;
     T.ok(!BD.sim.resources.canPay(p, 'focus', 'all', BD.data.skills.aimed_shot.resource.minStart));
     p.resources.focus.n = 2;
     T.ok(BD.sim.resources.canPay(p, 'focus', 'all', BD.data.skills.aimed_shot.resource.minStart));
-    T.eq(BD.data.skills.tiger_strike.resource.cost, 0);
   });
 
   T.test('XP curve: early levels are discounted, later ones follow base × growth^(L−1)', () => {

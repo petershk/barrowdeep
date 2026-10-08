@@ -12,15 +12,15 @@
   sk({
     id: 'bash', branch: 'brawn', tier: 1, name: 'Bash', icon: 'bash', school: 'steel',
     tags: ['melee', 'builder', 'physical'],
-    resource: { type: 'rage', cost: 0, gen: 12 }, cooldownMs: 0, usesAttackSpeed: true,
+    resource: { type: 'rage', cost: 8 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'direction', range: 1, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'melee', hitTiming: 'onImpact' }, area: { shape: 'arc3' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.18, canCrit: true, canDodge: false }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.45, canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, add: [{ type: 'knockback', dist: 1, targets: 'center' }], text: 'Knocks the centre target back 1 tile.' },
       { rank: 5, add: [{ type: 'status', id: 'stunned', durMs: 500, onlyOnCrit: true }], text: 'Critical hits stun for 0.5 s.' },
     ],
-    desc: 'Smash the three tiles in front of you. Builds rage.',
+    desc: 'Smash the three tiles in front of you. Your basic attacks build the rage it costs.',
   });
   sk({
     id: 'whirlwind', branch: 'brawn', tier: 2, name: 'Whirlwind', icon: 'whirlwind', school: 'steel',
@@ -61,7 +61,7 @@
     resource: { type: 'rage', cost: 20 }, cooldownMs: 6000, castMs: 120, noIas: true,
     targeting: { mode: 'unit', range: 6, requiresLOS: true, outOfRange: 'reject' },
     delivery: { kind: 'dash' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.5, canCrit: true, canDodge: false }, { type: 'status', id: 'stunned', durMs: 600 }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.25, canCrit: true, canDodge: false }, { type: 'status', id: 'stunned', durMs: 600 }],
     breakpoints: [
       { rank: 3, set: { pathHits: 0.5 }, text: 'Enemies along the path are knocked aside and take 0.5× damage.' },
       { rank: 5, set: { killResets: true }, text: 'A kill resets the cooldown.' },
@@ -103,7 +103,7 @@
   sk({
     id: 'brace', branch: 'iron', tier: 1, name: 'Brace', icon: 'brace', school: 'steel',
     tags: ['defensive'],
-    resource: { type: 'rage', cost: 0 }, cooldownMs: 10000, castMs: 0, noIas: true,
+    resource: { type: 'rage', cost: 10 }, cooldownMs: 10000, castMs: 0, noIas: true,
     targeting: { mode: 'self' }, delivery: { kind: 'instant' },
     selfEffects: [{ type: 'buff', id: 'braced', durMs: 3000, durKey: 'braceMs', magnitude: 40, perRank: [40, 45, 50, 55, 60] }],
     breakpoints: [

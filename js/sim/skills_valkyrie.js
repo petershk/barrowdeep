@@ -73,18 +73,12 @@
     BD.sim.projectiles.fireAbility(world, src, ab, rank, a, tx + ox, ty + oy, ctx);
   });
 
-  // ---------------- Multishot: +1 focus if 3+ arrows hit ----------------
+  // ---------------- Multishot ----------------
   reg('multishot.before', (world, p, ab) => {
     let d = Object.assign({}, ab.delivery);
     if (ab.ricochet || Powers.has(p, 'featherfall')) d.ricochet = 1;
     if (Powers.has(p, 'featherfall')) d.count = (d.count || 5) + 3;
     ab.delivery = d;
-  });
-  reg('multishot.projectileHit', (world, p, ab, rank, { pr }) => {
-    const g = pr.payload.group;
-    if (!g) return;
-    g.hits++;
-    if (g.hits === 3) Resources.gain(world, p, 'focus', 1);
   });
 
   // ---------------- Vault ----------------

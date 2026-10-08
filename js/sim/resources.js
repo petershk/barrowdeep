@@ -11,7 +11,7 @@
   function init(world, p) {
     const cls = BD.data.classes[p.cls];
     const r = {};
-    if (cls.resource === 'rage') r.rage = { cur: 0, max: PlayerBalance.rageMax };
+    if (cls.resource === 'rage') r.rage = { cur: PlayerBalance.rageFloor, max: PlayerBalance.rageMax };
     if (cls.resource === 'energy') {
       r.energy = { cur: PlayerBalance.energyMax, max: PlayerBalance.energyMax };
       r.combo = { n: 0, windowMs: 0 };
@@ -152,9 +152,11 @@
       const r = src.resources;
       if (r.rage && pk.abilityId === 'attack') gain(world, src, 'rage', PlayerBalance.rageBasicGen);
       if (r.focus) {
+        // focus builds from basic shots on the same target (and from standing still): skills only spend it
         const f = r.focus;
         f.lastDealtMs = world.time;
-        if (f.lastTargetId === tgt.id && world.time - f.lastGainMs >= PlayerBalance.focusSameTargetGapMs) gain(world, src, 'focus', 1);
+        const gap = world.time - f.lastGainMs >= PlayerBalance.focusSameTargetGapMs;
+        if (pk.abilityId === 'attack' && f.lastTargetId === tgt.id && gap) gain(world, src, 'focus', 1);
         f.lastTargetId = tgt.id;
       }
     }
@@ -166,7 +168,9 @@
         if (br) gain(world, tgt, 'rage', BD.data.statuses.braced.ragePerHit);
         if (keystone(tgt, 'juggernaut')) gain(world, tgt, 'rage', (res.total / Stats().statsOf(world, tgt).maxLife) * 100);
       }
-      if (r.focus && r.focus.n > 0 && !pk.isDot) {
+      // a real blow knocks focus off; a swarm's nibbles don't
+      const blow = res.total >= Stats().statsOf(world, tgt).maxLife * PlayerBalance.focusKnockPct / 100;
+      if (r.focus && r.focus.n > 0 && !pk.isDot && blow) {
         const keep = Stats().statsOf(world, tgt).focus_keep_pct || 0;
         if (!world.rng.chance(keep / 100)) {
           r.focus.n--;
@@ -191,8 +195,9 @@
     if (keystone(p, 'bloodlust')) {
       const bl = Skills.bloodlust.params;   // above the threshold, drain max life per second (never kills)
       if (r.rage.cur > bl.rageThreshold) p.hp = Math.max(1, p.hp - s.maxLife * bl.drainPct * sec);
-    } else if (world.time - Math.max(p.lastHitMs, p.lastDamagedMs) > PlayerBalance.rageDecayDelayMs && r.rage.cur > 0) {
-      r.rage.cur = Math.max(0, r.rage.cur - PlayerBalance.rageDecay * sec);
+    } else if (world.time - Math.max(p.lastHitMs, p.lastDamagedMs) > PlayerBalance.rageDecayDelayMs
+      && r.rage.cur > PlayerBalance.rageFloor) {
+      r.rage.cur = Math.max(PlayerBalance.rageFloor, r.rage.cur - PlayerBalance.rageDecay * sec);
       checkMomentum(world, p);
     }
   }

@@ -19,7 +19,7 @@
     return (x, y) => {
       if (x < 0 || y < 0 || x >= f.w || y >= f.h) return false;
       const k = Grid.idx(f, x, y);
-      return SEE[f.tiles[k]] === 1 && !f.block[k];
+      return SEE[f.tiles[k]] === 1 && (!f.block[k] || !!(f.low && f.low[k]));   // low blocks don't stop sight
     };
   }
   function hasLOS(world, x0, y0, x1, y1) { return Grid.los(x0, y0, x1, y1, clearFn(world.floor)); }

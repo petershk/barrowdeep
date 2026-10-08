@@ -12,21 +12,21 @@
   // ---------------- Pyromancy ----------------
   sk({
     id: 'firebolt', branch: 'pyro', tier: 1, name: 'Firebolt', icon: 'firebolt', school: 'fire',
-    tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
+    tags: ['spell', 'projectile', 'fire', 'cantrip'], resource: { type: 'mana', cost: 3 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'projectile', projectile: 'firebolt' },
-    effects: [{ type: 'damage', source: 'spell', base: [6, 10], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [5, 9], element: 'fire', canCrit: true }, { type: 'status', id: 'burning', chance: 0.2, needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'firebolt', pierce: 1 } }, text: 'Pierces 1 target.' },
       { rank: 5, set: { splitOnHit: 2 }, text: 'Splits into 2 bolts on hit.' },
     ],
-    desc: 'A free bolt of fire (range 9) with a 20% chance to set enemies Burning. Does not break Surge.',
+    desc: 'A bolt of fire (range 9) with a 20% chance to set enemies Burning.',
   });
   sk({
     id: 'fireball', branch: 'pyro', tier: 2, name: 'Fireball', icon: 'fireball', school: 'fire',
-    tags: ['spell', 'projectile', 'fire', 'aoe'], resource: { type: 'mana', cost: 14 }, cooldownMs: 0,
+    tags: ['spell', 'projectile', 'fire', 'aoe'], resource: { type: 'mana', cost: 16 }, cooldownMs: 0,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 1 } },
-    effects: [{ type: 'damage', source: 'spell', base: [13, 20], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
+    effects: [{ type: 'damage', source: 'spell', base: [7, 12], element: 'fire', canCrit: true, canDodge: false }, { type: 'status', id: 'burning', needsHit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'fireball', stopAtTarget: true, explode: { shape: 'circle', radius: 2 } } }, text: 'Radius 2.' },
       { rank: 5, set: { fbGround: true }, text: 'Leaves burning ground for 3 s.' },
@@ -51,7 +51,7 @@
   // ---------------- Frost ----------------
   sk({
     id: 'ice_shard', branch: 'frost', tier: 1, name: 'Ice Shard', icon: 'ice_shard', school: 'cold',
-    tags: ['spell', 'projectile', 'cold', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
+    tags: ['spell', 'projectile', 'cold', 'cantrip'], resource: { type: 'mana', cost: 3 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 7, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'ice_shard', count: 3, spread: 20, extraFromStat: true, eachLands: false },
     effects: [{ type: 'damage', source: 'spell', base: [3, 5], element: 'cold', canCrit: true }, { type: 'status', id: 'chilled', needsHit: true }],
@@ -59,7 +59,7 @@
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true } }, text: '4 shards.' },
       { rank: 5, set: { delivery: { kind: 'projectile', projectile: 'ice_shard', count: 4, spread: 20, extraFromStat: true, pierce: 'all' } }, text: 'Shards pierce.' },
     ],
-    desc: 'Three free shards in a 20° cone (range 7) that Chill.',
+    desc: 'Three shards in a 20° cone (range 7) that Chill.',
   });
   sk({
     id: 'frost_nova', branch: 'frost', tier: 2, name: 'Frost Nova', icon: 'frost_nova', school: 'cold',
@@ -90,7 +90,7 @@
   // ---------------- Storm ----------------
   sk({
     id: 'spark', branch: 'storm', tier: 1, name: 'Spark', icon: 'spark', school: 'storm',
-    tags: ['spell', 'projectile', 'lightning', 'cantrip'], resource: { type: 'mana', cost: 0 }, cooldownMs: 0, castMs: 450,
+    tags: ['spell', 'projectile', 'lightning', 'cantrip'], resource: { type: 'mana', cost: 3 }, cooldownMs: 0, castMs: 450,
     targeting: { mode: 'point', range: 6, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'projectile', projectile: 'spark', count: 3, spread: 30, extraFromStat: true, maxDist: 6 },
     effects: [{ type: 'damage', source: 'spell', base: [2, 6], element: 'light', canCrit: true }, { type: 'status', id: 'shocked', chance: 0.1, needsHit: true }],
@@ -98,7 +98,7 @@
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'spark', count: 4, spread: 30, extraFromStat: true, maxDist: 6 } }, text: '4 sparks.' },
       { rank: 5, set: { sparkChain: true }, text: 'Sparks chain once.' },
     ],
-    desc: 'Three free sparks crawl erratically along the floor up to 6 tiles, with a 10% chance to Shock.',
+    desc: 'Three sparks crawl erratically along the floor up to 6 tiles, with a 10% chance to Shock.',
   });
   sk({
     id: 'teleport', branch: 'storm', tier: 2, name: 'Teleport', icon: 'teleport', school: 'storm',

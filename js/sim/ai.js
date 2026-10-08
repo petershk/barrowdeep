@@ -167,6 +167,12 @@
   }
 
   function cancelWindup(world, e) {
+    // a burrow cut short (stunned, frozen) surfaces where it is: never left underground and untargetable
+    const kind = e.ai.action && e.ai.action.kind;
+    if (e.untargetable && (kind === 'burrow_travel' || kind === 'burrow_emerge')) {
+      e.untargetable = false;
+      world.events.push({ type: 'emerge', id: e.id, x: e.x, y: e.y });
+    }
     e.ai.state = 'chase';
     e.ai.action = null;
     e.attack = null;

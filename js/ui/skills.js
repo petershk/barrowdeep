@@ -1,6 +1,7 @@
 // @ts-check
 // Skills panel (K): three branch columns drawn as a tree (tier rows + connectors), rank pips,
-// learn (+), assign to LMB (free builders and cantrips) / RMB / 1–4, breakpoints highlighted, "Now / Next" via tooltip (Shift).
+// learn (+), assign to LMB (falls back to the basic attack when unaffordable) / RMB / 1–4,
+// breakpoints highlighted, "Now / Next" via tooltip (Shift).
 (function (BD) {
   'use strict';
 
@@ -8,7 +9,7 @@
   const Commands = () => BD.sim.commands;
   const TIER_LVL = BD.data.balance.skills.tierLevel;
   const SLOT_LABEL = { lmb: 'L', rmb: 'R' };
-  const SLOT_TITLE = { lmb: 'left mouse (free builders and cantrips)', rmb: 'right mouse' };
+  const SLOT_TITLE = { lmb: 'left mouse (attacks instead when unaffordable)', rmb: 'right mouse' };
 
   function build(el) {
     const w = BD.app.world, p = w.player;

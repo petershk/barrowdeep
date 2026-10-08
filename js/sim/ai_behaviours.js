@@ -204,6 +204,9 @@
         if (Entities.isFree(f, x, y)) {
           tiles.push([x, y]);
           f.block[Grid.idx(f, x, y)] = 1;
+          // a bone wall is low: it stops feet, not sight or shots (a melee counter, like the kiters)
+          f.low = f.low || new Uint8Array(f.w * f.h);
+          f.low[Grid.idx(f, x, y)] = 1;
         }
       }
       if (tiles.length) {
@@ -218,7 +221,10 @@
   });
   BD.core.scheduler.register('bone_wall.end', (world, pl) => {
     const f = world.floor;
-    for (const [x, y] of pl.tiles) f.block[Grid.idx(f, x, y)] = 0;
+    for (const [x, y] of pl.tiles) {
+      f.block[Grid.idx(f, x, y)] = 0;
+      if (f.low) f.low[Grid.idx(f, x, y)] = 0;
+    }
     f.blockVer = (f.blockVer || 0) + 1;
     if (f.boneWalls) f.boneWalls = f.boneWalls.filter((w) => w.until > world.time);
     world.events.push({ type: 'bone_wall.end', tiles: pl.tiles });

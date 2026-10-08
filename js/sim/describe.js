@@ -36,7 +36,7 @@
       return r.combo === 'build' ? 'Builds 1 combo' : 'Free';
     }
     if (r.cost === 'all') return 'All ' + r.type + (r.minStart ? ' (' + r.minStart + ' to start)' : '');
-    return r.cost + ' ' + r.type;
+    return r.cost + ' ' + r.type + (r.combo === 'build' ? ', builds 1 combo' : '');
   }
 
   function cooldownText(world, p, ab) {

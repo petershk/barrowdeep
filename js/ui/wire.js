@@ -9,6 +9,10 @@
     if (BD.ui.hints) BD.ui.hints.wire(bus);
     bus.on('announce', (ev) => Log.announce(ev.text, ev.style));
     bus.on('ability.reject', (ev) => Log.denied(ev.reason));
+    bus.on('resource.short', (ev) => {
+      if (BD.ui.hudOrbs) BD.ui.hudOrbs.short();
+      Log.denied(BD.data.strings.t('no_resource', { res: ev.res }));
+    });
     bus.on('levelup', (ev) => {
       Log.line('You reached level ' + ev.level + '. Spend your points: C attributes, K skills.', 'gold');
       BD.ui.panels.markDirty('character');

@@ -26,7 +26,7 @@
   BD.data.bosses = {};
 
   boss('grulk', 1, {
-    hpMult: 1.3, dmgMult: 1.2,
+    hpMult: 1.3, dmgMult: 1.15,
     name: 'Grulk the Gravewaker', title: 'Lord of the Church Crypt', sprite: 'zombie', family: 'undead', arena: 'crypt',
     pal: { G: '#8a9a6a', g: '#5a6a44', B: '#5a3a2a', b: '#3a2418' },
     kit: [
@@ -45,7 +45,7 @@
   });
 
   boss('mortis', 2, {
-    hpMult: 1.9, dmgMult: 1.1,
+    hpMult: 1.4, dmgMult: 0.99,
     name: 'Mortis the Hollow King', title: 'Throne of the Catacombs', sprite: 'wraith', family: 'undead', arena: 'throne',
     pal: { R: '#9a90b8', r: '#6a6088', W: '#e0e8ff', Y: '#9fc3ff' },
     kit: [
@@ -67,7 +67,7 @@
   });
 
   boss('mygra', 3, {
-    hpMult: 1.05, dmgMult: 0.9,
+    hpMult: 0.7, dmgMult: 0.9,
     name: 'Mygra the Brood Mother', title: 'Queen of the Deep Caves', sprite: 'spider', family: 'beast', arena: 'cavern',
     pal: { p: '#3a2a4a', P: '#5a3a6a', R: '#ff4070' },
     kit: [
@@ -88,7 +88,7 @@
   });
 
   boss('hakthul', 4, {
-    hpMult: 1.3, dmgMult: 0.68,
+    hpMult: 1.3, dmgMult: 0.65,
     name: 'Hakthul the Dread Knight', title: 'Warden of the Burning Halls', sprite: 'hellknight', family: 'demon', arena: 'lava_hall', dr: 15,
     kit: [
       { move: 'shield_charge', weight: 3, minRange: 2, maxRange: 6, cdMs: 7000, mult: 8, armMs: 700, length: 6, exposedMs: 2000 },

@@ -78,7 +78,7 @@
       const x = Math.round(cx + dx), y = Math.round(cy + dy);
       if (Carve.get(p, x, y) !== T.FLOOR) continue;
       const extra = (p.arena.extraSpawns = p.arena.extraSpawns || []);
-      const clutch = { def: 'egg_clutch', x, y, rank: 'normal', hpMult: 1.5, eggSac: true };
+      const clutch = { def: 'egg_clutch', x, y, rank: 'normal', hpMult: 0.75, eggSac: true };
       extra.push({ id: 1 + extra.length, members: [clutch], kind: 'eggs' });
     }
     p.arena.webs = [];

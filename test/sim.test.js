@@ -130,6 +130,19 @@ module.exports = (T) => {
     T.near(BD.sim.status.has(m, 'stunned').remainingMs, 300, 1);
   });
 
+  T.test('a burrow cut short by a stun surfaces the monster (never stuck untargetable)', () => {
+    const w = newWorld('burrow', 'fighter', 8);
+    const m = firstMonster(w);
+    m.untargetable = true;
+    m.ai.state = 'windup';
+    m.ai.action = { kind: 'burrow_travel', recover: 0, mult: 1 };
+    m.ai.timer = 900;
+    BD.sim.status.apply(w, m, 'stunned', { durMs: 500 });
+    BD.sim.world.step(w, STEP);
+    T.ok(!m.untargetable, 'surfaced');
+    T.ok(m.ai.state !== 'windup', 'burrow cancelled');
+  });
+
   T.test('chill halves the action clock; freeze stops it', () => {
     const w = newWorld('clock');
     const m = firstMonster(w);

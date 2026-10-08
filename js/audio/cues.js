@@ -203,7 +203,8 @@
   };
 
   // events that are deliberately silent: bookkeeping, visual-only, or voiced by a neighbouring cue
-  const SILENT = ['ability.cancel', 'ability.end', 'ability.ready', 'act.complete.ui', 'announce', 'bar.change', 'bone_wall.end', 'brand',
+  const SILENT = ['resource.short',
+    'ability.cancel', 'ability.end', 'ability.ready', 'act.complete.ui', 'announce', 'bar.change', 'bone_wall.end', 'brand',
     'collide', 'corpse', 'corpse.eaten', 'corpse.end', 'deploy.end', 'ally.end', 'floor.enter', 'keeper.ping', 'knockback', 'lob',
     'monster.attack', 'monster.cancel', 'power', 'projectile.end', 'projectile.hit', 'projectile.spawn', 'resource.change',
     'run.death', 'run.harvest', 'save.request', 'shimmer', 'spawn', 'status.end', 'xp', 'zone.end', 'zone.resolve', 'zone.tick'];

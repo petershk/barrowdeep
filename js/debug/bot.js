@@ -88,8 +88,11 @@
   }
 
   /** score an item swap by DPS and effective-life deltas from statsOf */
+  const MELEE_CLASSES = ['fighter', 'assassin'];   // their skills are melee: a bow or crossbow is never an upgrade
   function improves(w, p, item) {
     if (!BD.sim.inventory.canEquip(w, p, item).ok) return null;
+    const base = BD.data.bases[item.base];
+    if (MELEE_CLASSES.includes(p.cls) && base && base.projectile) return null;
     const cmp = BD.sim.itemsDescribe.compare(w, p, item);
     const cur = BD.sim.stats.statsOf(w, p);
     const d0 = BD.sim.itemsDescribe.dps(cur), e0 = BD.sim.itemsDescribe.ehp(w, cur);
@@ -165,14 +168,15 @@
     const w = bot.world, p = w.player;
     const id = p.bar[slot];
     if (!id || !p.skills[id]) return false;
+    if (t && t.untargetable) return false;   // burrowed or phased out: don't waste a Charge or a spender on it
     const ab = BD.data.skills[id];
     if (BD.sim.abilities.cooldownLeft(p, ab) > 0) return false;
-    const res = ab.resource || {};
-    const costly = res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0;
-    if (costly && !BD.sim.resources.canPay(p, res.type, res.cost, res.minStart)) return false;
-    // a cast that was just tried and didn't start (rejected: no room, out of sight…) waits, so the rotation falls through
+    if (!BD.sim.abilities.affordable(w, p, id)) return false;   // can't pay: the rotation falls through to the basic attack
+    // a cast that was just tried and didn't start (rejected: no room, out of sight…) waits, so the rotation falls through;
+    // anything the hero started since the try (p.lastActMs) means it went through
     bot.tries = bot.tries || {};
-    if (!p.attack && bot.tries[id] != null && w.time - bot.tries[id] < 1500) return false;
+    const tried = bot.tries[id];
+    if (!p.attack && tried != null && w.time - tried < 1500 && !(p.lastActMs >= tried)) return false;
     bot.tries[id] = w.time;
     issue(w, { type: 'UseSkill', slot, aim: aim || (t ? { entityId: t.id, x: t.x, y: t.y } : 'auto') });
     return true;
@@ -184,7 +188,7 @@
       if (rage >= 25 && near.length >= 3 && useSkill(bot, 's3', t)) return true;
       if (rage >= 40 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
       if (rage >= 20 && cheb(t.x, t.y, p.x, p.y) >= 3 && useSkill(bot, 's4', t)) return true;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;   // Bash when the rage is there
       return false;
     },
     assassin(bot, t, near) {
@@ -195,7 +199,7 @@
       if (c >= 3 && en >= 40 && near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length >= 2 && useSkill(bot, 's2', t)) return true;
       if (c >= 2 && en >= 30 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
       if (cheb(t.x, t.y, p.x, p.y) >= 3 && en >= 20 && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;   // out of energy: basic attacks spend the charges
+      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;   // out of energy: basic attacks
       return false;
     },
     magician(bot, t, near) {
@@ -222,10 +226,15 @@
       const adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length, hurt = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.5;
       if (cheb(t.x, t.y, p.x, p.y) <= 1 && (adj >= 2 || hurt) && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
       if (f >= 4 && near.length >= 3 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
-      // Aimed Shot needs 2 focus; hold for 4 while nothing is in melee range (hits knock focus off)
-      if ((f >= 4 || (f >= 2 && adj > 0)) && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
+      // Aimed Shot needs 2 focus; against elites hold for 4 while nothing is in melee range (hits knock focus off)
+      const small = !t.rank || t.rank === 'normal' || t.rank === 'minion';
+      const minStart = BD.data.skills.aimed_shot.resource.minStart;
+      if ((f >= 4 || (f >= minStart && (adj > 0 || small))) && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 's4', t, { x: t.x, y: t.y })) return true;
-      if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;   // Multishot builds focus (same-target hits, 3+ arrows)
+      // Multishot costs focus: into a group, or at a kiter a single slow arrow would miss;
+      // other single targets get basic shots, which build focus for Aimed Shot
+      const kiter = BD.sim.monsters.defOf(t).behaviours.some((b) => b.id === 'kite');
+      if ((near.length >= 2 || kiter) && useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
       return false;
     },
   };

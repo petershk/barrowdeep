@@ -23,16 +23,9 @@
   const SILENT_HIT_CLEAR_MS = 50;      // Unseen's hit out of hiding stays silent (no alert) for this long after it lands
   const CLONE_REACH = 1.5;             // Shadow Master clones copy finishers on enemies this close
 
-  // ---------------- pre-impact: basic attacks spend combo, Shadowstep ambush, Unseen ----------------
+  // ---------------- pre-impact: Shadowstep ambush, Unseen (only finishers spend combo) ----------------
   Effects.preImpact.push((world, p, ab, rank, ctx) => {
     if (!isAssassin(p)) return;
-    if (ab.id === 'attack') {
-      const n = Resources.combo(p);
-      if (n > 0) {
-        ctx.packetMult *= 1 + BD.data.balance.player.comboBasicBonus * n;
-        ctx.spendCombo = true;
-      }
-    }
     if (BD.sim.status.has(p, 'ambush_ready') && ab.id !== 'shadowstep' && hasDamage(ab)) {
       ctx.forceCrit = true;
       BD.sim.status.remove(world, p, 'ambush_ready');
@@ -49,7 +42,6 @@
 
   reg('attack.landed', (world, p, ab, rank, { landed }) => {
     if (!isAssassin(p) || !landed.length) return;
-    if (Resources.combo(p) > 0 && !p._noSpend) Resources.takeCombo(world, p);
     if (ks(p, 'endless_flurry') && world.rng.chance(0.25)) Resources.addCombo(world, p, 1);
   });
 

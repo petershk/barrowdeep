@@ -14,16 +14,16 @@
     id: 'aimed_shot', branch: 'marksman', tier: 1, name: 'Aimed Shot', icon: 'aimed_shot', school: 'holy',
     tags: ['projectile', 'spender', 'physical'], resource: { type: 'focus', cost: 'all', minStart: 2 }, cooldownMs: 0, usesAttackSpeed: true, cancelOnMove: true, onCommit: true,
     targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ maxDist: 12 }),
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.0, perFocus: 0.6, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 2.0, perFocus: 0.3, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { pierceAt5: true }, text: 'At 5 focus, the arrow pierces every enemy.' },
       { rank: 5, set: { extraAt5: 2 }, text: 'At 5 focus, 2 more arrows fly at nearby enemies.' },
     ],
-    desc: 'Needs 2 focus. Draw (moving cancels it, free) and loose an arrow for 1.0× + 0.6× per focus. Spends all focus.',
+    desc: 'Needs 2 focus. Draw (moving cancels it, free) and loose an arrow for 2.0× + 0.3× per focus. Spends all focus.',
   });
   sk({
     id: 'piercing_shot', branch: 'marksman', tier: 2, name: 'Piercing Shot', icon: 'piercing_shot', school: 'steel',
-    tags: ['projectile', 'physical', 'line'], resource: { type: 'focus', cost: 0 }, cooldownMs: 3000,
+    tags: ['projectile', 'physical', 'line'], resource: { type: 'focus', cost: 1 }, cooldownMs: 3000,
     targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ pierce: 'all', maxDist: 10 }),
     effects: [{ type: 'damage', source: 'weapon', mult: 1.3, canCrit: true }],
     breakpoints: [
@@ -50,18 +50,18 @@
   // ---------------- Skirmish ----------------
   sk({
     id: 'multishot', branch: 'skirmish', tier: 1, name: 'Multishot', icon: 'multishot', school: 'steel',
-    tags: ['projectile', 'builder', 'physical'], resource: { type: 'focus', cost: 0 }, cooldownMs: 0, usesAttackSpeed: true,
+    tags: ['projectile', 'physical'], resource: { type: 'focus', cost: 1 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'point', range: 8, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ count: 5, spread: 50, extraFromStat: true }),
     effects: [{ type: 'damage', source: 'weapon', mult: 0.8, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { delivery: arrow({ count: 7, spread: 50, extraFromStat: true }) }, text: '7 arrows.' },
       { rank: 5, set: { ricochet: 1 }, text: 'Arrows ricochet once.' },
     ],
-    desc: 'Five arrows in a 50° cone, 0.8× each. +1 focus if three or more hit.',
+    desc: 'Five arrows in a 50° cone, 0.8× each. An enemy is struck by at most two of them.',
   });
   sk({
     id: 'vault', branch: 'skirmish', tier: 2, name: 'Vault', icon: 'vault', school: 'dust',
-    tags: ['mobility'], resource: { type: 'focus', cost: 0 }, cooldownMs: 6000, castMs: 80, noIas: true,
+    tags: ['mobility'], resource: { type: 'focus', cost: 1 }, cooldownMs: 6000, castMs: 80, noIas: true,
     targeting: { mode: 'point', range: 30, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'instant' },
     breakpoints: [
       { rank: 3, set: { cooldownMs: 4500 }, text: 'Cooldown 4.5 s.' },
@@ -87,7 +87,7 @@
   // ---------------- Valor ----------------
   sk({
     id: 'javelin', branch: 'valor', tier: 1, name: 'Javelin', icon: 'javelin', school: 'holy',
-    tags: ['projectile', 'builder', 'physical'], resource: { type: 'focus', cost: 0 }, cooldownMs: 2000,
+    tags: ['projectile', 'physical'], resource: { type: 'focus', cost: 1 }, cooldownMs: 2000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: { kind: 'projectile', projectile: 'javelin', pierce: 2, eachLands: true },
     effects: [{ type: 'damage', source: 'weapon', mult: 1.4, canCrit: true }],
     breakpoints: [
@@ -98,7 +98,7 @@
   });
   sk({
     id: 'valkyries_call', branch: 'valor', tier: 2, name: "Valkyrie's Call", icon: 'valkyries_call', school: 'holy',
-    tags: ['summon'], resource: { type: 'focus', cost: 0 }, cooldownMs: 30000, castMs: 300, noIas: true,
+    tags: ['summon'], resource: { type: 'focus', cost: 2 }, cooldownMs: 30000, castMs: 300, noIas: true,
     targeting: { mode: 'self' }, delivery: { kind: 'summon' }, spiritMult: 0.8, spiritMs: 20000,
     spiritJavelinCdMs: 2500,                           // at rank 5 the spirit throws a Javelin this often
     breakpoints: [

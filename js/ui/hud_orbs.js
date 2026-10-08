@@ -6,6 +6,8 @@
 
   const { h, setText, root } = BD.ui.dom;
   let el = null, life = null, res = null, xp = null, flask = null, pouch = null, chips = null, pips = null;
+  const SHORT_FLASH_MS = 700;          // the resource orb flashes this long when a click couldn't pay
+  let shortUntil = -1;
   const Palette = BD.view.palette;
   const M = Palette.MEANING;
   /** orb liquid: [surface, depth] from the meaning colour (ART_DIRECTION.md: rage / energy / mana / focus / life) */
@@ -95,7 +97,9 @@
     const kind = BD.data.classes[p.cls].resource;
     const { frac, txt, lab, pulse } = resourceReadout(p, kind);
     const c = ORB_COL[kind];
-    drawOrb(res, frac, c[0], c[1], t, pulse ? M.text : null);
+    let resPulse = pulse ? M.text : null;
+    if (t < shortUntil) resPulse = M.bad;
+    drawOrb(res, frac, c[0], c[1], t, resPulse);
     setText(res.val, txt);
     setText(res.lab, lab);
     // xp
@@ -190,6 +194,9 @@
     pips.style.top = (o.y - 46 * v.Z * v.dpr - 30) / v.dpr + 'px';
   }
 
+  /** a click fell back to the basic attack for lack of resource: flash the resource orb */
+  function short() { shortUntil = t + SHORT_FLASH_MS; }
+
   BD.ui.hud.add({ frame });
-  BD.ui.hudOrbs = { frame };
+  BD.ui.hudOrbs = { frame, short };
 })(globalThis.BD);

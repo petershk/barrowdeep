@@ -44,7 +44,7 @@
           BD.ui.dom.append(c, [
             h('div.tt-title', 'Attack'),
             h('div.tt-desc', 'Left click on an enemy: your basic attack. '
-              + 'Place a free builder or cantrip here in the Skills panel (K) to cast it instead.'),
+              + 'Place a skill here in the Skills panel (K) to cast it instead; without the resource for it, you attack.'),
           ]);
           return;
         }
