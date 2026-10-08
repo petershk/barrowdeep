@@ -70,7 +70,7 @@
     desc: 'Backflip 4 tiles away from the cursor, leaving caltrops where you stood (Slowed 50%, Bleeding). +2 focus.',
   });
   sk({
-    id: 'pinning_shot', branch: 'skirmish', tier: 3, name: 'Pinning Shot', icon: 'pinning_shot', school: 'poison',
+    id: 'pinning_shot', branch: 'skirmish', tier: 3, name: 'Pinning Shot', icon: 'pinning_shot', school: 'steel',
     tags: ['projectile', 'control', 'physical'], resource: { type: 'focus', cost: 1 }, cooldownMs: 7000,
     targeting: { mode: 'point', range: 9, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({}),
     effects: [{ type: 'damage', source: 'weapon', mult: 2.0, canCrit: true }, { type: 'status', id: 'rooted', durMs: 2500, needsHit: true }],
@@ -81,7 +81,7 @@
     desc: 'A 2.0× arrow that Roots for 2.5 s (bosses are Slowed 40%). Enemies within 2 of the target are Feared for 1.5 s.',
   });
   sk({ id: 'wind_dancer', branch: 'skirmish', tier: 4, name: 'Wind Dancer', icon: 'wind_dancer', keystone: true,
-    passive: (r, add) => add('evade_cd_ms', 1000, 'Wind Dancer'), school: 'storm',
+    passive: (r, add) => add('evade_cd_ms', 1000, 'Wind Dancer'), school: 'dust',
     desc: 'Evade grants 3 focus and resets Vault. Evade cooldown −1 s.' });
 
   // ---------------- Valor ----------------

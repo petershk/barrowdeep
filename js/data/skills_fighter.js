@@ -113,7 +113,7 @@
     desc: 'For 3 s, take 40% less damage and gain 4 rage per hit taken.',
   });
   sk({
-    id: 'second_wind', branch: 'iron', tier: 2, name: 'Second Wind', icon: 'secondwind', school: 'poison',
+    id: 'second_wind', branch: 'iron', tier: 2, name: 'Second Wind', icon: 'secondwind', school: 'life',
     tags: ['heal'],
     resource: { type: 'rage', cost: 30 }, cooldownMs: 25000, castMs: 200, noIas: true,
     targeting: { mode: 'self' }, delivery: { kind: 'instant' },

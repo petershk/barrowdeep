@@ -187,7 +187,10 @@
     hostLayers();
     const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('world'));
     BD.view.render.init(canvas);
-    if (BD.ui.options) BD.view.render.setZoom(BD.ui.options.get('zoom'));
+    if (BD.ui.options) {
+      BD.view.render.setZoom(BD.ui.options.get('zoom'));
+      BD.ui.options.onChange((k, v) => { if (k === 'zoom') BD.view.render.setZoom(v); });
+    }
     window.addEventListener('resize', () => BD.view.render.resize());
     if (BD.view.wire) BD.view.wire(bus);
     if (BD.audio.wire) BD.audio.wire(bus);

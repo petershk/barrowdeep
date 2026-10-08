@@ -6,7 +6,7 @@
   BD.data.projectiles = {
     arrow: { speed: 14, element: 'phys', school: 'steel', sprite: 'arrow' },
     bolt: { speed: 14, element: 'phys', school: 'steel', sprite: 'bolt' },
-    wand_bolt: { speed: 12, element: 'phys', school: 'general', sprite: 'orb', light: '#b88aff' },
+    wand_bolt: { speed: 12, element: 'phys', school: 'steel', sprite: 'orb', light: '#cfd6e0' },
     javelin: { speed: 13, element: 'phys', school: 'holy', sprite: 'spear', light: '#ffd75a' },
     quill: { speed: 6, element: 'phys', school: 'bone', sprite: 'arrow' },
     fire_bolt: { speed: 6, element: 'fire', school: 'fire', sprite: 'orb', light: '#ff8a2a' },

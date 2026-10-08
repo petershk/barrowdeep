@@ -1,6 +1,7 @@
 // @ts-check
 // Monster roster (04 §3.3). Base values at AL 1; scaled per 05 §3. xp is a relative weight within
 // the act, normalised so each act's roster averages 10 (05 §5). Behaviours run in order (06 §8.1).
+// `pal` is visual only: it keeps each monster ≥25% luminance or 90° hue away from its biome floor (ART_DIRECTION).
 (function (BD) {
   'use strict';
 
@@ -64,7 +65,7 @@
     sprite: 'chest', pal: { B: '#c8b890', b: '#9a8a64', d: '#6a5a3a', G: '#8a6a9a', g: '#5a4a6a' }, spawner: true,
     behaviours: [{ id: 'spawn', what: 'cave_spider', every: 6000, cap: 4 }] });
   mon('pit_viper', { name: 'Pit Viper', act: 3, family: 'beast', role: 'ambusher', hp: 22, dmg: [4, 7], attackMs: 1100, moveMs: 300, xp: 12,
-    sprite: 'snake', onHit: [{ status: 'poisoned', chance: 0.5, durMs: 4000 }],
+    sprite: 'snake', pal: { G: '#c8a050', g: '#7a5a2a', R: '#e03828', t: '#d04050' }, onHit: [{ status: 'poisoned', chance: 0.5, durMs: 4000 }],
     behaviours: [{ id: 'burrow', cdMs: 7000 }, { id: 'melee' }] });
   mon('gargoyle', { name: 'Gargoyle', act: 3, family: 'construct', role: 'ambusher', hp: 36, dmg: [5, 8], attackMs: 1400, moveMs: 350, xp: 15, dr: 20,
     sprite: 'gargoyle', behaviours: [{ id: 'dormant', wakeDist: 3 }, { id: 'melee' }] });
@@ -74,18 +75,18 @@
 
   // ---------------- Act IV — Demonic Halls ----------------
   mon('hellimp', { name: 'Hellimp', act: 4, family: 'demon', role: 'bomber', hp: 10, dmg: [10, 14], attackMs: 600, moveMs: 240, xp: 8,
-    sprite: 'imp', element: 'fire', behaviours: [{ id: 'explode', fuseMs: 600, radius: 1, dmgMult: 1.0 }] });
+    sprite: 'imp', pal: { R: '#e89a3a', r: '#a8541c', Y: '#fff2b0' }, element: 'fire', behaviours: [{ id: 'explode', fuseMs: 600, radius: 1, dmgMult: 1.0 }] });
   mon('lesser_demon', { name: 'Lesser Demon', act: 4, family: 'demon', role: 'brute', hp: 48, dmg: [6, 10], attackMs: 1500, moveMs: 400, xp: 18,
-    sprite: 'demon', behaviours: [{ id: 'cleave_cone', radius: 2, windupMs: 700, cdMs: 5000 }, { id: 'melee' }] });
+    sprite: 'demon', pal: { R: '#7a8a9c', r: '#4a5668', W: '#e0d8c4', Y: '#ffd75a' }, behaviours: [{ id: 'cleave_cone', radius: 2, windupMs: 700, cdMs: 5000 }, { id: 'melee' }] });
   mon('succubus', { name: 'Succubus', act: 4, family: 'demon', role: 'caster', hp: 26, dmg: [5, 8], attackMs: 2000, moveMs: 350, xp: 16,
     sprite: 'succubus', aggro: { notice: 8, leash: 14 },
     behaviours: [{ id: 'blink_away', dist: 5, cdMs: 5000 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 7, projectile: 'blood_bolt' }] });
   mon('hell_knight', { name: 'Hell Knight', act: 4, family: 'demon', role: 'tank', hp: 55, dmg: [6, 10], attackMs: 1500, moveMs: 420, xp: 22, dr: 25,
     sprite: 'hellknight', behaviours: [{ id: 'block_front', pct: 0.5 }, { id: 'charge_line', len: 5, windupMs: 700, cdMs: 7000 }, { id: 'melee' }] });
   mon('chaos_spawn', { name: 'Chaos-Spawn', act: 4, family: 'demon', role: 'brute', hp: 34, dmg: [4, 8], attackMs: 1200, moveMs: 360, xp: 14,
-    sprite: 'chaos', behaviours: [{ id: 'split', into: 'chaos_spawnling', count: 2, hpPct: 0.4 }, { id: 'melee' }] });
+    sprite: 'chaos', pal: { M: '#d89a8a', m: '#9a5a5a', Y: '#ffd75a' }, behaviours: [{ id: 'split', into: 'chaos_spawnling', count: 2, hpPct: 0.4 }, { id: 'melee' }] });
   mon('chaos_spawnling', { name: 'Chaos Spawnling', act: 4, family: 'demon', role: 'swarmer', hp: 10, dmg: [2, 4], attackMs: 900, moveMs: 300, xp: 4,
-    sprite: 'chaos', pal: { M: '#c070c0', m: '#8a4a8a' }, spawnOnly: true, behaviours: [{ id: 'melee' }] });
+    sprite: 'chaos', pal: { M: '#e8b8a8', m: '#b07a70' }, spawnOnly: true, behaviours: [{ id: 'melee' }] });
 
   // normalise xp so each act's roster (excluding spawn-only) averages 10
   for (const act of [1, 2, 3, 4]) {

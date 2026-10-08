@@ -38,7 +38,7 @@
         slider('music', 'Music', 0, 100, 1, '%'),
         slider('ambience', 'Ambience', 0, 100, 1, '%'),
         h('h3', 'Display'),
-        choice('zoom', 'Zoom', [[1, '1.0×'], [1.5, '1.5×'], [2, '2.0×'], [2.5, '2.5×']]),
+        choice('zoom', 'Zoom', [['auto', 'Auto'], [1, '1.0×'], [1.5, '1.5×'], [2, '2.0×'], [2.5, '2.5×']]),
         slider('uiScale', 'UI scale', 0.8, 1.4, 0.05, '×'),
         choice('damageNumbers', 'Floating text', [['full', 'Full'], ['numbers', 'Numbers only'], ['off', 'Off']]),
         toggle('alwaysBars', 'Always show enemy health bars'),

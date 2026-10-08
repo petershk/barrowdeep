@@ -65,7 +65,7 @@
       title: 'Place on ' + (SLOT_TITLE[s] || 'slot ' + s[1]),
     }, SLOT_LABEL[s] || s[1]);
     const slotBtns = ab.passive
-      ? h('div.slot-btns', h('span.muted.small', 'Keystone'))
+      ? h('div.slot-btns', h('span.muted.small', 'Passive — always on once learned'))
       : h('div.slot-btns', ['lmb', 'rmb', 's1', 's2', 's3', 's4'].map(slotBtn));
     const sub = (ab.keystone ? 'Keystone' : 'Tier ' + ab.tier)
       + (locked ? ' · level ' + TIER_LVL[ab.tier] : '')

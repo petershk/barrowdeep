@@ -7,6 +7,10 @@
   const Grid = BD.core.grid;
   const { T, WALK } = BD.data.tiles;
   let el = null, cv = null, big = false, buf = null, bufKey = '', lastVersion = -1;
+  const Palette = BD.view.palette;
+  const M = Palette.MEANING;
+  /** enemy dot colour by rank (ART_DIRECTION.md: champion = magic blue, keeper/unique = rare gold, boss red) */
+  const RANK_COL = { champion: M.champion, unique: M.unique, keeper: M.unique, boss: M.boss, malgoth: M.boss };
 
   function mount() {
     const { h, root } = BD.ui.dom;
@@ -55,43 +59,54 @@
     g.setTransform(k, k / 2, -k, k / 2, ox, oy);
     g.drawImage(buf, 0, 0);
     g.globalAlpha = 1;
-    // markers
-    const dot = (x, y, col, r) => {
+    drawMarkers(g, f, p, ox, oy, k);
+  }
+
+  /** markers over the map: waypoint, portal, gate, Keeper ping, enemies, the player */
+  function drawMarkers(g, f, p, ox, oy, k) {
+    /** a marker: filled dot, or a ring when `ring` is set (shape as well as colour) */
+    const dot = (x, y, col, r, ring) => {
       g.setTransform(1, 0, 0, 1, 0, 0);
       const sx = ox + (x + 0.5 - (y + 0.5)) * k, sy = oy + (x + 0.5 + (y + 0.5)) * k / 2;
-      g.fillStyle = col;
       g.beginPath();
       g.arc(sx, sy, r, 0, Math.PI * 2);
+      g.fillStyle = ring ? M.outline : col;
       g.fill();
+      if (!ring) return;
+      g.strokeStyle = col;
+      g.lineWidth = 1.5;
+      g.stroke();
     };
-    if (f.waypointPos && f.explored[Grid.idx(f, f.waypointPos.x, f.waypointPos.y)]) dot(f.waypointPos.x, f.waypointPos.y, '#6aa8ff', 3);
-    if (f.portalPos) dot(f.portalPos.x, f.portalPos.y, '#b06aff', 3);
-    if (f.gatePos && f.explored[Grid.idx(f, f.gatePos.x, f.gatePos.y)]) dot(f.gatePos.x + 0.5, f.gatePos.y + 0.5, '#d02020', 4);
-    if (f.keeperPing) dot(f.keeperPing.x, f.keeperPing.y, '#ffd23a', 4 + Math.sin(performance.now() / 160));
+    const seen = (pos) => pos && f.explored[Grid.idx(f, pos.x, pos.y)];
+    // waypoint and portal both teleport (souls purple): the waypoint is a ring, the portal a dot
+    if (seen(f.waypointPos)) dot(f.waypointPos.x, f.waypointPos.y, M.souls, 3.5, true);
+    if (f.portalPos) dot(f.portalPos.x, f.portalPos.y, M.souls, 3);
+    if (seen(f.gatePos)) dot(f.gatePos.x + 0.5, f.gatePos.y + 0.5, M.boss, 4.5, true);
+    if (f.keeperPing) dot(f.keeperPing.x, f.keeperPing.y, M.unique, 4 + Math.sin(performance.now() / 160), true);
     for (const e of f.entities.values()) {
       if (e.dead || !f.visible[Grid.idx(f, e.x, e.y)] || e.faction === 'player') continue;
-      const normal = e.rank === 'normal';
-      const color = normal ? '#c03030' : '#ffd23a';
-      const radius = normal ? 1.6 : 2.4;
-      dot(e.x, e.y, color, radius);
+      const elite = RANK_COL[e.rank];
+      dot(e.x, e.y, elite || M.hostile, elite ? 2.4 : 1.6);
     }
-    dot(p.x, p.y, '#ffffff', 2.5);
+    dot(p.x, p.y, M.friendly, 2.5);
   }
+
+  const STAIRS = Palette.rgb(M.friendly), SEALED = Palette.rgb(M.boss);
+  const WATER = Palette.rgb(Palette.shade(Palette.SCHOOL.cold.edge, 0.6)), LAVA = Palette.rgb(Palette.SCHOOL.lava.mid);
 
   function paintBuf(f) {
     const g = buf.getContext('2d');
     const img = g.createImageData(f.w, f.h);
     const pal = BD.data.biomes[f.biome].pal;
-    const Palette = BD.view.palette;
     const wall = Palette.rgb(Palette.shade(pal.wallTop, 1.5)), floor = Palette.rgb(Palette.shade(pal.floorA, 1.3));
     for (let i = 0; i < f.w * f.h; i++) {
       if (!f.explored[i]) continue;
       const t = f.tiles[i];
       let c = null;
-      if (t === T.STAIRS_DOWN || t === T.STAIRS_UP) c = [230, 210, 120];
-      else if (t === T.STAIRS_SEALED) c = [200, 40, 40];
-      else if (t === T.WATER) c = [40, 80, 110];
-      else if (t === T.LAVA) c = [220, 90, 20];
+      if (t === T.STAIRS_DOWN || t === T.STAIRS_UP) c = STAIRS;
+      else if (t === T.STAIRS_SEALED) c = SEALED;
+      else if (t === T.WATER) c = WATER;
+      else if (t === T.LAVA) c = LAVA;
       else if (WALK[t] || t === T.DECOR) c = floor;
       else if (t === T.WALL || t === T.PILLAR || t === T.TOWN_DOOR) c = wall;
       if (!c) continue;

@@ -1,6 +1,7 @@
 // @ts-check
 // Skill, boss-move and world visuals keyed by ability ids and event kinds (07 §4.3: one recipe per
-// cue). Lobbed things fly a visible arc; beams and wave rings are drawn as shapes.
+// cue). Lobbed things fly a visible arc; beams and wave rings are drawn as shapes. Element motifs
+// (ART_DIRECTION.md): fire tongues, cold crystals, lightning forks, poison puffs, steel stars.
 (function (BD) {
   'use strict';
 
@@ -11,32 +12,32 @@
   // ---- extra recipes ----
   FxRecipes.shout = {
     shapes: [
-      { kind: 'ring', from: 0.4, to: 4.2, life: 420, palette: 'blood' },
-      { kind: 'ring', from: 0.4, to: 3.2, life: 360, delay: 80, palette: 'gold' },
+      { kind: 'ring', from: 0.4, to: 4.2, life: 420, palette: 'blood', blend: 'lighter' },
+      { kind: 'ring', from: 0.4, to: 3.2, life: 360, delay: 80, palette: 'bone' },
     ],
     shake: 0.25,
   };
   FxRecipes.quake = {
     particles: [{
-      count: 30, shape: 'ring', radius: 1.5, speed: [0.001, 0.003], z: [0, 6],
+      count: 26, shape: 'ring', radius: 1.5, speed: [0.001, 0.003], z: [0, 6],
       vz: [0.03, 0.07], life: [400, 700], size: [2, 4], palette: 'dust',
     }],
     shapes: [
       { kind: 'ring', from: 0.3, to: 2.6, life: 380, palette: 'dust' },
-      { kind: 'ring', from: 0.3, to: 3.4, life: 460, delay: 90, palette: 'gold' },
-      { kind: 'flash', radius: 1.6, life: 180, palette: 'gold' },
+      { kind: 'ring', from: 0.3, to: 3.4, life: 460, delay: 90, palette: 'bone' },
+      { kind: 'puff', n: 7, radius: 1.4, size: 9, life: 700, palette: 'dust', alpha: 0.5, z: 2 },
     ],
-    light: { radius: 3, color: '#ffd27a', intensity: 0.8, life: 220 }, shake: 0.5,
+    light: { radius: 3, color: '#e8d8b0', intensity: 0.6, life: 220 }, shake: 0.5,
   };
   FxRecipes.spin = {
     shapes: [{ kind: 'spin', radius: 1.1, life: 380, palette: 'steel' }],
     particles: [{ count: 8, shape: 'ring', radius: 1, speed: [0.002, 0.004], life: [150, 300], size: [1, 2], palette: 'steel' }],
   };
   FxRecipes.berserk = {
-    particles: [{ count: 18, shape: 'cone', spread: 0.9, speed: [0.002, 0.005], life: [250, 500], size: [1.5, 3.5], palette: 'blood' }],
+    particles: [{ count: 16, shape: 'cone', spread: 0.9, speed: [0.002, 0.005], life: [250, 500], size: [1.5, 3.5], palette: 'blood' }],
     shapes: [
-      { kind: 'arc', half: 1.2, radius: 0.8, width: 6, life: 220, palette: 'blood' },
-      { kind: 'flash', radius: 1.0, life: 160, palette: 'blood' },
+      { kind: 'arc', half: 1.2, radius: 0.8, width: 6, life: 220, palette: 'blood', blend: 'lighter' },
+      { kind: 'star', rays: 4, radius: 0.8, life: 160, palette: 'steel' },
     ],
     shake: 0.3,
   };
@@ -53,59 +54,70 @@
   };
   FxRecipes.nova_fire = {
     particles: [{
-      count: 30, shape: 'ring', radius: 0.4, speed: [0.003, 0.006], z: [4, 14],
-      vz: [0.02, 0.05], life: [300, 600], size: [2, 4], palette: 'fire',
+      count: 22, shape: 'ring', radius: 0.4, speed: [0.002, 0.005], z: [4, 14],
+      vz: [0.03, 0.06], g: -0.00004, life: [350, 650], size: [2, 3.5], palette: 'fire',
     }],
-    shapes: [{ kind: 'ring', from: 0.3, to: 2.2, life: 320, palette: 'fire' }, { kind: 'flash', radius: 1.8, life: 200, palette: 'fire' }],
+    shapes: [
+      { kind: 'ring', from: 0.3, to: 2.2, life: 320, palette: 'fire' },
+      { kind: 'tongues', n: 9, radius: 1.6, height: 26, w: 5, life: 520, palette: 'fire' },
+      { kind: 'flash', radius: 1.6, life: 180, palette: 'fire' },
+    ],
     light: { radius: 3.5, color: '#ff8a2a', intensity: 1, life: 300 },
     shake: 0.3,
   };
   FxRecipes.nova_cold = {
     particles: [{
-      count: 30, shape: 'ring', radius: 0.4, speed: [0.003, 0.006], z: [2, 10],
-      vz: [0.01, 0.03], life: [350, 650], size: [2, 3.5], palette: 'cold',
+      count: 24, shape: 'ring', radius: 0.4, speed: [0.003, 0.006], z: [2, 10],
+      vz: [0.01, 0.03], life: [450, 750], size: [1.5, 3], palette: 'cold',
     }],
     shapes: [
       { kind: 'ring', from: 0.3, to: 2.6, life: 360, palette: 'cold' },
-      { kind: 'star', rays: 8, radius: 1.6, life: 260, palette: 'cold' },
+      { kind: 'crystal', rays: 6, radius: 1.8, life: 700, palette: 'cold' },
+      { kind: 'flash', radius: 1.2, life: 160, palette: 'cold' },
     ],
     light: { radius: 3.5, color: '#9ee4ff', intensity: 0.9, life: 320 },
     shake: 0.2,
   };
   FxRecipes.nova_light = {
-    particles: [{ count: 24, shape: 'ring', radius: 0.4, speed: [0.004, 0.008], life: [150, 320], size: [1.5, 3], palette: 'storm' }],
+    particles: [{ count: 16, shape: 'ring', radius: 0.4, speed: [0.004, 0.008], life: [100, 240], size: [1.5, 3], palette: 'storm' }],
     shapes: [
-      { kind: 'ring', from: 0.3, to: 2.2, life: 260, palette: 'storm' },
-      { kind: 'flash', radius: 1.6, life: 140, palette: 'storm' },
+      { kind: 'fork', forks: 6, radius: 2.2, life: 220, palette: 'storm' },
+      { kind: 'ring', from: 0.3, to: 2.2, life: 200, palette: 'storm' },
+      { kind: 'flash', radius: 1.4, life: 120, palette: 'storm' },
     ],
-    light: { radius: 3, color: '#9fc3ff', intensity: 1, life: 220 },
+    light: { radius: 3, color: '#9fb0ff', intensity: 1, life: 200 },
   };
   FxRecipes.explosion = {
     particles: [{
-      count: 26, shape: 'ring', radius: 0.5, speed: [0.002, 0.006], z: [4, 16],
+      count: 20, shape: 'ring', radius: 0.5, speed: [0.002, 0.006], z: [4, 16],
       vz: [0.03, 0.07], life: [300, 650], size: [2, 4], palette: 'auto',
     }],
     shapes: [{ kind: 'flash', radius: 1.4, life: 200, palette: 'auto' }, { kind: 'ring', from: 0.3, to: 1.6, life: 300, palette: 'auto' }],
-    light: { radius: 3, color: '#ff8a2a', intensity: 0.9, life: 260 },
+    light: { radius: 3, intensity: 0.9, life: 260 },
     shake: 0.25,
   };
   FxRecipes.meteor_hit = {
     particles: [{
-      count: 50, shape: 'ring', radius: 1, speed: [0.003, 0.008], z: [4, 30],
-      vz: [0.04, 0.09], life: [400, 900], size: [2, 5], palette: 'fire',
+      count: 40, shape: 'ring', radius: 1, speed: [0.003, 0.008], z: [4, 30],
+      vz: [0.04, 0.09], life: [400, 900], size: [2, 5], palette: 'auto',
     }],
     shapes: [
-      { kind: 'flash', radius: 2.6, life: 260, palette: 'fire' },
-      { kind: 'ring', from: 0.5, to: 3, life: 420, palette: 'fire' },
-      { kind: 'column', height: 200, width: 22, life: 260, palette: 'fire' },
+      { kind: 'flash', radius: 2.6, life: 260, palette: 'auto', blend: 'lighter' },
+      { kind: 'ring', from: 0.5, to: 3, life: 420, palette: 'auto' },
+      { kind: 'column', height: 200, width: 22, life: 260, palette: 'auto', blend: 'lighter' },
+      { kind: 'tongues', n: 8, radius: 1.5, height: 30, w: 6, life: 600, palette: 'auto', blend: 'lighter' },
     ],
-    light: { radius: 5, color: '#ff7a2a', intensity: 1.2, life: 400 },
+    light: { radius: 5, intensity: 1.2, life: 400 },
     shake: 0.6,
   };
+  // smoke is dark matter: soft source-over puffs in the shadow edge colour, a few lit by the mid
   FxRecipes.smoke = {
     particles: [{
-      count: 40, shape: 'ring', radius: 2, speed: [0.0002, 0.0008], z: [0, 20],
-      vz: [0.005, 0.015], g: -0.00001, life: [900, 1600], size: [4, 8], palette: 'shadow',
+      count: 22, shape: 'ring', radius: 2, speed: [0.0002, 0.0008], z: [0, 14],
+      vz: [0.004, 0.012], g: -0.00001, life: [900, 1600], size: [6, 10], soft: true, color: 'edge', palette: 'shadow',
+    }, {
+      count: 6, shape: 'ring', radius: 1.6, speed: [0.0002, 0.0006], z: [2, 12],
+      vz: [0.004, 0.01], g: -0.00001, life: [700, 1200], size: [4, 7], soft: true, color: 'mid', palette: 'shadow',
     }],
   };
   FxRecipes.holy_column = {
@@ -117,11 +129,12 @@
   };
   FxRecipes.sky_spear = {
     shapes: [
-      { kind: 'column', height: 260, width: 12, life: 260, palette: 'storm' },
+      { kind: 'column', height: 260, width: 10, life: 260, palette: 'storm' },
+      { kind: 'fork', forks: 4, radius: 1.6, life: 220, palette: 'storm' },
       { kind: 'ring', from: 0.3, to: 2.2, life: 300, palette: 'storm' },
-      { kind: 'flash', radius: 1.8, life: 180, palette: 'storm' },
+      { kind: 'flash', radius: 1.6, life: 160, palette: 'storm' },
     ],
-    light: { radius: 4, color: '#bfe0ff', intensity: 1.2, life: 260 },
+    light: { radius: 4, color: '#9fb0ff', intensity: 1.2, life: 260 },
     shake: 0.4,
   };
   FxRecipes.arrow_rain = {
@@ -130,29 +143,43 @@
       vz: [-0.2, -0.15], g: 0.0008, life: [300, 450], size: [1, 2], palette: 'steel',
     }],
   };
+  /** a wind-up: motes converge on the caster's hands and a ring tightens at their feet */
   FxRecipes.cast_glow = {
     particles: [{
-      count: 8, shape: 'ring', radius: 0.4, speed: [0.0003, 0.001], z: [14, 24],
-      vz: [0.01, 0.03], life: [250, 400], size: [1.5, 2.5], palette: 'auto',
+      count: 8, shape: 'ring', radius: 0.5, speed: [0.0003, 0.0008], z: [14, 26],
+      vz: [0.01, 0.03], g: -0.00002, life: [250, 420], size: [1.5, 2.5], palette: 'auto',
     }],
+    shapes: [
+      { kind: 'ring', from: 0.9, to: 0.35, life: 280, palette: 'auto' },
+      { kind: 'flash', radius: 0.45, life: 260, palette: 'auto', z: 22 },
+    ],
   };
   FxRecipes.corpse_burst = {
     particles: [{
-      count: 30, shape: 'ring', radius: 0.4, speed: [0.003, 0.007], z: [2, 16],
+      count: 24, shape: 'ring', radius: 0.4, speed: [0.003, 0.007], z: [2, 16],
       vz: [0.03, 0.08], life: [300, 650], size: [2, 4], palette: 'blood',
     }],
-    shapes: [{ kind: 'flash', radius: 1.8, life: 200, palette: 'fire' }],
+    shapes: [
+      { kind: 'flash', radius: 1.8, life: 200, palette: 'fire' },
+      { kind: 'tongues', n: 6, radius: 1.2, height: 22, life: 480, palette: 'fire' },
+    ],
     shake: 0.3,
   };
   FxRecipes.hatch = {
-    particles: [{ count: 16, shape: 'ring', radius: 0.4, speed: [0.001, 0.003], life: [250, 500], size: [1.5, 3], palette: 'poison' }],
+    particles: [{ count: 10, shape: 'ring', radius: 0.4, speed: [0.001, 0.003], life: [250, 500], size: [1.5, 3], palette: 'poison' }],
+    shapes: [{ kind: 'puff', n: 4, radius: 0.4, size: 6, life: 600, palette: 'poison' }],
   };
 
+  // skills with a real wind-up (castMs ≥ 200) glow while they cast; a few short ones too
   const ON_CAST = {
-    aimed_shot: 'cast_glow', meteor: 'cast_glow', sky_spear: 'cast_glow',
-    fireball: 'cast_glow', chain_lightning: 'cast_glow', earthshaker: 'cast_glow',
+    aimed_shot: 'cast_glow', meteor: 'cast_glow', sky_spear: 'cast_glow', chain_lightning: 'cast_glow', earthshaker: 'cast_glow',
   };
-  const SCHOOL_OF = (id) => (BD.data.skills[id] && BD.data.skills[id].school) || 'general';
+  const SCHOOL_OF = (id) => (BD.data.skills[id] && BD.data.skills[id].school) || 'steel';
+  function castRecipe(id) {
+    if (ON_CAST[id]) return ON_CAST[id];
+    const sk = BD.data.skills[id];
+    return sk && sk.castMs >= 200 ? 'cast_glow' : null;
+  }
   const ON_IMPACT = {
     bash: 'impact_mace', whirlwind: 'spin', berserk_strike: 'berserk', war_cry: 'shout', earthshaker: 'quake',
     brace: 'brace', second_wind: 'heal', tiger_strike: 'ki', dragon_talon: 'ki', smoke_bomb: 'smoke',
@@ -163,9 +190,18 @@
     'war_cry', 'earthshaker', 'brace', 'second_wind', 'smoke_bomb',
     'frost_nova', 'valkyries_call', 'shadow_master', 'whirlwind',
   ];
+  // boss moves whose sim school would borrow the player's colours: Mortis's lances are soul-stuff
+  const KIND_SCHOOL = { soul_lance: 'portal' };
+  // zone kinds with a recipe of their own (played instead of the generic zone hit)
+  const ZONE_RECIPE = {
+    meteor: ['meteor_hit', 0.8], chaos_rain: ['meteor_hit', 0.5], sky_spear: ['sky_spear', 1],
+  };
+  // element motif layered on generic zone hits
+  const MOTIF = { fire: 'impact_fire', lava: 'impact_fire', cold: 'impact_cold', storm: 'impact_storm', poison: 'impact_poison' };
 
   function cast(world, ev) {
-    const r = ON_CAST[ev.abilityId];
+    if (ev.abilityId === 'attack') return;
+    const r = castRecipe(ev.abilityId);
     if (r) Fx().play(r, ev.x, ev.y, { school: SCHOOL_OF(ev.abilityId) });
   }
   function impact(world, ev) {
@@ -187,64 +223,74 @@
   }
   function explode(world, ev) {
     const el = ev.element || (BD.data.projectiles[ev.kind] || {}).element || 'fire';
-    const r = ev.kind === 'nova' ? novaRecipe(el) : 'explosion';
-    Fx().play(r, ev.x, ev.y, {
-      school: Palette.ELEMENT_SCHOOL[el] || 'fire',
-      scale: ev.area && ev.area.radius ? Math.max(1, ev.area.radius / 1.5) : 1,
-    });
+    const school = Palette.ELEMENT_SCHOOL[el] || 'fire';
+    const scale = ev.area && ev.area.radius ? Math.max(1, ev.area.radius / 1.5) : 1;
+    if (ev.kind === 'nova') {
+      Fx().play(novaRecipe(el), ev.x, ev.y, { school, scale });
+      return;
+    }
+    Fx().play('explosion', ev.x, ev.y, { school, scale });
+    if (MOTIF[school]) Fx().play(MOTIF[school], ev.x, ev.y, { school, scale: scale * 1.6 });
   }
   function land(world, ev) { Fx().play('quake', ev.x, ev.y, { scale: ev.area && ev.area.radius ? ev.area.radius / 2 : 0.6 }); }
+
+  /** the one visual for a zone resolving (wire.js calls this; nothing else plays zone.resolve) */
+  function zoneResolve(ev) {
+    if (ev.kind === 'charge_mark') return;
+    const school = KIND_SCHOOL[ev.kind] || ev.school || 'blood';
+    const cx = ev.cx != null ? ev.cx : ev.tiles[0][0];
+    const cy = ev.cy != null ? ev.cy : ev.tiles[0][1];
+    const own = ZONE_RECIPE[ev.kind];
+    if (own) {
+      Fx().play(own[0], cx, cy, { school, scale: own[1] });
+      return;
+    }
+    const scale = Math.min(2.2, Math.sqrt(ev.tiles.length) / 2);
+    Fx().play(ev.heavy ? 'zone_heavy' : 'zone_hit', cx, cy, { school, scale });
+    if (MOTIF[school]) Fx().play(MOTIF[school], cx, cy, { school, scale: Math.max(1, scale) });
+  }
 
   // ---- world-level visuals ----
   function lobSchool(ev) {
     if (ev.kind === 'venom') return 'poison';
     if (ev.kind === 'bone_hurl') return 'bone';
     if (ev.abilityId === 'fire_blast' || ev.kind === 'mortar' || ev.kind === 'meteor') return 'fire';
-    return 'general';
+    const zd = BD.data.zones && BD.data.zones[ev.kind];
+    return zd && zd.school ? zd.school : 'steel';
   }
   function wire(bus) {
     bus.on('lob', (ev) => Fx().shape({
       kind: 'lob', x: ev.fromX, y: ev.fromY, x1: ev.x, y1: ev.y, life: ev.ms || 600,
-      pal: Palette.SCHOOL[lobSchool(ev)], big: ev.kind === 'meteor',
+      pal: Palette.SCHOOL[lobSchool(ev)] || Palette.SCHOOL.steel, big: ev.kind === 'meteor',
     }));
     bus.on('beam', (ev) => Fx().shape({
       kind: 'beam', x: ev.fromX, y: ev.fromY,
       x1: ev.fromX + Math.cos(ev.a) * ev.len, y1: ev.fromY + Math.sin(ev.a) * ev.len,
       life: 120, pal: Palette.SCHOOL.seal,
     }));
-    bus.on('zone.resolve', (ev) => {
-      if (ev.kind === 'meteor' || ev.kind === 'chaos_rain') {
-        Fx().play('meteor_hit', ev.cx, ev.cy, { scale: ev.kind === 'chaos_rain' ? 0.5 : 0.8 });
-      } else if (ev.kind === 'sky_spear') {
-        Fx().play('sky_spear', ev.cx, ev.cy);
-      }
-    });
     bus.on('zone.tick', (ev) => {
       if (ev.abilityId === 'rain_of_arrows') {
         Fx().play('arrow_rain', ev.cx, ev.cy);
       } else if (ev.abilityId === 'blizzard') {
-        Fx().play('flair_cold', ev.cx + Math.random() * 2 - 1, ev.cy + Math.random() * 2 - 1, { scale: 2 });
+        Fx().play('flair_cold', ev.cx + Math.random() * 2 - 1, ev.cy + Math.random() * 2 - 1, { scale: 1.5 });
       }
     });
     bus.on('corpse.explode', (ev) => Fx().play('corpse_burst', ev.x, ev.y));
     bus.on('egg.hatch', (ev) => Fx().play('hatch', ev.x, ev.y));
-    bus.on('boss.land', (ev) => {
-      Fx().play('quake', ev.x, ev.y, { scale: 1.3 });
-      BD.view.camera.addTrauma(0.7);
-    });
+    bus.on('boss.land', (ev) => Fx().play('quake', ev.x, ev.y, { scale: 1.3 }));
     bus.on('emerge', (ev) => Fx().play('quake', ev.x, ev.y, { scale: 0.8 }));
-    bus.on('burrow', (ev) => Fx().play('hatch', ev.x, ev.y));
+    bus.on('burrow', (ev) => Fx().play('quake', ev.x, ev.y, { scale: 0.4 }));
     bus.on('trap.trigger', (ev) => Fx().play('whiff', ev.x, ev.y));
-    bus.on('chest.open', (ev) => Fx().play(ev.cursed ? 'death_elite' : 'blink', ev.x, ev.y, { school: 'gold' }));
+    bus.on('chest.open', (ev) => Fx().play('blink', ev.x, ev.y, { school: ev.cursed ? 'shadow' : 'bone' }));
     bus.on('shatter', (ev) => Fx().play('nova_cold', ev.x, ev.y, { scale: 0.6 }));
-    bus.on('deploy', (ev) => Fx().play('blink', ev.x, ev.y, { school: 'storm' }));
+    bus.on('deploy', (ev) => Fx().play('blink', ev.x, ev.y, { school: ev.kind === 'death_sentry' ? 'fire' : 'storm' }));
     bus.on('ally.spawn', (ev) => Fx().play('holy_column', ev.x, ev.y));
-    bus.on('boss.split', (ev) => Fx().play('blink', ev.x, ev.y, { school: 'storm' }));
+    bus.on('boss.split', (ev) => Fx().play('blink', ev.x, ev.y, { school: 'portal' }));
     bus.on('run.victory', () => {
       const p = BD.view.host.world().player;
       Fx().play('levelup', p.x, p.y, { scale: 2 });
     });
   }
 
-  BD.view.skillFx = { cast, impact, explode, land, wire };
+  BD.view.skillFx = { cast, impact, explode, land, zoneResolve, wire };
 })(globalThis.BD);

@@ -10,6 +10,7 @@
   const Sprites = BD.view.sprites;
   const Lighting = BD.view.lighting;
   const Grid = BD.core.grid;
+  const { MEANING } = BD.view.palette;
 
   /** @type {HTMLCanvasElement} */ let canvas = null;
   /** @type {CanvasRenderingContext2D} */ let ctx = null;
@@ -31,11 +32,18 @@
     canvas.height = Math.round(h * dpr);
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    iso.setScale(iso.view.Z, dpr);
+    iso.setScale(zoomSetting === 'auto' ? iso.autoZoom(w) : iso.view.Z, dpr);
     iso.view.w = canvas.width;
     iso.view.h = canvas.height;
   }
-  function setZoom(z) { iso.setScale(z, iso.view.dpr); }
+  /** a zoom from iso.ZOOMS, or 'auto' (follows the window width, see iso.autoZoom) */
+  let zoomSetting = /** @type {number|string} */ (1.5);
+  function setZoom(z) {
+    zoomSetting = z;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 1600;
+    const zz = z === 'auto' ? iso.autoZoom(width) : Number(z);
+    iso.setScale(zz, iso.view.dpr);
+  }
 
   // ---------- flat props: stairs ----------
   const flatCache = new Map();
@@ -86,9 +94,10 @@
   function shadow(tx, ty, r) {
     iso.toScreen(tx, ty, tmp);
     const S = iso.view.S;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    // firmer than the spec's 0.45 so actors sit on every floor (ART_DIRECTION "World and characters")
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.beginPath();
-    ctx.ellipse(tmp.x, tmp.y + 2.5 * S, 7 * S * (r || 1), 3 * S * (r || 1), 0, 0, Math.PI * 2);
+    ctx.ellipse(tmp.x, tmp.y + 2.5 * S, 8.4 * S * (r || 1), 3.6 * S * (r || 1), 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -124,6 +133,7 @@
     BD.view.tiles.drawFloor(ctx, f);
 
     const win = visibleWindow(f);
+    BD.view.tiles.drawLava(ctx, f, timeMs);
     drawFlatFeatures(f);
     for (const fn of hooks.underActors) fn(ctx, world, alpha, timeMs);
     const buckets = bucketByDiagonal(world, alpha);
@@ -134,6 +144,7 @@
     if (BD.view.fx) BD.view.fx.collectLights(world);
     const R = f.fovRadius || 6;
     Lighting.draw(ctx, f, pp, R, timeMs);
+    drawFogAndVignette(f, pp);
 
     for (const fn of hooks.overlays) fn(ctx, world, alpha, timeMs, realMs);
     v.ox = baseOx;
@@ -141,6 +152,35 @@
     for (const fn of hooks.fx) fn(ctx, world, alpha, timeMs, realMs);
     for (const fn of hooks.top) fn(ctx, world, alpha, timeMs, realMs);
   }
+
+  /** Off-map and unexplored space is the biome's fog (07 §1.2 step 1), lifted toward the floor colour near
+   *  the hero so rooms sit in a murky haze instead of floating on black; then a soft vignette band at the
+   *  edge of vision (07 §1.3). 'lighten' only raises pixels darker than the fog, so the lit world is untouched. */
+  function drawFogAndVignette(f, pp) {
+    const v = iso.view, pal = BD.data.biomes[f.biome].pal;
+    if (fogKey !== f.biome) {
+      fogKey = f.biome;
+      fogInner = BD.view.tiles.mix(pal.fog, pal.floorA, 0.12);
+      fogOuter = pal.fog;
+    }
+    iso.toScreen(pp.x, pp.y, tmp);
+    const cx = tmp.x, cy = tmp.y, big = Math.hypot(v.w, v.h);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighten';
+    const haze = ctx.createRadialGradient(cx, cy, 0, cx, cy, big * 0.5);
+    haze.addColorStop(0, fogInner);
+    haze.addColorStop(1, fogOuter);
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 0, v.w, v.h);
+    ctx.globalCompositeOperation = 'source-over';
+    const vig = ctx.createRadialGradient(cx, cy, Math.min(v.w, v.h) * 0.36, cx, cy, big * 0.62);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, BD.view.palette.rgba(fogOuter, 0.7));
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, v.w, v.h);
+    ctx.restore();
+  }
+  let fogKey = '', fogInner = '#000000', fogOuter = '#000000';
 
   /** a new floor: fresh cutaway fades, entity visual state and camera */
   function resetOnFloorChange(f) {
@@ -348,38 +388,69 @@
     const scale = EntityView.scaleOf(e);
     const opts = {
       flip, pal: EntityView.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''),
-      scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '',
+      scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '', rim: !e.dead,
     };
     for (const fn of actorUnder) fn(ctx, world, e, ep, s, timeMs);
+    if (e.kind === 'player') heroHalo(ep.x, ep.y);
     if (!e.dead) shadow(ep.x, ep.y, scale);
+    const windup = !e.dead && e.attack && e.attack.telegraph && e.attack.phase === 'windup';
+    if (windup) windupJudder(e, opts);
+    if (windup) drawWindupRim(ep, art, frame, fi, opts);
     const box = drawArt(art, frame, fi, ep.x, ep.y, opts);
     if (box) {
+      for (const fn of hooks.actorBody || []) fn(ctx, e, art, frame, fi, ep, opts, box);   // statuses on the body (overlays.js)
       if (s.flash > 0) {
         const flashPref = BD.view.host.prefs.flash / 100;
         ctx.globalAlpha = (s.flash / 120) * flashPref;
         drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ffffff', palKey: 'white' }));
         ctx.globalAlpha = 1;
       }
-      if (e.attack && e.attack.telegraph && e.attack.phase === 'windup') drawWindupTint(e, ep, art, frame, fi, opts);
+      if (windup) {
+        // a faint wash so the body warms with the rim; the sprite itself must still read (ART_DIRECTION)
+        ctx.globalAlpha = 0.18 * windupPulse();
+        drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: MEANING.hostile, palKey: 'red' }));
+        ctx.globalAlpha = 1;
+      }
       e._box = box;
     }
     for (const fn of actorOver) fn(ctx, world, e, ep, s, timeMs, box);
   }
 
-  /** a telegraphed attack winding up: the actor pulses red */
-  function drawWindupTint(e, ep, art, frame, fi, opts) {
-    const pulse = 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
-    const late = e.attack.remaining < 250;
-    // shake in the last 250 ms before the blow lands
-    let jx = 0, jy = 0;
-    if (late) {
-      jx = (Math.random() * 2 - 1) * 3.5 * iso.view.Z;
-      jy = (Math.random() * 2 - 1) * 1.6 * iso.view.Z;
+  /** the wind-up pulse (07 §2.4) */
+  const windupPulse = () => 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
+  /** shake in the last 250 ms before the blow lands (moves the sprite and its rim together) */
+  function windupJudder(e, opts) {
+    if (e.attack.remaining >= 250) return;
+    opts.dx += (Math.random() * 2 - 1) * 3.5 * iso.view.Z;
+    opts.dy += (Math.random() * 2 - 1) * 1.6 * iso.view.Z;
+  }
+  /** a telegraphed attack winding up: a pulsing hostile-red outline around the normal sprite, drawn
+   *  as the red silhouette offset one art pixel in four directions behind it */
+  function drawWindupRim(ep, art, frame, fi, opts) {
+    const S = iso.view.S * (opts.scale || 1);
+    ctx.globalAlpha = Math.min(1, windupPulse() + 0.1);
+    for (const [ox, oy] of RIM_OFFSETS) {
+      const o = Object.assign({}, opts, { tint: MEANING.hostile, palKey: 'red', rim: false, dx: opts.dx + ox * S, dy: opts.dy + oy * S });
+      drawArt(art, frame, fi, ep.x, ep.y, o);
     }
-    ctx.globalAlpha = pulse;
-    const redOpts = Object.assign({}, opts, { tint: '#ff3020', palKey: 'red', dx: opts.dx + jx, dy: opts.dy + jy });
-    drawArt(art, frame, fi, ep.x, ep.y, redOpts);
     ctx.globalAlpha = 1;
+  }
+  const RIM_OFFSETS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+
+  /** the hero's soft warm floor halo, so the player is found first in any crowd */
+  function heroHalo(tx, ty) {
+    iso.toScreen(tx, ty, tmp);
+    const S = iso.view.S, r = 20 * S;
+    ctx.save();
+    ctx.translate(tmp.x, tmp.y + 2.5 * S);
+    ctx.scale(1, 0.5);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+    g.addColorStop(0, 'rgba(255,243,216,0.20)');
+    g.addColorStop(0.5, 'rgba(255,243,216,0.08)');
+    g.addColorStop(1, 'rgba(255,243,216,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-r, -r, r * 2, r * 2);
+    ctx.restore();
   }
   const actorUnder = [], actorOver = [];
   const sd = { x: 0, y: 0 };

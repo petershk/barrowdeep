@@ -21,20 +21,56 @@
   };
   const hasTag = (ev, tag) => !!(ev.tags && ev.tags.indexOf(tag) >= 0);
 
-  // Player hit recipe: melee swings use the weapon's signature impact, projectiles the arrow, the rest magic.
-  function playerHitRecipe(ev, weaponFx) {
+  // Player hit recipe: melee swings use the weapon's signature impact; elemental hits the element's
+  // motif (impact_fire, impact_cold, impact_storm, impact_poison, impact_shadow); other projectiles the arrow.
+  function playerHitRecipe(ev, weaponFx, school) {
     if ((ev.abilityId === 'attack' || hasTag(ev, 'melee')) && weaponFx) return WEAPON_IMPACT[weaponFx] || 'impact_club';
+    if (BD.view.fxRecipes['impact_' + school]) return 'impact_' + school;
     return hasTag(ev, 'projectile') ? 'impact_arrow' : 'impact_magic';
   }
+  const isElite = (e) => !!(e && e.rank && e.rank !== 'normal' && e.rank !== 'minion');
 
-  /** hitstop for a crit, a killing blow or a heavy hit */
-  function hitstopMs(ev) {
-    if (ev.crit) return 55;
-    return ev.lethal ? 40 : 70;
+  /** hitstop (ms): elite kill 80, crit 65, heavy 60, kill 50; 0 = none */
+  function hitstopMs(ev, tgt) {
+    if (ev.lethal && isElite(tgt)) return 80;
+    if (ev.crit) return 65;
+    if (hasTag(ev, 'heavy')) return 60;
+    return ev.lethal ? 50 : 0;
   }
-  function damageTextStyle(ev, toPlayer) {
-    if (toPlayer) return 'taken';
-    return ev.crit ? 'crit' : 'dmg';
+  /** dealt numbers are bone, tinted by a non-physical element's mid colour; taken numbers are red */
+  function damageText(ev, toPlayer) {
+    const Palette = BD.view.palette;
+    if (toPlayer) return { style: 'taken', color: null };
+    if (ev.crit) return { style: 'crit', color: null };
+    const sch = ev.maxPart && ev.maxPart !== 'phys' ? Palette.SCHOOL[Palette.ELEMENT_SCHOOL[ev.maxPart]] : null;
+    return { style: 'dmg', color: sch ? sch.mid : null };
+  }
+
+  function playHitFx(w, ev, src, tgt, toPlayer) {
+    const x = ev.x, y = ev.y;
+    const school = BD.view.palette.ELEMENT_SCHOOL[ev.maxPart] || 'steel';
+    let recipe = 'impact_magic';
+    if (src && src.kind === 'player' && !toPlayer) {
+      const fx = hasTag(ev, 'projectile') ? null : BD.sim.stats.statsOf(w, src).weapon.fx;
+      recipe = playerHitRecipe(ev, fx, school);
+      Fx().play(recipe, x, y, { dir: { x: x - src.x, y: y - src.y }, school, scale: ev.crit ? 1.6 : 1 });
+      if (ev.crit) Fx().play('crit_accent', x, y);
+    } else if (toPlayer) {
+      Fx().play('monster_hit', x, y, { dir: src ? { x: x - src.x, y: y - src.y } : null });
+      if (hasTag(ev, 'heavy')) BD.view.camera.addTrauma(0.15);
+    } else {
+      recipe = BD.view.fxRecipes['impact_' + school] ? 'impact_' + school : 'impact_magic';
+      Fx().play(recipe, x, y, { school });
+    }
+    // enchanted-weapon flair: a second element on the hit gets its own small motif
+    for (const el in ev.parts) {
+      if (!ELEMENT_FLAIR[el] || ev.parts[el] <= ev.total * 0.15) continue;
+      if (recipe === 'impact_' + BD.view.palette.ELEMENT_SCHOOL[el]) continue;
+      Fx().play(ELEMENT_FLAIR[el], x, y);
+    }
+    const stop = hitstopMs(ev, tgt);
+    if (stop) BD.view.host.hitstop(stop);
+    if (ev.crit) BD.view.camera.addTrauma(0.1);
   }
 
   function onDamage(ev) {
@@ -42,24 +78,12 @@
     EntityView.onDamage(w, ev);
     const tgt = Entities().get(w, ev.tgtId), src = Entities().get(w, ev.srcId);
     const toPlayer = tgt && tgt.kind === 'player';
-    const x = ev.x, y = ev.y;
-    if (!ev.isDot) {
-      if (src && src.kind === 'player' && !toPlayer) {
-        const fx = hasTag(ev, 'projectile') ? null : BD.sim.stats.statsOf(w, src).weapon.fx;
-        Fx().play(playerHitRecipe(ev, fx), x, y, {
-          dir: { x: x - src.x, y: y - src.y },
-          school: BD.view.palette.ELEMENT_SCHOOL[ev.maxPart] || 'general',
-          scale: ev.crit ? 1.6 : 1,
-        });
-      } else if (toPlayer) {
-        Fx().play('monster_hit', x, y, { dir: src ? { x: x - src.x, y: y - src.y } : null });
-        BD.view.camera.addTrauma(ev.tags && ev.tags.indexOf('heavy') >= 0 ? 0.5 : 0.15);
-      } else Fx().play('impact_magic', x, y, { school: BD.view.palette.ELEMENT_SCHOOL[ev.maxPart] || 'general' });
-      for (const el in ev.parts) if (ELEMENT_FLAIR[el] && ev.parts[el] > ev.total * 0.15) Fx().play(ELEMENT_FLAIR[el], x, y);
-      if (ev.crit || ev.lethal || (ev.tags && ev.tags.indexOf('heavy') >= 0)) BD.view.host.hitstop(hitstopMs(ev));
-      if (ev.crit) BD.view.camera.addTrauma(0.15);
-    }
-    FloatText().add(String(ev.total), x, y, damageTextStyle(ev, toPlayer), { id: ev.tgtId });
+    if (!ev.isDot) playHitFx(w, ev, src, tgt, toPlayer);
+    const dt = damageText(ev, toPlayer);
+    if (ev.isDot) {
+      // damage over time merges per target per second instead of a number every tick
+      FloatText().merge('dot' + ev.tgtId, ev.total, ev.x, ev.y, dt.style, (n) => String(Math.round(n)), { color: dt.color, id: ev.tgtId });
+    } else FloatText().add(String(ev.total), ev.x, ev.y, dt.style, { id: ev.tgtId, color: dt.color });
   }
 
   /** a new world or floor: drop every transient visual */
@@ -69,6 +93,7 @@
       FloatText().clear();
       EntityView.clear();
       BD.view.world.clear();
+      BD.view.overlays.clearBody();
       BD.view.tiles.invalidate();
     });
     bus.on('floor.enter', () => {
@@ -76,6 +101,7 @@
       FloatText().clear();
       EntityView.clear();
       BD.view.world.clear();
+      BD.view.overlays.clearBody();
       BD.view.camera.cam.init = false;
     });
   }
@@ -102,6 +128,7 @@
       FloatText().merge('xp', ev.amount, p.x, p.y, 'xp', (n) => '+' + Math.round(n) + ' xp');
     });
     bus.on('status.apply', (ev) => {
+      if (BD.view.fxRecipes['status_' + ev.status]) Fx().play('status_' + ev.status, ev.x, ev.y);
       if (!STATUS_WORDS[ev.status] || ev.id === 1) return;
       FloatText().add(STATUS_WORDS[ev.status], ev.x, ev.y, 'status', { id: ev.id, color: BD.view.palette.STATUS_COLOR[ev.status] });
     });
@@ -109,9 +136,10 @@
     bus.on('death', (ev) => {
       if (ev.kind === 'player') return;
       const elite = ev.rank && ev.rank !== 'normal' && ev.rank !== 'minion';
+      // the elite recipe carries its own shake
       Fx().play(elite ? 'death_elite' : 'death', ev.x, ev.y, { school: BD.view.palette.ELEMENT_SCHOOL[ev.element] || 'bone' });
       BD.view.world.addGhost(currentWorld(), ev);
-      BD.view.camera.addTrauma(elite ? 0.3 : 0.05);
+      if (!elite) BD.view.camera.addTrauma(0.05);
     });
     bus.on('monster.alert', (ev) => {
       EntityView.stateOf(ev.id).alertT = 900;
@@ -133,12 +161,9 @@
       Fx().play('exposed', ev.x, ev.y);
       FloatText().add('EXPOSED', ev.x, ev.y, 'exposed', { id: ev.id });
     });
+    // one handler, one recipe per resolve (skill_fx picks a dedicated recipe or the generic hit)
     bus.on('zone.resolve', (ev) => {
-      if (ev.kind === 'charge_mark') return;
-      const sch = ev.school || 'blood';
-      const cx = ev.cx != null ? ev.cx : ev.tiles[0][0];
-      const cy = ev.cy != null ? ev.cy : ev.tiles[0][1];
-      Fx().play(ev.heavy ? 'zone_heavy' : 'zone_hit', cx, cy, { school: sch, scale: Math.min(2.2, Math.sqrt(ev.tiles.length) / 2) });
+      if (BD.view.skillFx) BD.view.skillFx.zoneResolve(ev);
     });
     bus.on('monster.attack', (ev) => {
       const e = Entities().get(currentWorld(), ev.id), t = Entities().get(currentWorld(), ev.targetId);
@@ -159,28 +184,48 @@
       if (BD.view.skillFx) BD.view.skillFx.land(currentWorld(), ev);
     });
     bus.on('chain', (ev) => Fx().shape({
-      kind: 'beam', x: ev.fromX, y: ev.fromY, x1: ev.x, y1: ev.y, life: 180, pal: BD.view.palette.SCHOOL.storm,
+      kind: 'beam', x: ev.fromX, y: ev.fromY, x1: ev.x, y1: ev.y, life: 140, pal: BD.view.palette.SCHOOL.storm,
     }));
     bus.on('projectile.hit', (ev) => {
       if (ev.wall) Fx().play('whiff', ev.x, ev.y);
     });
   }
 
+  const rarityPals = {};
+  /** a school-shaped palette for a rarity colour */
+  function rarityPal(rarity) {
+    const Palette = BD.view.palette;
+    if (!rarityPals[rarity]) {
+      const c = Palette.RARITY[rarity];
+      rarityPals[rarity] = { core: Palette.shade(c, 1.35), mid: c, edge: Palette.shade(c, 0.6) };
+    }
+    return rarityPals[rarity];
+  }
+
   /** seals, portals, waypoints, loot and exploration */
   function wireWorld(bus) {
     bus.on('seal.break', (ev) => Fx().play('seal_break', ev.x, ev.y));
     bus.on('portal.open', (ev) => Fx().play('portal', ev.x, ev.y));
-    bus.on('waypoint.activate', (ev) => Fx().play('portal', ev.x, ev.y, { school: 'storm' }));
-    bus.on('revive', (ev) => Fx().play('blink', ev.x, ev.y, { school: 'shadow' }));
+    bus.on('waypoint.activate', (ev) => Fx().play('portal', ev.x, ev.y));
+    // a monster raising a corpse is shadow; the hero getting up again is life
+    bus.on('revive', (ev) => {
+      if (ev.by != null) Fx().play('blink', ev.x, ev.y, { school: 'shadow' });
+      else Fx().play('heal', ev.x, ev.y, { scale: 1.5 });
+    });
     bus.on('loot.drop', (ev) => {
       BD.view.items.onDrop(ev);
-      if (ev.rarity === 'legendary') Fx().play('levelup', ev.x, ev.y, { scale: 0.6 });
-      else if (ev.rarity === 'rare') Fx().play('blink', ev.x, ev.y, { school: 'gold' });
+      // the drop moment takes the rarity colour (the legendary column matches its ground shaft)
+      if (ev.rarity === 'legendary') Fx().play('legendary_drop', ev.x, ev.y, { pal: rarityPal('legendary') });
+      else if (ev.rarity === 'rare') Fx().play('rare_drop', ev.x, ev.y, { pal: rarityPal('rare') });
     });
     bus.on('gold', (ev) => FloatText().merge('gold', ev.amount, ev.x, ev.y, 'gold', (n) => '+' + n + ' gold'));
     bus.on('flask.charge', (ev) => FloatText().add('+1 flask', ev.x, ev.y, 'heal'));
     bus.on('loot.fountain', (ev) => Fx().play('loot_fountain', ev.x, ev.y));
-    bus.on('power.nova', (ev) => Fx().play('zone_hit', ev.x, ev.y, { school: ev.school === 'holy' ? 'holy' : ev.school || 'fire' }));
+    bus.on('power.nova', (ev) => {
+      const school = ev.school === 'holy' ? 'holy' : BD.view.palette.ELEMENT_SCHOOL[ev.school] || 'fire';
+      Fx().play('zone_hit', ev.x, ev.y, { school, scale: 1.4 });
+      if (BD.view.fxRecipes['impact_' + school]) Fx().play('impact_' + school, ev.x, ev.y, { school, scale: 1.6 });
+    });
     bus.on('floor.explored', () => {
       const p = currentWorld().player;
       Fx().play('explored', p.x, p.y);

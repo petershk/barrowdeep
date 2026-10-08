@@ -10,19 +10,21 @@
   const merges = new Map();
   const tmp = { x: 0, y: 0 };
 
+  const MEANING = BD.view.palette.MEANING;
+  // colours are meanings (ART_DIRECTION.md): dealt bone, taken red, crit gold, xp bronze, alert hostile
   const STYLES = {
-    dmg: { color: '#e8e0d0', size: 13, dur: 700, rise: 26 },
-    crit: { color: '#ffd23a', size: 19, dur: 900, rise: 30, punch: true },
-    taken: { color: '#ff5040', size: 14, dur: 800, rise: 24 },
-    heal: { color: '#6ad06a', size: 13, dur: 900, rise: 22 },
-    status: { color: '#ffffff', size: 11, dur: 900, rise: 18, caps: true },
-    reaction: { color: '#ffb0ff', size: 16, dur: 1100, rise: 34, caps: true, punch: true },
-    xp: { color: '#c0a0ff', size: 11, dur: 1000, rise: 20 },
-    gold: { color: '#ffd23a', size: 12, dur: 1000, rise: 20 },
-    miss: { color: '#a0a0a0', size: 11, dur: 600, rise: 16 },
-    alert: { color: '#ffd23a', size: 22, dur: 900, rise: 18, bold: true },
-    exposed: { color: '#ffd23a', size: 16, dur: 1200, rise: 28, caps: true, punch: true },
-    info: { color: '#e8d8b0', size: 13, dur: 1400, rise: 24 },
+    dmg: { color: MEANING.dmg, size: 13, dur: 700, rise: 26 },
+    crit: { color: MEANING.crit, size: 19, dur: 900, rise: 30, punch: true },
+    taken: { color: MEANING.dmgTaken, size: 14, dur: 800, rise: 24 },
+    heal: { color: MEANING.good, size: 13, dur: 900, rise: 22 },
+    status: { color: MEANING.text, size: 11, dur: 900, rise: 18, caps: true },
+    reaction: { color: '#ffffff', size: 16, dur: 1100, rise: 34, caps: true, punch: true },
+    xp: { color: MEANING.xp, size: 11, dur: 1000, rise: 20 },
+    gold: { color: MEANING.gold, size: 12, dur: 1000, rise: 20 },
+    miss: { color: MEANING.muted, size: 11, dur: 600, rise: 16 },
+    alert: { color: MEANING.alert, size: 22, dur: 900, rise: 18, bold: true },
+    exposed: { color: MEANING.exposed, size: 16, dur: 1200, rise: 28, caps: true, punch: true },
+    info: { color: MEANING.friendly, size: 13, dur: 1400, rise: 24 },
   };
 
   function mode() { return BD.view.host.prefs.damageNumbers; }
@@ -30,8 +32,8 @@
   /** add(text, x, y, style, {id, color}) — id stacks multiple texts on one target */
   function add(text, x, y, style, o) {
     const m = mode();
-    if (m === 'off' && style !== 'alert' && style !== 'exposed') return;
-    if (m === 'numbers' && (style === 'status' || style === 'reaction' || style === 'xp' || style === 'gold')) return;
+    if (m === 'off' && style !== 'alert' && style !== 'exposed') return null;
+    if (m === 'numbers' && (style === 'status' || style === 'reaction' || style === 'xp' || style === 'gold')) return null;
     o = o || {};
     const st = STYLES[style] || STYLES.dmg;
     let off = 0;
@@ -43,10 +45,12 @@
       off = n;
     }
     if (list.length > 120) list.shift();
-    list.push({ text: String(text), x, y, t: 0, st, off, color: o.color || st.color, jx: (Math.random() - 0.5) * 10 });
+    const item = { text: String(text), x, y, t: 0, st, off, color: o.color || st.color, jx: (Math.random() - 0.5) * 10 };
+    list.push(item);
+    return item;
   }
-  /** merged per-second pickups (xp, gold, heal) */
-  function merge(key, amount, x, y, style, fmt) {
+  /** merged per-second pickups (xp, gold, heal) and damage-over-time ticks; o as add() */
+  function merge(key, amount, x, y, style, fmt, o) {
     const m = merges.get(key);
     const now = BD.view.render.timeMs;
     if (m && now - m.t < 1000) {
@@ -55,8 +59,8 @@
       m.item.t = Math.min(m.item.t, 200);
       return;
     }
-    add(fmt(amount), x, y, style);
-    merges.set(key, { amount, t: now, item: list[list.length - 1] });
+    const item = add(fmt(amount), x, y, style, o);
+    if (item) merges.set(key, { amount, t: now, item });
   }
 
   function update(ms) {
@@ -83,7 +87,7 @@
       ctx.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1;
       const txt = st.caps ? f.text.toUpperCase() : f.text;
       ctx.lineWidth = Math.max(2, 3 * v.dpr);
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeStyle = MEANING.outline;
       ctx.strokeText(txt, tmp.x + f.jx * v.dpr, y);
       ctx.fillStyle = f.color;
       ctx.fillText(txt, tmp.x + f.jx * v.dpr, y);

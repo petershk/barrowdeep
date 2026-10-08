@@ -11,6 +11,11 @@
     ['helm', 'Helm'], ['amulet', 'Amulet'], ['weapon', 'Weapon'], ['chest', 'Armour'],
     ['offhand', 'Offhand'], ['cloak', 'Cloak'], ['ring1', 'Ring'], ['ring2', 'Ring'],
   ];
+  /** the item-art category whose faded silhouette marks an empty doll slot */
+  const SLOT_ART = {
+    helm: 'helm', amulet: 'amulet', weapon: 'blade', chest: 'armour', offhand: 'shield', cloak: 'cloak', ring1: 'ring', ring2: 'ring',
+  };
+  const ICON_SCALE = 4;   // 12×12 item art → 48 px
   const ORDER = { legendary: 0, rare: 1, magic: 2, common: 3 };
   let sortBy = 'rarity', usableOnly = false, confirmUid = null;
 
@@ -19,7 +24,7 @@
 
   function iconEl(item) {
     const art = BD.view.itemArt.artFor(BD.sim.items.derive(item).category);
-    return h('img.it-icon', { src: BD.view.sprites.dataURL(art, 3), alt: '' });
+    return h('img.it-icon', { src: BD.view.sprites.dataURL(art, ICON_SCALE), alt: '' });
   }
 
   function itemCell(world, item, where, extra) {
@@ -67,14 +72,18 @@
     const doll = h('div.doll');
     for (const [slot, label] of SLOTS) {
       const it = p.equip[slot];
-      const cell = it ? itemCell(w, it, 'equip', { slot }) : h('div.it-cell.empty', { data: { slot } }, '—');
+      const ghost = h('img.slot-ghost', { src: BD.view.sprites.dataURL(BD.view.itemArt.artFor(SLOT_ART[slot]), ICON_SCALE), alt: '' });
+      const cell = it ? itemCell(w, it, 'equip', { slot }) : h('div.it-cell.empty', { data: { slot }, title: label + ' (empty)' }, ghost);
       doll.appendChild(h('div.doll-slot.slot-' + slot, [h('div.doll-label', label), cell]));
     }
-    const pouchText = '   Town Portal: ' + (p.pouch.portal || 0) + '   Revelation: ' + (p.pouch.reveal || 0);
     return h('div.col', [doll,
-      h('div.pouch-row', [h('span', 'Gold: '), h('b.gold', String(p.gold)), h('span.muted', pouchText)]),
+      h('div.pouch-row', [
+        h('span', [h('span.muted', 'Gold '), h('b.gold', String(p.gold))]),
+        h('span', [h('span.muted', 'Town Portal '), String(p.pouch.portal || 0)]),
+        h('span', [h('span.muted', 'Revelation '), String(p.pouch.reveal || 0)]),
+      ]),
       h('div.row', [
-        h('button.btn.tiny', { data: { action: 'read', kind: 'portal' }, disabled: !p.pouch.portal }, 'Read Town Portal (R)'),
+        h('button.btn.tiny', { data: { action: 'read', kind: 'portal' }, disabled: !p.pouch.portal }, 'Read Portal (R)'),
         h('button.btn.tiny', { data: { action: 'read', kind: 'reveal' }, disabled: !p.pouch.reveal }, 'Read Revelation'),
       ]),
     ]);
@@ -92,7 +101,9 @@
   function buildPackList(w, p) {
     const pack = h('div.pack-list');
     for (const it of sorted(w, p.pack)) pack.appendChild(itemCell(w, it, 'pack'));
-    for (let i = p.pack.length; i < BD.sim.inventory.PACK; i++) pack.appendChild(h('div.it-cell.empty.ghost'));
+    // free space is one quiet line, not a column of empty boxes
+    const free = BD.sim.inventory.PACK - p.pack.length;
+    if (free > 0) pack.appendChild(h('div.it-cell.empty.ghost', free + (free === 1 ? ' free slot' : ' free slots')));
     return pack;
   }
 
@@ -100,7 +111,7 @@
   function buildRightColumn(p, pack) {
     const tools = buildPackTools();
     return h('div.col', [
-      h('div.pack-head', [h('b', 'Pack '), h('span.muted', p.pack.length + ' / ' + BD.sim.inventory.PACK)]), tools, pack,
+      h('div.pack-head', [h('b', 'Pack'), h('span.muted', p.pack.length + ' / ' + BD.sim.inventory.PACK)]), tools, pack,
       h('div.muted.small',
         'Right-click: equip. Shift-click: move to stash / sell. Ctrl-click: lock. Drop with the ✕ that appears on hover.'),
     ]);

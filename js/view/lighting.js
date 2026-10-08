@@ -9,6 +9,8 @@
   let buf = null, img = null, acc = null, key = '';
   /** dynamic lights pushed by the renderer/FX each frame: {x,y,radius,color,intensity,flicker} */
   const frameLights = [];
+  /** the player light's warm cast (07 §1.3) */
+  const WARM = [1, 0.93, 0.82];
 
   function ensure(f) {
     const k = f.key + ':' + f.seed + ':' + f.w + 'x' + f.h;
@@ -30,40 +32,9 @@
     ensure(f);
     const w = f.w, h = f.h;
     acc.fill(0);
-    const town = f.biome === 'town';
-    const amb = town ? 0.55 : 0.0;
-    // player light (warm), remembered tiles dim
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = y * w + x;
-      let v = 0;
-      if (f.visible[i]) {
-        const d = Math.hypot(x - pp.x, y - pp.y);
-        v = Math.max(town ? 0.75 : 0.42, 1.25 - d / (R + 2.5));
-      } else if (f.explored[i]) v = town ? 0.4 : 0.16;
-      v = Math.max(v, f.explored[i] ? amb : 0);
-      acc[i * 3] = v;
-      acc[i * 3 + 1] = v * 0.93;
-      acc[i * 3 + 2] = v * 0.82;
-    }
+    playerLight(f, pp, R);
     // coloured point lights (only onto explored tiles; full strength where visible)
-    for (const L of frameLights) {
-      const [cr, cg, cb] = Palette.rgb(L.color);
-      const fl = L.flicker
-        ? 1 - L.flicker * 0.5 + L.flicker * 0.5 * Math.sin(timeMs / 90 + L.x * 3.1 + L.y * 1.7) * Math.sin(timeMs / 37 + L.x)
-        : 1;
-      const r = L.radius, x0 = Math.max(0, Math.floor(L.x - r)), x1 = Math.min(w - 1, Math.ceil(L.x + r));
-      const y0 = Math.max(0, Math.floor(L.y - r)), y1 = Math.min(h - 1, Math.ceil(L.y + r));
-      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-        const i = y * w + x;
-        if (!f.explored[i]) continue;
-        const d = Math.hypot(x - L.x, y - L.y);
-        if (d > r) continue;
-        const k = (1 - d / r) * L.intensity * fl * (f.visible[i] ? 1 : 0.35);
-        acc[i * 3] += (cr / 255) * k;
-        acc[i * 3 + 1] += (cg / 255) * k;
-        acc[i * 3 + 2] += (cb / 255) * k;
-      }
-    }
+    for (const L of frameLights) addPoint(f, L, timeMs);
     frameLights.length = 0;
     const d = img.data;
     for (let i = 0, n = w * h; i < n; i++) {
@@ -82,6 +53,51 @@
     ctx.drawImage(buf, 0, 0);
     ctx.restore();
     ctx.imageSmoothingEnabled = false;
+  }
+
+  /** the player's light over the whole floor: falloff in view, dim memory elsewhere */
+  function playerLight(f, pp, R) {
+    const w = f.w, h = f.h;
+    const town = f.biome === 'town';
+    const amb = town ? 0.55 : 0.0;
+    // per-biome player light (biomes.js `light`): hell and the sanctum fall off harder into the dark
+    const bl = (BD.data.biomes[f.biome] && BD.data.biomes[f.biome].light) || {};
+    const lo = town ? 0.75 : bl.min || 0.42, peak = bl.peak || 1.25, reach = R * (bl.falloff || 1) + (bl.reach || 2.5);
+    const tint = bl.tint || [1, 1, 1];
+    const tr = tint[0] * WARM[0], tg = tint[1] * WARM[1], tb = tint[2] * WARM[2];
+    // player light (warm), remembered tiles dim
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      let v = 0;
+      if (f.visible[i]) {
+        const d = Math.hypot(x - pp.x, y - pp.y);
+        v = Math.max(lo, peak - d / reach);
+      } else if (f.explored[i]) v = town ? 0.4 : 0.16;
+      v = Math.max(v, f.explored[i] ? amb : 0);
+      acc[i * 3] = v * tr;
+      acc[i * 3 + 1] = v * tg;
+      acc[i * 3 + 2] = v * tb;
+    }
+  }
+
+  function addPoint(f, L, timeMs) {
+    const w = f.w, h = f.h;
+    const [cr, cg, cb] = Palette.rgb(L.color);
+    const fl = L.flicker
+      ? 1 - L.flicker * 0.5 + L.flicker * 0.5 * Math.sin(timeMs / 90 + L.x * 3.1 + L.y * 1.7) * Math.sin(timeMs / 37 + L.x)
+      : 1;
+    const r = L.radius, x0 = Math.max(0, Math.floor(L.x - r)), x1 = Math.min(w - 1, Math.ceil(L.x + r));
+    const y0 = Math.max(0, Math.floor(L.y - r)), y1 = Math.min(h - 1, Math.ceil(L.y + r));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = y * w + x;
+      if (!f.explored[i]) continue;
+      const d = Math.hypot(x - L.x, y - L.y);
+      if (d > r) continue;
+      const k = (1 - d / r) * L.intensity * fl * (f.visible[i] ? 1 : 0.35);
+      acc[i * 3] += (cr / 255) * k;
+      acc[i * 3 + 1] += (cg / 255) * k;
+      acc[i * 3 + 2] += (cb / 255) * k;
+    }
   }
 
   /** brightness 0..1 at a tile (for overlays that should dim with the light) */

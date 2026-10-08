@@ -17,7 +17,7 @@
     const usable = BD.sim.inventory.canEquip(w, w.player, item).ok;
     const cellSel = 'div.it-cell.r-' + item.rarity + flag(sel === item.uid, '.selected') + flag(!usable, '.unusable');
     const el = h(cellSel, { data: opts.data }, [
-      h('img.it-icon', { src: BD.view.sprites.dataURL(BD.view.itemArt.artFor(d.category), 3), alt: '' }),
+      h('img.it-icon', { src: BD.view.sprites.dataURL(BD.view.itemArt.artFor(d.category), 4), alt: '' }),
       h('span.it-cell-name', d.name + (item.enhance ? ' +' + item.enhance : '')),
       opts.price != null ? h('span.it-cell-price', opts.price + 'g') : null,
     ]);
@@ -34,7 +34,7 @@
     }
     const help = verb ? 'Shift-click or right-click to ' + verb.toLowerCase() + '. Click to select for services.' : 'Click to select.';
     return h('div.col', [
-      h('div.pack-head', [h('b', 'Pack '), h('span.muted', p.pack.length + ' / 30 · '), h('b.gold', p.gold + ' gold')]),
+      h('div.pack-head', [h('b', 'Pack'), h('span.muted', p.pack.length + ' / 30 ·'), h('b.gold', p.gold + ' gold')]),
       h('div.muted.small', help),
       list,
     ]);
@@ -261,7 +261,8 @@
     const tabItems = tabs[stashTab] || [];
     const list = h('div.pack-list.shop-wares');
     for (const it of tabItems) list.appendChild(cell(w, it, { data: { action: 'unstash', uid: it.uid } }));
-    for (let i = tabItems.length; i < 20; i++) list.appendChild(h('div.it-cell.empty.ghost'));
+    const free = 20 - tabItems.length;
+    if (free > 0) list.appendChild(h('div.it-cell.empty.ghost', free + (free === 1 ? ' free slot' : ' free slots')));
     el.appendChild(h('div.shop-cols', [
       h('div.col', [
         tabRow,

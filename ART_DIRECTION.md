@@ -88,3 +88,8 @@ Only three periods for pulsing (07 §1.5): ambient 1.6 s, attention 0.6 s, dange
 - Panels: gradient `--panel-a → --panel-b`, `--border`, Georgia, small caps for headings, never bold.
 - Tooltips are fully opaque (`--tooltip-bg`) and never cover the element being hovered.
 - Text is at least 12 px. `--dim` is for rules and empty slots, never for words.
+
+## Zoom
+
+The default zoom is **Auto**: 1.5×, raised to 2.0× or 2.5× while at least 14 tiles still fit across the
+window (1.5× up to about 1880 px wide, 2.0× at 1920, 2.5× from about 2400). Players who pick a zoom keep it.

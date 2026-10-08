@@ -31,6 +31,7 @@
     stack.push(entry);
     if (d.onOpen) d.onOpen(el, arg);
     d.build(el, arg);
+    syncBody();
     BD.app.bus.emit({ type: 'ui.panel', id, open: true });
     if (BD.ui.pad) BD.ui.pad.invalidate();
     return el;
@@ -42,10 +43,15 @@
     entry.shell.remove();
     const d = defs[entry.id];
     if (d.onClose) d.onClose(entry.el, entry.arg);
+    syncBody();
     BD.app.bus.emit({ type: 'ui.panel', id: entry.id, open: false });
     if (BD.ui.tooltip) BD.ui.tooltip.hide();
     if (BD.ui.pad) BD.ui.pad.invalidate();
     return true;
+  }
+  /** body.modal-open while any modal is up: hides the floor-title banner and feed behind panels */
+  function syncBody() {
+    document.body.classList.toggle('modal-open', anyModal());
   }
   function closeAll() { while (stack.length) close(); }
   function toggle(id, arg) {

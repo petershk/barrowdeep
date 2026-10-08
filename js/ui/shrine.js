@@ -18,7 +18,7 @@
       if (owned) tag += '.owned';
       if (locked) tag += '.locked';
       list.appendChild(h(tag, [
-        h('div', [h('b', perk.name), h('div.muted.small', perk.desc)]),
+        h('div', [h('div.perk-name', perk.name), h('div.muted.small', perk.desc)]),
         owned
           ? h('span.gold', 'Unlocked')
           : h('button.btn.tiny', {

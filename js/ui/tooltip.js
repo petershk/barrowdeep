@@ -24,14 +24,38 @@
     clear(el);
     builder(el, !!(BD.input.keyboard && (BD.input.keyboard.down.has('ShiftLeft') || BD.input.keyboard.down.has('ShiftRight'))));
     el.classList.remove('hidden');
-    const r = anchor.getBoundingClientRect();
-    const tw = el.offsetWidth, th = el.offsetHeight;
-    let x = r.left + r.width / 2 - tw / 2, y = r.top - th - 8;
-    if (y < 4) y = r.bottom + 8;
-    x = Math.max(4, Math.min(window.innerWidth - tw - 4, x));
-    y = Math.max(4, Math.min(window.innerHeight - th - 4, y));
-    el.style.left = x + 'px';
-    el.style.top = y + 'px';
+    const pos = place(anchor.getBoundingClientRect(), el.offsetWidth, el.offsetHeight, !!anchor.closest('.panel'));
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+  }
+
+  const GAP = 8, MARGIN = 4;
+
+  /**
+   * Where the tooltip goes: never on top of the element it describes. Panel content (cards, item cells)
+   * prefers the side, so the tooltip doesn't hide the row above; HUD elements prefer above.
+   * The first side with room wins; with no room anywhere, the roomiest side is used.
+   * @param {DOMRect} r anchor rect @param {number} tw @param {number} th @param {boolean} inPanel
+   */
+  function place(r, tw, th, inPanel) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const clampX = (x) => Math.max(MARGIN, Math.min(W - tw - MARGIN, x));
+    const clampY = (y) => Math.max(MARGIN, Math.min(H - th - MARGIN, y));
+    const midX = clampX(r.left + r.width / 2 - tw / 2), midY = clampY(r.top + r.height / 2 - th / 2);
+    const sides = {
+      right: { room: W - r.right - GAP - MARGIN, need: tw, x: r.right + GAP, y: midY },
+      left: { room: r.left - GAP - MARGIN, need: tw, x: r.left - GAP - tw, y: midY },
+      above: { room: r.top - GAP - MARGIN, need: th, x: midX, y: r.top - GAP - th },
+      below: { room: H - r.bottom - GAP - MARGIN, need: th, x: midX, y: r.bottom + GAP },
+    };
+    const order = inPanel ? ['right', 'left', 'above', 'below'] : ['above', 'below', 'right', 'left'];
+    let best = sides[order[0]];
+    for (const k of order) {
+      const s = sides[k];
+      if (s.room >= s.need) return { x: s.x, y: s.y };
+      if (s.room - s.need > best.room - best.need) best = s;
+    }
+    return { x: Math.max(MARGIN, best.x), y: Math.max(MARGIN, best.y) };
   }
   function hide() {
     if (el) el.classList.add('hidden');

@@ -6,9 +6,12 @@
 
   const { h, setText, root } = BD.ui.dom;
   let el = null, life = null, res = null, xp = null, flask = null, pouch = null, chips = null, pips = null;
-  const RES_COL = {
-    rage: ['#ff8a2a', '#8a3008'], energy: ['#d0e850', '#4a6010'],
-    mana: ['#4a8aff', '#10307a'], focus: ['#f0e0a0', '#7a6020'],
+  const Palette = BD.view.palette;
+  const M = Palette.MEANING;
+  /** orb liquid: [surface, depth] from the meaning colour (ART_DIRECTION.md: rage / energy / mana / focus / life) */
+  const liquid = (hex) => [Palette.shade(hex, 1.15), Palette.shade(hex, 0.32)];
+  const ORB_COL = {
+    life: liquid(M.life), rage: liquid(M.rage), energy: liquid(M.energy), mana: liquid(M.mana), focus: liquid(M.focus),
   };
 
   function orb(cls) {
@@ -41,7 +44,7 @@
     g.beginPath();
     g.arc(48, 48, R, 0, Math.PI * 2);
     g.clip();
-    g.fillStyle = '#0b0807';
+    g.fillStyle = M.outline;
     g.fillRect(0, 0, W, W);
     // liquid with a wavy surface
     const top = 48 + R - frac * 2 * R;
@@ -56,7 +59,7 @@
     g.closePath();
     g.fill();
     if (pulse) {
-      g.fillStyle = `rgba(255,255,255,${0.12 + 0.1 * Math.sin(t / 95)})`;
+      g.fillStyle = Palette.rgba(pulse, 0.14 + 0.12 * Math.sin(t / 95));
       g.fillRect(0, 0, W, W);
     }
     // glass highlight
@@ -66,8 +69,8 @@
     g.fillStyle = hl;
     g.fillRect(0, 0, W, W);
     g.restore();
-    ring(g, '#5a4a28', 3, R + 1);
-    ring(g, '#000', 1, R + 3);
+    ring(g, M.border, 3, R + 1);
+    ring(g, M.outline, 1, R + 3);
   }
 
   /** a circular rim around the orb */
@@ -86,13 +89,13 @@
     const p = world.player;
     const s = BD.sim.stats.statsOf(world, p);
     const lf = Math.max(0, p.hp) / s.maxLife;
-    drawOrb(life, lf, '#d02020', '#4a0606', t, lf < 0.25 && !p.dead);
+    drawOrb(life, lf, ORB_COL.life[0], ORB_COL.life[1], t, lf < 0.25 && !p.dead ? M.lifeLow : null);
     setText(life.val, (p.dead ? 0 : Math.ceil(Math.max(0, p.hp))) + ' / ' + s.maxLife);
     setText(life.lab, 'Life');
     const kind = BD.data.classes[p.cls].resource;
     const { frac, txt, lab, pulse } = resourceReadout(p, kind);
-    const c = RES_COL[kind];
-    drawOrb(res, frac, c[0], c[1], t, pulse);
+    const c = ORB_COL[kind];
+    drawOrb(res, frac, c[0], c[1], t, pulse ? M.text : null);
     setText(res.val, txt);
     setText(res.lab, lab);
     // xp
@@ -144,7 +147,7 @@
       BD.ui.dom.clear(chips);
       for (const st of want) {
         const d = BD.data.statuses[st.id];
-        const style = { borderColor: BD.view.palette.STATUS_COLOR[st.id] || '#888' };
+        const style = { borderColor: Palette.STATUS_COLOR[st.id] || M.muted };
         chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: d.name, style }, [
           h('span.chip-name', d.name), h('span.chip-t'),
         ]));

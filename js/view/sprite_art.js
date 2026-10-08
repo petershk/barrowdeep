@@ -6,16 +6,16 @@
   BD.view.art = BD.view.art || {};
   const Art = BD.view.art;
   Art.fighter = {
-    pal: {S:"#d4d8df", s:"#98a1ae", d:"#5e6571", R:"#b23a2c", r:"#74221a", G:"#d2a73f", g:"#8f6f26", W:"#f1f3f6", b:"#4a3015"},
+    pal: {S:"#a49c8e", s:"#9a2a20", d:"#2e2a28", R:"#b23a2c", r:"#74221a", G:"#d2a73f", g:"#8f6f26", W:"#f1f3f6", b:"#4a3015"},
     frames: { idle: [[
       '......KRRK......',
       '.....KRrrRK.....',
       '....KKSSSSK.....',
       '....KSSSSSSK....',
       '...KSSSSSSSK....',
-      '...KSdSSdSSK....',
-      '...KSSSSSSSK....',
-      '....KdSSSdK.....',
+      '...KSddddddK....',
+      '...KSSSdSSSK....',
+      '....KSSdSSK.....',
       '.....KssssK.....',
       '..KKKSssssSKKK..',
       '.KRRrKssssKKGK..',
@@ -32,7 +32,7 @@
   };
   Art.thief = {
     pal: {
-      H:"#66785a", h:"#475641", x:"#2f3a2b", W:"#d8e6c8", F:"#e3b388", f:"#b9855a",
+      H:"#5a7088", h:"#3c4c60", x:"#232c38", W:"#e6eef8", F:"#e3b388", f:"#b9855a",
       D:"#b8bdc6", d:"#707683", B:"#5a3d24", G:"#c9a23f", b:"#3c2a18",
     },
     frames: { idle: [[

@@ -23,12 +23,14 @@
     return BD.view.itemArt.artFor(BD.sim.items.derive(g.item).category);
   }
   function colorOf(g) {
-    if (g.kind === 'gold') return '#ffd23a';
-    if (g.kind === 'orb') return '#ff4040';
-    if (g.kind === 'seal' || g.kind === 'key') return '#ff3020';
-    if (g.kind === 'scroll') return '#e8e0c8';
+    if (g.kind === 'gold') return Palette.MEANING.gold;
+    if (g.kind === 'orb') return Palette.MEANING.lifeLow;
+    if (g.kind === 'seal' || g.kind === 'key') return Palette.SCHOOL.seal.mid;
+    if (g.kind === 'scroll') return Palette.RARITY.common;
     return Palette.RARITY[g.item.rarity];
   }
+  /** the shared ambient beat (1.6 s), -1..1 */
+  const ambient = () => Math.sin((Render.timeMs / BD.view.fx.BEAT.ambient) * Math.PI * 2);
 
   function bucket(world, put) {
     const f = world.floor;
@@ -61,12 +63,12 @@
     const r = (9 + 7 * tier) * zk;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.14 + 0.09 * tier + (tier >= 2 ? 0.05 * Math.sin(Render.timeMs / 600) : 0);
+    ctx.globalAlpha = 0.14 + 0.09 * tier + (tier >= 2 ? 0.05 * ambient() : 0);
     ctx.drawImage(BD.view.fx.glow(col), tmp.x - r, tmp.y - r * 0.55, r * 2, r * 1.1);
     ctx.restore();
     Render.drawArt(artOf(g), 'idle', 0, x, y, { dy: -hop - 2 * S });
     if (tier >= 3 && g.kind === 'item') BD.view.lighting.add(g.x, g.y, 3, col, 0.8, 0.1);
-    if (g.kind === 'seal' || g.kind === 'key') BD.view.lighting.add(g.x, g.y, 4, '#ff4030', 1, 0.2);
+    if (g.kind === 'seal' || g.kind === 'key') BD.view.lighting.add(g.x, g.y, 4, Palette.SCHOOL.seal.mid, 1, 0.2);
   }
 
   /** after lighting: legendary shafts, seal beams (visible across the screen) */
@@ -80,15 +82,15 @@
       iso.toScreen(g.x, g.y, tmp);
       const h = (beam ? 260 : 200) * zk;
       const w = (beam ? 12 : 9) * zk;
-      const col = beam ? '#ff4030' : '#ff8a2a';
+      const col = beam ? Palette.SCHOOL.seal.mid : Palette.RARITY.legendary;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const gr = ctx.createLinearGradient(0, tmp.y - h, 0, tmp.y);
       gr.addColorStop(0, Palette.rgba(col, 0));
       gr.addColorStop(0.8, Palette.rgba(col, 0.35));
-      gr.addColorStop(1, Palette.rgba('#ffffff', 0.6));
+      gr.addColorStop(1, Palette.rgba(beam ? Palette.SCHOOL.seal.core : Palette.SCHOOL.fire.core, 0.6));
       ctx.fillStyle = gr;
-      const sway = Math.sin(Render.timeMs / 600) * 0.15 + 0.85;
+      const sway = ambient() * 0.15 + 0.85;
       ctx.fillRect(tmp.x - (w * sway) / 2, tmp.y - h, w * sway, h);
       ctx.restore();
     }
@@ -136,7 +138,7 @@
       const y = tmp.y - 22 * iso.view.Z * dpr;
       ctx.fillStyle = 'rgba(8,6,4,0.82)';
       ctx.fillRect(tmp.x - w / 2, y - 12 * dpr, w, 16 * dpr);
-      ctx.fillStyle = g.kind === 'item' ? Palette.RARITY[g.item.rarity] : '#e8e0c8';
+      ctx.fillStyle = g.kind === 'item' ? Palette.RARITY[g.item.rarity] : Palette.RARITY.common;
       ctx.fillText(txt, tmp.x, y);
     }
     ctx.restore();

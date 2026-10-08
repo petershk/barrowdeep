@@ -80,11 +80,13 @@
 
   /**
    * @param {string} id art id  @param {string} frame  @param {number} i
-   * @param {{pal?:object, palKey?:string, tint?:string, dark?:number, flip?:boolean, doll?:object}} [o]
+   * @param {{pal?:object, palKey?:string, tint?:string, dark?:number, flip?:boolean, doll?:object, rim?:boolean}} [o]
    */
   function get(id, frame, i, o) {
     o = o || {};
-    const key = id + '|' + frame + '|' + i + '|' + (o.palKey || '') + '|' + (o.tint || '') + '|' + (o.flip ? 1 : 0) + '|' + (o.doll || '');
+    const rim = o.rim && !o.tint && frame !== 'corpse';
+    const key = id + '|' + frame + '|' + i + '|' + (o.palKey || '') + '|' + (o.tint || '') + '|' + (o.flip ? 1 : 0) + '|' + (o.doll || '')
+      + (rim ? '|r' : '');
     let c = cache.get(key);
     if (c) return c;
     const fr = framesOf(id, o.doll);
@@ -121,10 +123,38 @@
         img.data[k + 3] = 255;
       }
     }
+    if (rim) addRim(img, grid, w, h, o.flip);
     g.putImageData(img, 0, 0);
     c = { canvas: cv, w, h };
     cache.set(key, c);
     return c;
+  }
+
+  const RIM = [255, 243, 216], RIM_A = 0.3;
+  /** a 1-art-pixel light rim on the top-left of the silhouette (light from the top-left, ART_DIRECTION):
+   *  colour pixels whose upper or left neighbour is outside the sprite (or is the edge ink) are lifted 30% toward RIM */
+  function addRim(img, grid, w, h, flip) {
+    const kind = new Uint8Array(w * h);           // 0 empty, 1 ink, 2 colour (in output, i.e. flipped, coords)
+    for (let y = 0; y < h; y++) {
+      const row = grid[y];
+      for (let x = 0; x < w; x++) {
+        const ch = row[x];
+        if (ch === '.' || ch === ' ' || ch === undefined) continue;
+        const ox = flip ? w - 1 - x : x;
+        kind[y * w + ox] = ch === 'K' ? 1 : 2;
+      }
+    }
+    const at = (x, y) => (x < 0 || y < 0 ? 0 : kind[y * w + x]);
+    // outside in direction (dx, dy): empty, or edge ink with empty beyond it
+    const out = (x, y, dx, dy) => {
+      const k = at(x + dx, y + dy);
+      return k === 0 || (k === 1 && at(x + 2 * dx, y + 2 * dy) === 0);
+    };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (kind[y * w + x] !== 2 || !(out(x, y, 0, -1) || out(x, y, -1, 0))) continue;
+      const k = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) img.data[k + c] += (RIM[c] - img.data[k + c]) * RIM_A;
+    }
   }
 
   /** PNG data URL for DOM use (class cards, icons). */

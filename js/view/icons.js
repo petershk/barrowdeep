@@ -1,6 +1,9 @@
 // @ts-check
-// Procedural skill/status icons (32×32), cached as data URLs for the DOM. Each icon = a school-tinted
-// plate + a pictograph from a small glyph vocabulary. No emoji anywhere in the game world.
+// Procedural skill icons, cached as data URLs for the DOM. Each icon is pixel art at 24×24 (shown at 2×,
+// image-rendering: pixelated): one bronze plate for every skill, and a pictograph from a small glyph
+// vocabulary in its school's colours (core highlight / mid body / dark shade) with a 1 px ink outline.
+// Glyphs are authored as vector strokes on a 32-unit grid, then rasterised and thresholded so no
+// anti-aliased edge survives. No emoji anywhere in the game world.
 (function (BD) {
   'use strict';
 
@@ -12,7 +15,7 @@
     attack: ['sword', 'steel'], bash: ['hammer', 'steel'], whirlwind: ['spin', 'steel'], berserk: ['claws', 'blood'],
     bloodlust: ['drop', 'blood'], charge: ['arrowR', 'steel'], warcry: ['shout', 'blood'], earthshaker: ['quake', 'dust'],
     warlord: ['crown', 'gold'],
-    brace: ['shield', 'steel'], secondwind: ['heart', 'poison'], leap: ['leap', 'dust'], juggernaut: ['anchor', 'steel'],
+    brace: ['shield', 'steel'], secondwind: ['heart', 'life'], leap: ['leap', 'dust'], juggernaut: ['anchor', 'steel'],
     tiger_strike: ['fist', 'ki'], dragon_talon: ['kick', 'ki'], phoenix_strike: ['phoenix', 'fire'], endless_flurry: ['flurry', 'ki'],
     fire_blast: ['bomb', 'fire'], lightning_sentry: ['tower', 'storm'], death_sentry: ['skull', 'shadow'], clockwork_mind: ['gear', 'gold'],
     shadowstep: ['step', 'shadow'], smoke_bomb: ['cloud', 'shadow'], shadow_master: ['twin', 'shadow'], unseen: ['eye', 'shadow'],
@@ -25,7 +28,7 @@
     evade: ['dash', 'dust'], flask: ['flask', 'blood'],
   };
 
-  // glyph → draws the pictograph on a 32×32 plate. Pen helpers:
+  // glyph → draws the pictograph on the 32-unit authoring grid. Pen helpers:
   //   line(pts)              strokes a polyline through [x0, y0, x1, y1, ...]
   //   circle(x, y, r, fill)  strokes a circle, or fills it when fill is set
   const GLYPHS = {
@@ -278,10 +281,21 @@
   /** an unknown glyph draws a plain ring */
   const fallbackGlyph = ({ circle }) => circle(16, 16, 6);
 
-  function draw(g, glyph, core) {
-    g.strokeStyle = core;
-    g.fillStyle = core;
-    g.lineWidth = 2.5;
+  const SIZE = 24;
+  const M = Palette.MEANING;
+  /** the bronze plate (css --plate) with a one-pixel bevel; the ink outline is MEANING.outline */
+  const PLATE = '#2a2016';
+  const PLATE_HI = Palette.shade(PLATE, 1.45), PLATE_LO = Palette.shade(PLATE, 0.6);
+
+  /** rasterise a glyph to a SIZE×SIZE ink mask (1 = ink), thresholded: no soft edges */
+  function glyphMask(glyph) {
+    const c = document.createElement('canvas');
+    c.width = c.height = SIZE;
+    const g = c.getContext('2d');
+    g.scale(SIZE / 32, SIZE / 32);
+    g.strokeStyle = '#fff';
+    g.fillStyle = '#fff';
+    g.lineWidth = 2.7;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     const line = (pts) => {
@@ -298,28 +312,49 @@
     };
     const drawGlyph = Object.prototype.hasOwnProperty.call(GLYPHS, glyph) ? GLYPHS[glyph] : fallbackGlyph;
     drawGlyph({ g, line, circle });
+    const a = g.getImageData(0, 0, SIZE, SIZE).data;
+    const mask = new Uint8Array(SIZE * SIZE);
+    for (let i = 0; i < mask.length; i++) mask[i] = a[i * 4 + 3] >= 96 ? 1 : 0;
+    return mask;
   }
 
-  /** @returns {string} data URL */
+  /** the colour of one plate pixel: ink outline on the rim, a light top-left bevel, a dark bottom-right one */
+  function plateAt(x, y) {
+    const last = SIZE - 1;
+    if (x === 0 || y === 0 || x === last || y === last) return M.outline;
+    if (x === 1 || y === 1) return PLATE_HI;
+    if (x === last - 1 || y === last - 1) return PLATE_LO;
+    return PLATE;
+  }
+
+  /** @returns {string} data URL of a 24×24 pixel-art icon */
   function url(id) {
     if (cache.has(id)) return cache.get(id);
     const [glyph, school] = ICONS[id] || ['', 'general'];
     const sch = Palette.SCHOOL[school] || Palette.SCHOOL.general;
+    const shadow = Palette.shade(sch.mid, 0.62);
+    const mask = glyphMask(glyph);
+    const ink = (x, y) => x >= 0 && y >= 0 && x < SIZE && y < SIZE && mask[y * SIZE + x] === 1;
     const c = document.createElement('canvas');
-    c.width = c.height = 32;
+    c.width = c.height = SIZE;
     const g = c.getContext('2d');
-    const gr = g.createRadialGradient(12, 10, 2, 16, 16, 24);
-    gr.addColorStop(0, Palette.shade(sch.edge, 0.9));
-    gr.addColorStop(1, '#0d0907');
-    g.fillStyle = gr;
-    g.fillRect(0, 0, 32, 32);
-    g.shadowColor = sch.mid;
-    g.shadowBlur = 6;
-    draw(g, glyph, sch.core);
-    g.shadowBlur = 0;
-    g.strokeStyle = 'rgba(0,0,0,0.8)';
-    g.lineWidth = 2;
-    g.strokeRect(1, 1, 30, 30);
+    const img = g.createImageData(SIZE, SIZE);
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        let col = plateAt(x, y);
+        if (ink(x, y)) {
+          col = sch.mid;
+          if (!ink(x, y - 1) || !ink(x - 1, y)) col = sch.core;
+          else if (!ink(x, y + 1) || !ink(x + 1, y)) col = shadow;
+        } else if (ink(x - 1, y) || ink(x + 1, y) || ink(x, y - 1) || ink(x, y + 1)) col = M.outline;
+        const rgb = Palette.rgb(col), i = (y * SIZE + x) * 4;
+        img.data[i] = rgb[0];
+        img.data[i + 1] = rgb[1];
+        img.data[i + 2] = rgb[2];
+        img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
     const u = c.toDataURL();
     cache.set(id, u);
     return u;

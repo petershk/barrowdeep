@@ -5,7 +5,7 @@
 
   const KEY = 'bd2_opts';
   const DEFAULTS = {
-    zoom: 1.5, shake: 100, flash: 100, particles: 'full', colorblind: false, uiScale: 1, slowmo: false,
+    zoom: 'auto', shake: 100, flash: 100, particles: 'full', colorblind: false, uiScale: 1, slowmo: false,
     master: 80, effects: 80, music: 60, ambience: 60, alwaysBars: false, damageNumbers: 'full', wasd: false,
     hints: true, bindings: null, rumble: true,
   };

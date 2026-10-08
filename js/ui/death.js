@@ -89,7 +89,10 @@
     BD.ui.dom.delegate(el, { menu: returnToMenu });
   }
 
-  BD.ui.panels.register({ id: 'death', build: buildDeath, closeOnEsc: false });
-  BD.ui.panels.register({ id: 'harvested', build: buildHarvested, closeOnEsc: false });
+  // while dead the world drains to grey under a blood vignette (css: body.is-dead)
+  const deadOn = () => document.body.classList.add('is-dead');
+  const deadOff = () => document.body.classList.remove('is-dead');
+  BD.ui.panels.register({ id: 'death', build: buildDeath, closeOnEsc: false, onOpen: deadOn, onClose: deadOff });
+  BD.ui.panels.register({ id: 'harvested', build: buildHarvested, closeOnEsc: false, onOpen: deadOn, onClose: deadOff });
   BD.ui.panels.register({ id: 'victory', build: buildVictory, closeOnEsc: false });
 })(globalThis.BD);

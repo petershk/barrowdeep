@@ -8,6 +8,14 @@
   const HW = 16, HH = 8;          // half tile width / height in art px
   const WALL_H = 19;              // WH 38 / 2
   const ZOOMS = [1.0, 1.5, 2.0, 2.5];
+  const AUTO_MIN_TILES = 14;      // 'auto' zoom: zoom in while this many tiles still fit across the window
+
+  /** the zoom 'auto' picks for a window this many CSS px wide: 1.5×, or closer on wide screens */
+  function autoZoom(cssWidth) {
+    let z = 1.5;
+    for (const k of ZOOMS) if (k > z && cssWidth / (2 * HW * 2 * k) >= AUTO_MIN_TILES) z = k;
+    return z;
+  }
 
   const view = {
     S: 3, Z: 1.5, dpr: 1, ox: 0, oy: 0, w: 0, h: 0,
@@ -39,5 +47,5 @@
     return out;
   }
 
-  BD.view.iso = { HW, HH, WALL_H, ZOOMS, view, setScale, toScreen, toTileF, toTile };
+  BD.view.iso = { HW, HH, WALL_H, ZOOMS, autoZoom, view, setScale, toScreen, toTileF, toTile };
 })(globalThis.BD);

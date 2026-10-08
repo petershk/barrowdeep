@@ -72,7 +72,7 @@
     desc: 'Place a sentry that fires a lightning bolt at the nearest enemy within 7 every 0.8 s (8 shots). Up to 3 at once. Consumes all combo charges: +2 shots per charge.',
   });
   sk({
-    id: 'death_sentry', branch: 'traps', tier: 3, name: 'Death Sentry', icon: 'death_sentry', school: 'shadow',
+    id: 'death_sentry', branch: 'traps', tier: 3, name: 'Death Sentry', icon: 'death_sentry', school: 'fire',
     tags: ['trap', 'deploy', 'fire', 'aoe'], resource: { type: 'energy', cost: 40 }, cooldownMs: 6000, castMs: 250,
     targeting: { mode: 'point', range: 6, requiresLOS: true, requiresVisible: true, outOfRange: 'approach' }, delivery: { kind: 'deploy' },
     effects: [{ type: 'damage', source: 'weapon', mult: 0.5, element: 'light', canCrit: false }],
