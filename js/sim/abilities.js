@@ -15,6 +15,7 @@
   const SkillBalance = Balance.skills;
 
   const PER_RANK_TABLE_LEN = 5;        // perRank tables cover ranks 1–5; higher ranks keep scaling
+  const REJECT_REPEAT_MS = 1000;       // a held button's repeated refusal is announced once a second
   const CHANNEL_RELEASE_MS = 260;      // a channel ends once the button hasn't been re-held for this long
 
   /** all ability defs by id (skills register into BD.data.skills) */
@@ -138,8 +139,13 @@
     return { windup: cyc * Balance.player.impactFrac, recover: cyc * (1 - Balance.player.impactFrac) };
   }
 
+  /** A held button re-tries every frame: the same refusal is announced at most once per REJECT_REPEAT_MS. */
   function reject(world, p, ab, reason, extra) {
-    world.events.push({ type: 'ability.reject', id: p.id, abilityId: ab.id, reason: BD.data.strings.t(reason, extra) });
+    const last = p.lastReject;
+    if (!(last && last.ab === ab.id && last.reason === reason && world.time - last.at < REJECT_REPEAT_MS)) {
+      p.lastReject = { ab: ab.id, reason, at: world.time };
+      world.events.push({ type: 'ability.reject', id: p.id, abilityId: ab.id, reason: BD.data.strings.t(reason, extra) });
+    }
     return { reject: reason };
   }
 

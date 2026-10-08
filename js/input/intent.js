@@ -9,6 +9,8 @@
   const Grid = BD.core.grid;
   const app = () => BD.app;
 
+  const RELOCK_RADIUS = 1.5;            // tiles around the cursor a held attack looks for its next target
+  const SPENT_LOCK = -1;                 // the locked enemy died and nothing is under the cursor yet
   const hold = { left: false, right: false, keys: {}, sinceMs: 0, lockId: null, lastIssue: 0 };
 
   /** What is under the cursor? enemy > interactable > item > tile */
@@ -74,12 +76,29 @@
     issue({ type: 'UseSkill', slot, aim, hold: !!isHold });
   }
 
+  /**
+   * A held attack outlives its target: when the locked enemy dies, lock onto the enemy under the cursor (or
+   * next to it). With none there the hero stands ready rather than walking off (lockId stays set, 'spent').
+   */
+  function relock(w, m) {
+    const t = BD.sim.entities.get(w, hold.lockId);
+    if (t && !t.dead && t.hp > 0) return;
+    const next = m.hoverTile ? m.entityAt(w, m.screen, m.hoverTile, RELOCK_RADIUS) : null;
+    if (!next) {
+      hold.lockId = SPENT_LOCK;
+      return;
+    }
+    hold.lockId = next.id;
+    issue({ type: 'Engage', entityId: next.id, hold: true });
+  }
+
   /** per-frame: repeat holds */
   function frame(realMs) {
     const w = app().world;
     if (!w || app().paused()) return;
     const m = BD.input.mouse;
     hold.sinceMs += realMs;
+    if (hold.left && hold.lockId) relock(w, m);
     if (hold.left && !hold.lockId && m.hoverTile) {
       if (hold.sinceMs - hold.lastIssue >= BD.data.balance.player.holdRepeatMs) {
         hold.lastIssue = hold.sinceMs;

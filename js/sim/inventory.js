@@ -145,6 +145,16 @@
   Commands.register('Pickup', (world, c) => {
     const p = world.player, g = world.floor.items.find((it) => it.uid === c.itemUid);
     if (!g) return false;
+    // flask orbs (like gold) are collected by stepping on them: a click walks onto the tile
+    if (g.kind === 'orb') {
+      if (p.flask.charges >= p.flask.max) {
+        world.events.push({ type: 'ability.reject', id: p.id, abilityId: 'pickup', reason: BD.data.strings.t('flask_full') });
+        return false;
+      }
+      const onto = BD.sim.player.pathTo(world, p, g.x, g.y, false);
+      p.intent = onto && onto.length ? { kind: 'move', path: onto } : { kind: 'idle' };
+      return true;
+    }
     if (cheb(p.x, p.y, g.x, g.y) <= 1) return pickup(world, c.itemUid);
     const path = BD.sim.player.pathTo(world, p, g.x, g.y, true);
     p.intent = { kind: 'pickup', uid: c.itemUid, path: path || [] };

@@ -130,6 +130,47 @@ module.exports = (T) => {
     T.ok(BD.sim.commands.apply(f, { type: 'SetBar', slot: 'lmb', id: 'bash' }), 'Bash may sit on left click');
   });
 
+  T.test('right-click on an enemy without the resource attacks instead; repeated refusals are announced once', () => {
+    const w = setup('fighter', 'bash', 1);
+    const p = w.player, f = w.floor;
+    for (const e of [...f.entities.values()]) if (e.kind === 'monster') { BD.sim.entities.vacate(f, e); f.entities.delete(e.id); }
+    const at = BD.sim.entities.nearestFree(f, p.x + 1, p.y, 2, (x, y) => BD.core.util.cheb(x, y, p.x, p.y) === 1);
+    const foe = BD.sim.monsters.spawn(w, 'skeleton', at.x, at.y, { noLoot: true });
+    BD.sim.commands.apply(w, { type: 'SetBar', slot: 'rmb', id: 'bash' });
+    p.resources.rage.cur = 0;
+    w.events.length = 0;
+    BD.sim.commands.handlers.UseSkill(w, { type: 'UseSkill', slot: 'rmb', aim: { entityId: foe.id, x: foe.x, y: foe.y }, hold: true });
+    T.eq(p.intent.kind, 'engage', 'no rage: the right click engages with an attack');
+    T.ok(w.events.some((e) => e.type === 'resource.short' && e.abilityId === 'bash'), 'the orb is told to flash');
+    let casts = 0;
+    for (let i = 0; i < 60; i++) { BD.sim.world.step(w, STEP); casts += w.events.filter((e) => e.type === 'ability.cast' && e.abilityId === 'attack').length; w.events.length = 0; }
+    T.ok(casts >= 1, 'a basic attack landed');
+    // a key held with nothing to pay: refused every frame, announced once a second
+    p.resources.rage.cur = 0;
+    p.lastReject = null;
+    let rejects = 0;
+    for (let i = 0; i < 30; i++) {
+      BD.sim.abilities.tryCast(w, p, 'bash', { entityId: foe.id }, { hold: true });
+      rejects += w.events.filter((e) => e.type === 'ability.reject').length;
+      w.events.length = 0;
+      w.time += STEP;
+    }
+    T.eq(rejects, 1, 'one refusal per second, not one per frame');
+  });
+
+  T.test('clicking a flask orb walks onto it and collects it', () => {
+    const w = setup('fighter', 'bash', 1);
+    const p = w.player, f = w.floor;
+    for (const e of [...f.entities.values()]) if (e.kind === 'monster') { BD.sim.entities.vacate(f, e); f.entities.delete(e.id); }
+    p.flask.charges = 0;
+    const at = BD.sim.entities.nearestFree(f, p.x + 2, p.y, 3, (x, y) => BD.core.util.cheb(x, y, p.x, p.y) >= 2);
+    const orb = BD.sim.loot.dropAt(w, at.x, at.y, { kind: 'orb' });
+    T.ok(BD.sim.commands.handlers.Pickup(w, { type: 'Pickup', itemUid: orb.uid, x: orb.x, y: orb.y }));
+    for (let i = 0; i < 180 && f.items.includes(orb); i++) { BD.sim.world.step(w, STEP); w.events.length = 0; }
+    T.ok(!f.items.includes(orb), 'the orb was collected');
+    T.eq(p.flask.charges, 1);
+  });
+
   T.test('every active skill costs its class resource; only the basic attack is free', () => {
     for (const ab of Object.values(BD.data.skills)) {
       if (ab.passive || ab.keystone || !ab.resource) continue;

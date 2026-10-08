@@ -25,8 +25,8 @@
     return id && Abilities().affordable(world, p, id) ? id : 'attack';
   }
   /** the click fell back to the basic attack for lack of resource: say so (throttled) so the orb can flash */
-  function noteShort(world, p, id) {
-    const want = slottedPrimary(p);
+  function noteShort(world, p, id, wanted) {
+    const want = wanted || slottedPrimary(p);
     if (id !== 'attack' || !want || world.time - (p.shortNoticeMs || -1e9) < SHORT_NOTICE_MS) return;
     p.shortNoticeMs = world.time;
     world.events.push({ type: 'resource.short', id: p.id, abilityId: want, res: BD.sim.resources.kind(p) });
@@ -84,15 +84,31 @@
     if (!id) return;
     // mid-swing: buffer the cast (a held button only re-buffers once the swing is recovering)
     if (p.attack && p.attack.phase === 'recover') {
-      p.queued = { id, aim: c.aim, hold: c.hold };
+      p.queued = { id, slot: c.slot, aim: c.aim, hold: c.hold };
       return;
     }
     if (p.attack && p.attack.phase === 'windup') {
-      if (!c.hold) p.queued = { id, aim: c.aim, hold: c.hold };
+      if (!c.hold) p.queued = { id, slot: c.slot, aim: c.aim, hold: c.hold };
       return;
     }
-    Abilities().tryCast(world, p, id, c.aim, { hold: c.hold });
+    castOrFallback(world, p, c.slot, id, c.aim, c.hold);
   });
+
+  /**
+   * The right-click skill aimed at an enemy but unaffordable falls back like a left click: the hero attacks it
+   * (left-click skill or basic attack) and the orb flashes. Holding the button then builds the resource with
+   * attacks and spends it on the skill as soon as it can.
+   */
+  function castOrFallback(world, p, slot, id, aim, hold) {
+    const t = slot === 'rmb' && aim && aim.entityId != null ? Entities.get(world, aim.entityId) : null;
+    const aimed = BD.data.skills[id] && BD.data.skills[id].targeting && BD.data.skills[id].targeting.mode !== 'self';
+    if (t && aimed && !t.dead && t.faction !== 'player' && !Abilities().affordable(world, p, id)) {
+      noteShort(world, p, 'attack', id);
+      p.intent = { kind: 'engage', targetId: t.id, hold: false };
+      return;
+    }
+    Abilities().tryCast(world, p, id, aim, { hold });
+  }
   Commands.register('DrinkFlask', (world) => drinkFlask(world, world.player));
 
   /** fire a buffered cast when the current action ends */
@@ -101,7 +117,7 @@
     if (!p || p.dead || p.attack || !p.queued) return;
     const q = p.queued;
     p.queued = null;
-    Abilities().tryCast(world, p, q.id, q.aim, { hold: q.hold });
+    castOrFallback(world, p, q.slot, q.id, q.aim, q.hold);
   }
 
   function drinkFlask(world, p) {

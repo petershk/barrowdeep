@@ -15,6 +15,7 @@
     no_portal: 'You carry no Town Portal scroll.',
     no_flask: 'The flask is empty.',
     flask_cd: 'Not yet.',
+    flask_full: 'The flask is already full.',
     full_life: 'Already at full life.',
     keeper_reveal: '{name} guards the seal.',
     boss_slain: '{name} is slain.',

@@ -13,7 +13,7 @@
   const SANCTUM_FLOOR = BD.data.floors.LAST;   // its boss fight has no arena: a save there resumes at the floor start
   const ANY_DISTANCE = 99;                     // a radius covering the whole floor
 
-  const TRANSIENT = ['intent', 'attack', 'move', 'queued', 'lockId', 'airborne', '_zt', '_silentHit'];
+  const TRANSIENT = ['intent', 'attack', 'move', 'queued', 'lockId', 'airborne', '_zt', '_silentHit', 'lastReject'];
   function cleanPlayer(p) {
     const c = Util.clone(p);
     for (const k of TRANSIENT) delete c[k];
