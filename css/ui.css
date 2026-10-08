@@ -1,8 +1,11 @@
 :root {
+  /* mirrors BD.view.palette.MEANING; ART_DIRECTION.md is the rulebook */
   --blood: #8b0000; --gold: #c9a227; --bone: #d8d0c0; --panel-a: #1e1813; --panel-b: #14100d;
-  --border: #5a4a28; --souls: #b06aff; --text: #d8d0c0; --muted: #8a8070; --dim: #5a5248;
+  --border: #5a4a28; --souls: #b06aff; --text: #d8d0c0; --muted: #9a9080; --dim: #5a5248;
   --magic: #7aa0e0; --rare: #e0c84a; --legendary: #ff8a2a; --good: #6ad06a; --bad: #e05050;
-  --rage: #e0701a; --energy: #b8d040; --mana: #3a70e0; --focus: #f0e0a0; --life: #b01818;
+  --rage: #c8461c; --energy: #3cc8b4; --mana: #3a6ee0; --focus: #f0e0a0; --life: #c41e1e; --life-low: #ff3b30;
+  --xp: #c8a870; --crit: #ffd23a; --gold-pickup: #e8c050; --hostile: #ff3a1a; --champion: #7aa0e0;
+  --unique: #e0c84a; --boss: #b0201a; --tooltip-bg: #0c0907;
   --font: Georgia, 'Times New Roman', serif;
 }
 * { box-sizing: border-box; }
