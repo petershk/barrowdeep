@@ -60,7 +60,8 @@ module.exports = (T) => {
   T.test('every base, affix and legendary is reachable from drops', () => {
     const w = BD.sim.world.createWorld({ seed: 'reach', cls: 'fighter', name: 't' });
     w.run.flags.ledger = 3;
-    BD.sim.run.travel(w, 1, 'spawn');
+    w.run.bossesKilled = ['grulk'];   // legendaries drop only once the first act boss has fallen
+    BD.sim.run.travel(w, 4, 'spawn');  // past Act I, whose rare/legendary chances are halved
     const rng = BD.core.rng.makeRng('reach');
     const bases = new Set(), affixes = new Set(), legs = new Set();
     for (const cls of Object.keys(D.classes)) {
@@ -80,14 +81,14 @@ module.exports = (T) => {
     T.eq(missingL.join(','), '', 'unreachable legendaries');
   });
 
-  T.test('smart loot: about 65% of drops usable by the class', () => {
+  T.test('smart loot: about 72% of drops usable by the class', () => {
     const w = BD.sim.world.createWorld({ seed: 'smart', cls: 'magician', name: 't' });
     BD.sim.run.travel(w, 1, 'spawn');
     const rng = BD.core.rng.makeRng('smart');
     for (const cls of Object.keys(D.classes)) {
       let use = 0; const n = 3000;
       for (let i = 0; i < n; i++) { const it = BD.sim.loot.rollItem(w, rng, { ilvl: 5, cls, rarity: 'magic' }); if (BD.sim.loot.usableBy(cls, D.bases[it.base])) use++; }
-      T.between(use / n, 0.6, 0.72, cls + ' usable share');
+      T.between(use / n, 0.66, 0.78, cls + ' usable share');
     }
   });
 

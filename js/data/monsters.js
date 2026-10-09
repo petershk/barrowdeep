@@ -29,7 +29,7 @@
     behaviours: [{ id: 'coward', fleePct: 0.25, routOn: 'gutterkin_bonecaller' }, { id: 'melee' }] });
   mon('gutterkin_bonecaller', { name: 'Gutterkin Bonecaller', act: 1, family: 'human', role: 'support', hp: 16, dmg: [2, 4], attackMs: 2000, moveMs: 380, xp: 12,
     sprite: 'imp', pal: { R: '#5a3a7a', r: '#3a2450', Y: '#ff9a40' }, element: 'fire',
-    behaviours: [{ id: 'revive', radius: 6, cdMs: 4000, cap: 1 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 6, projectile: 'fire_bolt' }] });
+    behaviours: [{ id: 'revive', radius: 6, cdMs: 4000, maxRaises: 2, raisedHp: 0.5 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 6, projectile: 'fire_bolt' }] });
   mon('spinehog', { name: 'Spinehog', act: 1, family: 'beast', role: 'artillery', hp: 14, dmg: [2, 4], attackMs: 1800, moveMs: 300, xp: 8,
     sprite: 'spider', pal: { p: '#5a4a3a', P: '#8a7a5a', R: '#e0c070' }, aggro: { notice: 8, leash: 14 },
     behaviours: [{ id: 'kite', min: 3, max: 5 }, { id: 'shoot', range: 6, projectile: 'quill' }] });

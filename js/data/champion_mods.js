@@ -6,7 +6,7 @@
 
   BD.data.championMods = {
     extra_strong: { name: 'Extra Strong', dmgMult: 1.5 },
-    extra_fast: { name: 'Extra Fast', speedMult: 1.4 },
+    extra_fast: { name: 'Extra Fast', speedMult: 1.4, minFloor: 3 },   // minFloor: not rolled on earlier floors
     stone_skin: { name: 'Stone Skin', dr: 40, knockImmune: true },
     fire_enchanted: { name: 'Fire Enchanted', addElement: 'fire', addPct: 0.5, deathZone: { radius: 1, armMs: 600, element: 'fire', mult: 2.0, school: 'fire' } },
     cold_enchanted: {

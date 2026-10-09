@@ -20,6 +20,7 @@
       trait: { name: 'Ambush', desc: '+30% damage against enemies that are unaware, feared or fleeing.' },
       branches: [{ id: 'martial', name: 'Martial Arts' }, { id: 'traps', name: 'Traps' }, { id: 'shadow', name: 'Shadow' }],
       startKit: [{ base: 'katar' }, { base: 'leather' }],
+      lifePct: 15,                    // melee without shields or heavy armour: a little extra life
       uses: ['blade', 'dagger', 'claw', 'buckler', 'light', 'medium', 'cloak', 'amulet', 'ring'],
     },
     magician: {

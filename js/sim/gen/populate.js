@@ -32,7 +32,8 @@
 
   function modPool(spec) {
     const lore = !!(spec.unlocks && spec.unlocks.champion_lore);
-    return Object.keys(BD.data.championMods).filter((k) => lore || !BD.data.championMods[k].lore);
+    const early = (k) => typeof spec.n === 'number' && BD.data.championMods[k].minFloor > spec.n;
+    return Object.keys(BD.data.championMods).filter((k) => (lore || !BD.data.championMods[k].lore) && !early(k));
   }
   function rollMods(rng, spec, n) {
     const pool = rng.shuffle(modPool(spec).slice());
@@ -117,7 +118,9 @@
     const minionSp = rng.pick(actSpecies(act));
     const nMin = rng.int(GenBalance.keeperMinions[0], GenBalance.keeperMinions[1]);
     const spots = cluster(p, dist, taken, kc[0], kc[1], 1 + nMin, KEEPER_CLUSTER_R);
-    const sigs = rng.shuffle(KEEPER_SIGNATURES.slice());
+    // rally (a buff, no telegraph) is never a Keeper's only signature: the first is always an attack to read and dodge
+    const attacks = rng.shuffle(KEEPER_SIGNATURES.filter((s) => s !== 'rally'));
+    const sigs = [attacks[0]].concat(rng.shuffle(attacks.slice(1).concat(['rally'])));
     const minMoves = (spec.ascension || 0) >= Ascension.keeper_moves.level ? Ascension.keeper_moves.minMoves : 1;
     const nSig = Math.max(BD.data.difficulties[spec.difficulty || 'penitent'].keeperMoves, minMoves);
     const members = spots.map(([x, y], i) => i === 0

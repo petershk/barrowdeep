@@ -1,7 +1,7 @@
 // @ts-check
 // Ground items: category icon with a rarity glow (radius (9 + 7·tier)·Z, alpha 0.14 + 0.09·tier),
-// motes per second by tier, a light shaft for legendaries, a beam for the seal/key, a hop on drop,
-// and name labels (Alt, or hover).
+// motes per second by tier, a light shaft for rares (short) and legendaries, a beam for the seal/key, a hop on
+// drop, and name labels (Alt, hover, or for a few seconds after a magic-or-better item lands).
 (function (BD) {
   'use strict';
 
@@ -11,7 +11,15 @@
   const Grid = BD.core.grid;
   const tmp = { x: 0, y: 0 };
   const TIER = { common: 0, magic: 1, rare: 2, legendary: 3 };
+  // light columns: height and width (×zoom), mid and base alpha; the seal/key beam takes the seal's colours
+  const SHAFT = {
+    beam: { h: 260, w: 12, mid: 0.35, base: 0.6 },
+    legendary: { h: 200, w: 9, mid: 0.35, base: 0.6 },
+    rare: { h: 90, w: 6, mid: 0.22, base: 0.4 },
+  };
   const drops = new Map();          // uid → { t, fromX, fromY }
+  const fresh = new Map();          // uid → ms since a magic-or-better item landed (its label shows meanwhile)
+  const FRESH_LABEL_MS = 4000, FRESH_FADE_MS = 600;
   const moteAcc = new Map();
 
   function artOf(g) {
@@ -75,20 +83,22 @@
   function shafts(ctx, world) {
     const f = world.floor, zk = iso.view.Z * iso.view.dpr;
     for (const g of f.items) {
-      const leg = g.kind === 'item' && g.item.rarity === 'legendary';
       const beam = g.kind === 'seal' || g.kind === 'key';
-      if (!leg && !beam) continue;
-      if (!f.explored[Grid.idx(f, g.x, g.y)]) continue;
+      const kind = beam ? 'beam' : g.kind === 'item' && g.item.rarity;
+      const sh = SHAFT[kind];
+      if (!sh || !f.explored[Grid.idx(f, g.x, g.y)]) continue;
       iso.toScreen(g.x, g.y, tmp);
-      const h = (beam ? 260 : 200) * zk;
-      const w = (beam ? 12 : 9) * zk;
-      const col = beam ? Palette.SCHOOL.seal.mid : Palette.RARITY.legendary;
+      const h = sh.h * zk, w = sh.w * zk;
+      const col = beam ? Palette.SCHOOL.seal.mid : Palette.RARITY[kind];
+      let baseCol = Palette.SCHOOL.fire.core;
+      if (beam) baseCol = Palette.SCHOOL.seal.core;
+      else if (kind === 'rare') baseCol = col;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const gr = ctx.createLinearGradient(0, tmp.y - h, 0, tmp.y);
       gr.addColorStop(0, Palette.rgba(col, 0));
-      gr.addColorStop(0.8, Palette.rgba(col, 0.35));
-      gr.addColorStop(1, Palette.rgba(beam ? Palette.SCHOOL.seal.core : Palette.SCHOOL.fire.core, 0.6));
+      gr.addColorStop(0.8, Palette.rgba(col, sh.mid));
+      gr.addColorStop(1, Palette.rgba(baseCol, sh.base));
       ctx.fillStyle = gr;
       const sway = ambient() * 0.15 + 0.85;
       ctx.fillRect(tmp.x - (w * sway) / 2, tmp.y - h, w * sway, h);
@@ -115,6 +125,10 @@
       d.t += ms;
       if (d.t > 420) drops.delete(uid);
     }
+    for (const [uid, t] of fresh) {
+      if (t + ms > FRESH_LABEL_MS) fresh.delete(uid);
+      else fresh.set(uid, t + ms);
+    }
   }
 
   /** labels: Alt shows all; hovering a tile shows that one */
@@ -129,7 +143,9 @@
       if (g.kind !== 'item' && g.kind !== 'scroll') continue;
       if (!f.explored[Grid.idx(f, g.x, g.y)]) continue;
       const hov = m.hoverTile && m.hoverTile.x === g.x && m.hoverTile.y === g.y;
-      if (!all && !hov) continue;
+      const age = fresh.get(g.uid);
+      if (!all && !hov && age == null) continue;
+      ctx.globalAlpha = all || hov || age == null ? 1 : Math.min(1, (FRESH_LABEL_MS - age) / FRESH_FADE_MS);
       const scrollName = g.scroll === 'portal' ? 'Town Portal Scroll' : 'Scroll of Revelation';
       const name = g.kind === 'scroll' ? scrollName : BD.sim.items.derive(g.item).name;
       const tag = g.kind === 'item' && BD.view.host.prefs.colorblind ? Palette.RARITY_TAG[g.item.rarity] + ' ' : '';
@@ -141,10 +157,14 @@
       ctx.fillStyle = g.kind === 'item' ? Palette.RARITY[g.item.rarity] : Palette.RARITY.common;
       ctx.fillText(txt, tmp.x, y);
     }
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
-  function onDrop(ev) { if (ev.fromX !== ev.x || ev.fromY !== ev.y) drops.set(ev.uid, { t: 0, fromX: ev.fromX, fromY: ev.fromY }); }
+  function onDrop(ev) {
+    if (ev.fromX !== ev.x || ev.fromY !== ev.y) drops.set(ev.uid, { t: 0, fromX: ev.fromX, fromY: ev.fromY });
+    if (ev.rarity && ev.rarity !== 'common') fresh.set(ev.uid, 0);
+  }
 
   BD.view.items = { bucket, drawItem, shafts, motes, labels, onDrop, artOf };
   Render.hooks.fx.push((ctx, world, alpha, t, realMs) => {

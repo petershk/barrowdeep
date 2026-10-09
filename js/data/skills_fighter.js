@@ -15,7 +15,7 @@
     resource: { type: 'rage', cost: 8 }, cooldownMs: 0, usesAttackSpeed: true,
     targeting: { mode: 'direction', range: 1, requiresLOS: false, outOfRange: 'approach' },
     delivery: { kind: 'melee', hitTiming: 'onImpact' }, area: { shape: 'arc3' },
-    effects: [{ type: 'damage', source: 'weapon', mult: 1.45, canCrit: true, canDodge: false }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 1.25, perRank: [1.25, 1.5, 1.75, 2.0, 2.9], canCrit: true, canDodge: false }],
     breakpoints: [
       { rank: 3, add: [{ type: 'knockback', dist: 1, targets: 'center' }], text: 'Knocks the centre target back 1 tile.' },
       { rank: 5, add: [{ type: 'status', id: 'stunned', durMs: 500, onlyOnCrit: true }], text: 'Critical hits stun for 0.5 s.' },
@@ -26,14 +26,14 @@
     id: 'whirlwind', branch: 'brawn', tier: 2, name: 'Whirlwind', icon: 'whirlwind', school: 'steel',
     tags: ['melee', 'aoe', 'channel', 'spender', 'physical'],
     resource: { type: 'rage', cost: 0, minStart: 10 }, cooldownMs: 0,
-    channel: { tickMs: 400, costPerSec: 18 }, moveWhileChannel: 0.7,
+    channel: { tickMs: 400, costPerSec: 12 }, moveWhileChannel: 0.7,
     targeting: { mode: 'self' }, delivery: { kind: 'channel' }, area: { shape: 'circle', radius: 1 },
     effects: [{ type: 'damage', source: 'weapon', mult: 0.7, canCrit: true, canDodge: true, canBlock: false }],
     breakpoints: [
       { rank: 3, set: { pullPerSec: 1 }, text: 'Pulls enemies within 2 tiles 1 tile inward per second.' },
       { rank: 5, add: [{ type: 'status', id: 'bleeding', needsHit: true }], text: 'Hits apply Bleeding.' },
     ],
-    desc: 'Spin while held, striking every adjacent enemy every 0.4 s. Costs 18 rage per second (10 to start). You move at 70% speed while spinning.',
+    desc: 'Spin while held, striking every adjacent enemy every 0.4 s. Costs 12 rage per second (10 to start). You move at 70% speed while spinning.',
   });
   sk({
     id: 'berserk_strike', branch: 'brawn', tier: 3, name: 'Berserk Strike', icon: 'berserk', school: 'blood',

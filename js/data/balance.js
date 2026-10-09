@@ -30,10 +30,11 @@
       evadeTiles: 2, evadeMs: 180, evadeInvulnMs: 120, evadeCdMs: 3000,
       lifeBase: 40, lifePerLevel: 4, lifePerVit: 3,
       manaBase: 30, manaPerLevel: 1, manaPerMag: 0.75,
-      manaRegenBase: 1.5, manaRegenPerMag: 0.12, surgeDelayMs: 2500, surgeMult: 3,
+      manaRegenBase: 1.5, manaRegenPerMag: 0.085, surgeDelayMs: 2500, surgeMult: 3,
       manaCostPerLevel: 0.03,                           // mana costs ×(1 + this × (level − 1)), keeping pace with the pool
       rageMax: 100, rageBasicGen: 15, rageDecay: 8, rageDecayDelayMs: 3000,
-      rageFloor: 20,                                    // rage never decays below this (and starts here): an opening Charge or Bash
+      rageFloor: 20,                                    // out of combat rage settles here (and starts here): an opening Charge or Bash
+      rageFloorPerLevel: 0.5,                           // ...plus this per level past 1 (about 32 by Act IV), as the costly skills arrive
       momentumThresh: 50, momentumDmg: 10, momentumIas: 10,
       energyMax: 100, energyRegen: 12,                // every skill costs energy; only the basic attack is free
       comboMax: 3, comboWindowMs: 6000,
@@ -67,6 +68,7 @@
       projectileSpeed: 6, flowRadius: 30,
       actDmg: { 1: 1.04, 2: 1.1, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },
+      championAct: { 1: 0.85 },                        // champion durability per act (05 §4 elite band; 1 where unlisted)
       keeperAct: { 1: 1, 2: 1, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
       trashXpBase: 10,                                  // xp of a normal monster at AL 1 (grows by xpGrowth per AL)
@@ -98,22 +100,25 @@
     loot: {
       // rarity chance = base × (1 + mfEff / 100), mfEff = MF·K / (MF + K); magic counts mfEff / magicMfDiv instead
       legendaryBase: 0.015, rareBase: 0.12, magicBase: 0.4,
+      actRarity: { 1: 0.5 },                            // Act I: rare and legendary chances × this, so the first rares mean something
+      legendaryAfterFirstBoss: true,                    // no legendary drops before the first act boss falls (its first kill drops one)
       mfDiminishK: 250, magicMfDiv: 200,
       mfPerAscension: 10,
-      smartLootTarget: 0.65,                            // share of drops a class should be able to use
+      smartLootTarget: 0.72,                            // share of drops a class should be able to use
       rareHookChance: 0.25, rareProcChance: 0.15,       // a rare's next affix is its class hook this often, else its proc this often
+      hookOwnClassChance: 0.75,                         // a class hook names the finder's class this often (when the base allows it)
       legendaryOwnClassChance: 0.5,
       goldBase: 6, goldRollLo: 0.6, goldRollHi: 1.4,    // gold = base × goldGrowth^(AL−1) × roll × k × gold find (goldGrowth: monsters)
       // drop tables (05 §6.1)
       loreDropMult: 1.2,                                // champions with a lore mod drop more
       trash: { item: 0.10, gold: 0.25, orb: 0.30, scroll: 0.05, portalScroll: 0.75 },
       champion: { gold: 2, orb: 0.5 },
-      elite: { items: 2, gold: 6 },
+      elite: { items: 2, gold: 6, rareChance: { 1: 0.35 } },   // a Keeper's first item is rare this often per act (else always)
       boss: {
         ilvlBonus: 2, items: 4, malgothItems: 6, legendaryChance: 0.25, rares: 1, malgothRares: 2,
         goldPiles: 4, gold: 40, malgothGold: 80, orbs: 2,
       },
-      chest: { rare: 0.15, gold: 0.6, goldK: 4, orb: 0.3 },
+      chest: { rare: 0.15, rareAct: { 1: 0.05 }, gold: 0.6, goldK: 4, orb: 0.3 },   // rareAct: per-act override of the bonus rare
       // loot pile: a roll below gold drops gold (×goldK), below orb an orb, else a scroll (portal this often, else reveal)
       pile: { gold: 0.5, orb: 0.8, goldK: 1.5, portalScroll: 0.7 },
     },
@@ -183,8 +188,8 @@
       phaseSpecialDelayMs: 1200,                        // breather before the first special of a new phase
       defaultSummonCap: 6,                              // live adds a boss may have when its def sets no summonCap
       crushRange: 2.5,                                  // Crushing Blow only when the player is within this many tiles
-      keeperFirstSigMs: [3000, 5000],                   // a Keeper's first signature move comes this long after waking...
-      keeperSigMs: [7000, 10000],                       // ...then one every so often
+      keeperFirstSigMs: [1500, 2500],                   // a Keeper's first signature move comes this long after waking...
+      keeperSigMs: [5000, 7000],                        // ...then one every so often
       keeperRallyAt: 0.5, keeperRallyMinions: 2,        // a rallying Keeper calls this many pack minions once below this life fraction
       keeperPingMs: 360000, keeperPingWayfinderMs: 180000,   // the Keeper is pinged on the map after this long on the floor (Wayfinder: sooner)
       // Keeper signature moves

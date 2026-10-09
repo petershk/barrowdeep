@@ -93,3 +93,11 @@ Only three periods for pulsing (07 §1.5): ambient 1.6 s, attention 0.6 s, dange
 
 The default zoom is **Auto**: 1.5×, raised to 2.0× or 2.5× while at least 14 tiles still fit across the
 window (1.5× up to about 1880 px wide, 2.0× at 1920, 2.5× from about 2400). Players who pick a zoom keep it.
+
+## Loot on the ground
+
+- Every item glows in its rarity colour; motes rise faster with rarity.
+- Light columns: legendaries a tall orange shaft, rares a short gold one, the seal and the gate key a tall
+  red beam. Commons and magic items get none.
+- A magic-or-better item shows its name in its rarity colour for 4 s after it lands (fading over the last
+  0.6 s); Alt or hovering shows labels any time.

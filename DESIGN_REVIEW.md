@@ -131,4 +131,8 @@ Recommendations 1–3 are done; the details and the spec departures are in the s
   act; elites, packs and the four act bosses in band). Grulk now lasts about 60 s.
 - **Tooling (part of 8):** the bot counts casts, not attempts, and no longer locks out a skill it just cast.
 
-Still open: 4 (Grulk's gap-closer, damage mix), 5 (difficulty behaviour), 6, 7 and the rest of 8.
+Still open: 4 (Grulk's gap-closer, damage mix), 5 (difficulty behaviour), 6, the content half of 7 and the rest of 8.
+
+**2026-10-08, after a live playtest:** the loot half of 7 is done (leaner Act I rares, no legendary before the
+first act boss, more class-usable drops), along with fixes to Bonecaller raises, Keeper signature pacing,
+Whirlwind and rage between fights, Magician mana regen and four input bugs. Details in the spec's `DECISIONS.md`.

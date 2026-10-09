@@ -135,11 +135,13 @@
     }
   });
 
-  // ---- revive: raise a same-pack corpse (each corpse once) ----
+  // ---- revive: raise a same-pack corpse (each corpse once; the risen don't rise again) ----
+  // maxRaises: raises per reviver; raisedHp: the risen come back with this share of their life
   reg('revive', {
     decide(world, e, b) {
       if (!cdReady(world, e, 'revive')) return null;
-      const c = (world.floor.corpses || []).find((k) => !k.revived && k.packId === e.packId && k.packId != null
+      if (b.maxRaises != null && (e.raises || 0) >= b.maxRaises) return null;
+      const c = (world.floor.corpses || []).find((k) => !k.revived && !k.risen && k.packId === e.packId && k.packId != null
         && within(e.x, e.y, k.x, k.y, b.radius) && k.def !== e.def);
       if (!c) return null;
       setCd(world, e, 'revive', b.cdMs);
@@ -151,7 +153,10 @@
       c.revived = true;
       world.floor.corpses.splice(world.floor.corpses.indexOf(c), 1);
       const rank = c.rank === 'minion' ? 'minion' : 'normal';
-      const m = Monsters.spawn(world, c.def, c.x, c.y, { packId: c.packId, noLoot: true, noXp: true, rank });
+      const b = (Monsters.defOf(e).behaviours || []).find((x) => x.id === 'revive') || {};
+      const m = Monsters.spawn(world, c.def, c.x, c.y, { packId: c.packId, noLoot: true, noXp: true, rank, hpMult: b.raisedHp || 1 });
+      if (m) m.risen = true;
+      e.raises = (e.raises || 0) + 1;
       world.events.push({ type: 'revive', id: m ? m.id : null, by: e.id, x: c.x, y: c.y });
       return AFTER_ACTION_MS;
     },

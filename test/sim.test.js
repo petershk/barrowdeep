@@ -209,4 +209,62 @@ module.exports = (T) => {
     BD.sim.world.step(w, STEP);
     T.ok(p.dead, 'a later death is processed');
   });
+
+  T.test('early-game loot: no legendary before the first act boss, Act I rares at half rate', () => {
+    const w = newWorld('loot-gate');
+    const rng = BD.core.rng.makeRng('loot-gate');
+    const count = (n, rar) => {
+      let k = 0;
+      for (let i = 0; i < 4000; i++) if (BD.sim.loot.rollItem(w, rng, { ilvl: 5, mf: 300 }).rarity === rar) k++;
+      return k / 4000;
+    };
+    T.eq(count(1, 'legendary'), 0, 'before Grulk dies nothing rolls legendary');
+    w.run.bossesKilled = ['grulk'];
+    T.ok(count(1, 'legendary') > 0, 'afterwards legendaries can drop');
+    const act1 = count(1, 'rare');
+    BD.sim.run.travel(w, 4, 'spawn');
+    const act2 = count(1, 'rare');
+    T.between(act1 / act2, 0.35, 0.7, 'Act I rare share is about half of Act II');
+  });
+
+  T.test('a Bonecaller raises at most twice, and the risen stay down', () => {
+    const w = newWorld('raise');
+    const p = w.player, f = w.floor;
+    for (const e of [...f.entities.values()]) if (e.kind === 'monster') { BD.sim.entities.vacate(f, e); f.entities.delete(e.id); }
+    p.invulnerable = true;
+    const at = BD.sim.entities.nearestFree(f, p.x + 4, p.y, 4);
+    const bc = BD.sim.monsters.spawn(w, 'gutterkin_bonecaller', at.x, at.y, { packId: 900 });
+    let raised = 0;
+    for (let i = 0; i < 6000; i++) {
+      // keep a fresh gutterkin corpse of its pack beside it, and kill whatever it raises
+      if (!f.corpses.some((c) => c.packId === 900 && !c.risen)) {
+        f.corpses.push({ id: 90000 + i, def: 'gutterkin', x: bc.x, y: bc.y + 1, packId: 900, rank: 'normal', maxLife: 10, ms: 60000 });
+      }
+      BD.sim.world.step(w, STEP);
+      for (const ev of w.events) if (ev.type === 'revive' && ev.by === bc.id) {
+        raised++;
+        const m = BD.sim.entities.get(w, ev.id);
+        if (m) {
+          T.ok(m.hp <= BD.sim.stats.statsOf(w, m).maxLife && m.risen, 'the risen are marked');
+          BD.sim.damage.kill(w, m, null, { tags: [], amounts: { phys: 1 } });
+        }
+      }
+      w.events.length = 0;
+      if (bc.dead) break;
+    }
+    T.eq(raised, 2, 'two raises, then no more');
+    T.ok(f.corpses.filter((c) => c.risen).every((c) => !c.revived), 'a risen corpse is never raised again');
+  });
+
+  T.test('no Extra Fast champions before floor 3; Keepers open with an attack move', () => {
+    for (let s = 0; s < 12; s++) {
+      for (const n of [1, 2]) {
+        const w = newWorld('mods' + s, 'fighter', n);
+        for (const e of w.floor.entities.values()) {
+          T.ok(!(e.mods || []).includes('extra_fast'), 'floor ' + n + ': ' + e.def + ' is not Extra Fast');
+          if (e.keeper) T.ok(e.signature[0] !== 'rally', 'the Keeper opens with an attack signature');
+        }
+      }
+    }
+  });
 };

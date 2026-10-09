@@ -26,7 +26,7 @@
   BD.data.bosses = {};
 
   boss('grulk', 1, {
-    hpMult: 1.3, dmgMult: 1.15,
+    hpMult: 1.2, dmgMult: 1.07,
     name: 'Grulk the Gravewaker', title: 'Lord of the Church Crypt', sprite: 'zombie', family: 'undead', arena: 'crypt',
     pal: { G: '#8a9a6a', g: '#5a6a44', B: '#5a3a2a', b: '#3a2418' },
     kit: [

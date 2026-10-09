@@ -53,7 +53,7 @@
   hook('reaction_dmg', 'reaction_pct', 'magician', [20, 20], [60, 60], 'Reaction damage');
   hook('surge_delay', 'surge_delay_s', 'magician', [0.3, 0.3], [0.8, 0.8], 'Surge starts sooner', { fmt: 'dec' });
   hook('focus_keep', 'focus_keep_pct', 'valkyrie', [25, 25], [60, 60], 'Focus kept when hit');
-  hook('projectile_extra', 'extra_projectiles', 'valkyrie', [1, 1], [1, 1], '+1 projectile to Multishot, Ice Shard and Spark', { fixed: 1 });
+  hook('projectile_extra', 'extra_projectiles', 'valkyrie', [1, 1], [1, 1], 'projectile to Multishot, Ice Shard and Spark', { fixed: 1 });
 
   // ---- proc band (rares and legendaries; at most one per item) ----
   // params: the numbers the proc uses (sim/powers.js); "low life" is balance.combat.lowLifeFrac

@@ -142,7 +142,7 @@
     const max = BD.sim.stats.statsOf(world, e).maxLife;
     world.floor.corpses.push({
       id: e.id, def: e.def, x: e.x, y: e.y, packId: e.packId, rank: e.rank, maxLife: max,
-      ms: Balance.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null,
+      ms: Balance.monsters.corpseMs, dir: e.dir, palOverride: e.palOverride || null, risen: !!e.risen,
     });
     world.events.push({ type: 'corpse', id: e.id, def: e.def, x: e.x, y: e.y });
   });

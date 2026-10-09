@@ -30,10 +30,12 @@
   function classesFor(base) { return Object.keys(BD.data.classes).filter((c) => usableBy(c, base)); }
 
   // ---- rarity ----
-  function rollRarity(rng, mf, min) {
+  /** scale: multiplies the rare and legendary chances (Act I rolls at actRarity[1]) */
+  function rollRarity(rng, mf, min, scale) {
+    const k = scale == null ? 1 : scale;
     const eff = (mf * LootBalance.mfDiminishK) / (mf + LootBalance.mfDiminishK);
-    const leg = LootBalance.legendaryBase * (1 + eff / 100);
-    const rare = LootBalance.rareBase * (1 + eff / 100);
+    const leg = LootBalance.legendaryBase * k * (1 + eff / 100);
+    const rare = LootBalance.rareBase * k * (1 + eff / 100);
     const magic = LootBalance.magicBase * (1 + eff / LootBalance.magicMfDiv);
     const r = rng.next();
     let rar = 'common';
@@ -92,6 +94,9 @@
       if (rarity === 'rare' && !hook && rng.chance(LootBalance.rareHookChance)) band = 'hook';
       else if (rarity === 'rare' && !proc && rng.chance(LootBalance.rareProcChance)) band = 'proc';
       let pool = eligible(base, band, cls, taken);
+      // a class hook mostly speaks to whoever found the item
+      const own = band === 'hook' && cls ? pool.filter((a) => a.cls === cls || a.id === 'skill_plus') : [];
+      if (own.length && rng.chance(LootBalance.hookOwnClassChance)) pool = own;
       if (!pool.length) {
         band = 'core';
         pool = eligible(base, 'core', cls, taken);
@@ -101,7 +106,7 @@
       const entry = { id: a.id, roll: Math.round(rng.next() * 1000) / 1000 };
       if (a.id === 'skill_plus') {
         const can = classesFor(base);
-        const pick = rng.pick(can);
+        const pick = cls && can.indexOf(cls) >= 0 && rng.chance(LootBalance.hookOwnClassChance) ? cls : rng.pick(can);
         const skills = Object.values(BD.data.skills || {}).filter((s) => s.cls === pick && !s.keystone);
         if (!skills.length) continue;
         entry.skill = rng.pick(skills).id;
@@ -157,7 +162,10 @@
    */
   function rollItem(world, rng, o) {
     const cls = o.cls || world.player.cls;
-    const rarity = o.rarity || rollRarity(rng, o.mf != null ? o.mf : mfOf(world), o.min);
+    let rarity = o.rarity || rollRarity(rng, o.mf != null ? o.mf : mfOf(world), o.min, actRarity(world));
+    // the first legendary of a run comes from the first act boss
+    const beforeFirstBoss = !(world.run.bossesKilled || []).length;
+    if (rarity === 'legendary' && !o.rarity && LootBalance.legendaryAfterFirstBoss && beforeFirstBoss) rarity = 'rare';
     if (rarity === 'legendary' && !o.slot) return makeLegendary(world, rng, o.ilvl, cls);
     if (rarity === 'legendary' && o.slot) {
       const pool = legendaryPool(world).filter((l) => Bases()[l.base].slot === o.slot);
@@ -170,6 +178,18 @@
     if (rar === 'magic') item.name = magicName(base, affixes);
     else if (rar === 'rare') item.name = rareName(rng, base);
     return item;
+  }
+
+  /** the current floor's act (null in town, the arena and anywhere off the floor table) */
+  function actOf(world) {
+    const n = world.floor && typeof world.floor.n === 'number' ? world.floor.n : world.run.floor;
+    const fl = n >= 1 && BD.data.floors.byN ? BD.data.floors.byN(n) : null;
+    return fl ? fl.act : null;
+  }
+  /** the rare/legendary multiplier for the current floor's act (1 where unlisted) */
+  function actRarity(world) {
+    const k = LootBalance.actRarity ? LootBalance.actRarity[actOf(world)] : null;
+    return k == null ? 1 : k;
   }
 
   function mfOf(world) {
@@ -227,7 +247,9 @@
     } else if (elite) {
       const n = dropCount(rng, LootBalance.elite.items * loreMult);
       for (let i = 0; i < n; i++) {
-        dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min: i === 0 ? 'rare' : 'magic' }) });
+        const rc = LootBalance.elite.rareChance[actOf(world)];
+        const min = i === 0 && (rc == null || rng.chance(rc)) ? 'rare' : 'magic';
+        dropAt(world, e.x, e.y, { kind: 'item', item: rollItem(world, rng, { ilvl, min }) });
       }
       dropAt(world, e.x, e.y, { kind: 'gold', amount: goldOf(world, al, LootBalance.elite.gold) });
       dropAt(world, e.x, e.y, { kind: 'orb' });
@@ -262,7 +284,9 @@
   function chestDrop(world, o) {
     const rng = world.lootRng, al = world.floor.al;
     const n = rng.int(1, 2);
-    const rareIdx = rng.chance(LootBalance.chest.rare) ? 0 : -1;
+    const ra = LootBalance.chest.rareAct && LootBalance.chest.rareAct[actOf(world)];
+    const rareChance = ra == null ? LootBalance.chest.rare : ra;
+    const rareIdx = rng.chance(rareChance) ? 0 : -1;
     for (let i = 0; i < n; i++) {
       dropAt(world, o.x, o.y, { kind: 'item', item: rollItem(world, rng, { ilvl: al, min: i === rareIdx ? 'rare' : null }) });
     }

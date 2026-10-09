@@ -94,12 +94,16 @@
   function deriveLifeAndMana(s, p) {
     const L = p.level;
     const flatLife = Balance.player.lifeBase + Balance.player.lifePerLevel * (L - 1) + Balance.player.lifePerVit * s.vit + s.life;
-    s.maxLife = Math.round(flatLife * (1 + s.life_pct / 100));
+    const classPct = BD.data.classes[p.cls].lifePct || 0;   // a class's own toughness (the Assassin, melee without heavy armour)
+    s.maxLife = Math.round(flatLife * (1 + (s.life_pct + classPct) / 100));
     s.bdLife = [
       { source: 'Base', value: Balance.player.lifeBase },
       { source: 'Level ' + L, value: Balance.player.lifePerLevel * (L - 1) },
       { source: 'Vitality ×' + Balance.player.lifePerVit, value: Balance.player.lifePerVit * s.vit },
     ];
+    if (classPct) {
+      s.bdLife.push({ source: BD.data.classes[p.cls].name + ' +' + classPct + '%', value: Math.round(flatLife * classPct / 100) });
+    }
     const usesMana = BD.data.classes[p.cls].resource === 'mana';
     const flatMana = Balance.player.manaBase + Balance.player.manaPerLevel * (L - 1) + Balance.player.manaPerMag * s.mag + s.mana;
     s.maxMana = usesMana ? Math.round(flatMana) : 0;
@@ -149,7 +153,7 @@
     const actMean = useActRef ? BD.data.monsterRef.actRef(Math.min(LAST_ACT, def.act)).hp : def.hp;
     let baseHp = def.hp;
     if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[act]) || 1);
-    else if (e.rank === 'champion') baseHp = (def.hp + actMean) / 2;
+    else if (e.rank === 'champion') baseHp = ((def.hp + actMean) / 2) * ((M.championAct && M.championAct[act]) || 1);
     s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
     const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK;

@@ -195,11 +195,17 @@
     if (keystone(p, 'bloodlust')) {
       const bl = Skills.bloodlust.params;   // above the threshold, drain max life per second (never kills)
       if (r.rage.cur > bl.rageThreshold) p.hp = Math.max(1, p.hp - s.maxLife * bl.drainPct * sec);
-    } else if (world.time - Math.max(p.lastHitMs, p.lastDamagedMs) > PlayerBalance.rageDecayDelayMs
-      && r.rage.cur > PlayerBalance.rageFloor) {
-      r.rage.cur = Math.max(PlayerBalance.rageFloor, r.rage.cur - PlayerBalance.rageDecay * sec);
+    } else if (world.time - Math.max(p.lastHitMs, p.lastDamagedMs) > PlayerBalance.rageDecayDelayMs) {
+      // out of combat rage settles on the floor from either side: the next pack opens with a skill
+      const floor = rageFloor(p);
+      if (r.rage.cur > floor) r.rage.cur = Math.max(floor, r.rage.cur - PlayerBalance.rageDecay * sec);
+      else if (r.rage.cur < floor) r.rage.cur = Math.min(floor, r.rage.cur + PlayerBalance.rageDecay * sec);
       checkMomentum(world, p);
     }
+  }
+  /** the rage a Fighter keeps between fights: grows with level, as the costly skills arrive */
+  function rageFloor(p) {
+    return Math.round(PlayerBalance.rageFloor + PlayerBalance.rageFloorPerLevel * Math.max(0, (p.level || 1) - 1));
   }
   /** combo points expire when their window runs out */
   function tickCombo(world, p, r, dt) {
