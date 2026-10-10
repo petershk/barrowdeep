@@ -323,11 +323,7 @@
     ctx.ellipse(tmp.x, tmp.y - 22 * zk, 7 * zk, 17 * zk, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    BD.view.lighting.add(o.x, o.y, 3, col, 0.9, 0.15);
-    if (Math.random() < 0.3) {
-      const sx = o.x + (Math.random() - 0.5) * 0.5, sy = o.y + (Math.random() - 0.5) * 0.5;
-      BD.view.fx.spark(sx, sy, { z: 10 + Math.random() * 30, vz: 0.02, g: -0.00003, life: 700, size: 2, color: col, ambient: true });
-    }
+    BD.view.lighting.add(o.x, o.y, 3, col, 0.9, 0.15);   // its particle spiral is in beacons.js
   }
 
   function drawTrap(o) {
