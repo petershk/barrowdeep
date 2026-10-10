@@ -7,7 +7,7 @@
 
   const iso = BD.view.iso;
   const Grid = BD.core.grid;
-  const T = BD.data.tiles.T;
+  const { T } = BD.data.tiles;
   const Palette = BD.view.palette;
   const Lighting = BD.view.lighting;
   const Fx = () => BD.view.fx;
@@ -70,8 +70,9 @@
   /** a mote over the stairs: sinks into the way down, drifts up off the way up */
   function stairMote(fe) {
     const down = fe.t === T.STAIRS_DOWN;
+    const z = down ? 26 + Math.random() * 8 : 2;
     Fx().spark(fe.x + (Math.random() - 0.5) * 0.7, fe.y + (Math.random() - 0.5) * 0.7, {
-      z: down ? 26 + Math.random() * 8 : 2, vz: down ? -0.012 : 0.03, g: 0, life: 1100 + Math.random() * 400,
+      z, vz: down ? -0.012 : 0.03, g: 0, life: 1100 + Math.random() * 400,
       size: 1.5 + Math.random(), color: EXIT, ambient: true,
     });
   }
