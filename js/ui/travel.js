@@ -9,7 +9,7 @@
     const w = BD.app.world, r = w.run;
     el.appendChild(h('h2', 'Waypoints'));
     const list = h('div.choice-list');
-    const wpEntry = (n) => [n, BD.data.biomes[BD.data.floors.byN(n).biome].name + ' — floor ' + n];
+    const wpEntry = (n) => [n, BD.data.lookFor(BD.data.floors.byN(n).biome, n).name + ' — floor ' + n];
     const entries = [[0, 'Town of Brennor']].concat(BD.data.floors.WAYPOINTS.map(wpEntry));
     if (r.flags.sanctum) entries.push([13, "Malgoth's Sanctum"]);
     const here = w.floor.key === 'town' ? 0 : w.floor.n;

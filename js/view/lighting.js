@@ -61,7 +61,8 @@
     const town = f.biome === 'town';
     const amb = town ? 0.55 : 0.0;
     // per-biome player light (biomes.js `light`): hell and the sanctum fall off harder into the dark
-    const bl = (BD.data.biomes[f.biome] && BD.data.biomes[f.biome].light) || {};
+    const look = BD.data.lookOf(f);
+    const bl = (look && look.light) || {};
     const lo = town ? 0.75 : bl.min || 0.42, peak = bl.peak || 1.25, reach = R * (bl.falloff || 1) + (bl.reach || 2.5);
     const tint = bl.tint || [1, 1, 1];
     const tr = tint[0] * WARM[0], tg = tint[1] * WARM[1], tb = tint[2] * WARM[2];

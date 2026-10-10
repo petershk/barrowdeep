@@ -43,4 +43,20 @@
     shrine_regen: { name: 'Shrine of Mending', icon: 'heart', durMs: 0, regenPct: true, stack: 'refresh', buff: true },
     healing: { name: 'Healing', icon: 'heart', durMs: 500, hot: true, stack: 'stack', max: 4, buff: true },
   };
+
+  // One plain line per status for tooltips and the log; {m} is the status's magnitude.
+  BD.data.statusText = {
+    burning: 'Takes fire damage over time.', chilled: 'Acts at half speed.', frozen: 'Cannot act.',
+    shocked: 'Takes 15% more damage.', poisoned: 'Takes poison damage over time; stacks up to 5.',
+    bleeding: 'Takes physical damage over time.', stunned: 'Cannot act.', feared: 'Flees and cannot attack.',
+    weakened: 'Deals 20% less damage.', vulnerable: 'Takes 20% more damage.', exposed: 'Cannot act and takes 50% more damage.',
+    rooted: 'Cannot move.', slowed: 'Moves 30% slower.', blinded: 'Attacks miss half the time.',
+    taunted: 'Must attack the taunter.', enraged: 'Acts 30% faster.', hidden: 'Unseen until you attack.',
+    hasted: '+15% movement and attack speed.', shielded: 'A barrier absorbs damage.', braced: 'Gain 4 rage each time you are hit.',
+    evading: 'Cannot be hit.', airborne: 'Cannot be hit.', knockback_immune: 'Cannot be knocked back.',
+    war_cry: '+{m}% damage.', armor_up: '+{m}% armour.', ambush_ready: 'Your next attack is a Shadow Strike.',
+    vault_ready: 'Your next shot is a Steady Aim.', aegis: 'Take {m}% less damage.', oath: '+25% damage and 20% less damage taken.',
+    shrine_damage: '+{m}% damage until you leave this floor.', shrine_speed: '+{m}% movement speed until you leave this floor.',
+    shrine_regen: 'Regenerate {m}% life per second until you leave this floor.', healing: 'Restoring life.',
+  };
 })(globalThis.BD);

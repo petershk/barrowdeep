@@ -136,3 +136,8 @@ Still open: 4 (Grulk's gap-closer, damage mix), 5 (difficulty behaviour), 6, the
 **2026-10-08, after a live playtest:** the loot half of 7 is done (leaner Act I rares, no legendary before the
 first act boss, more class-usable drops), along with fixes to Bonecaller raises, Keeper signature pacing,
 Whirlwind and rage between fights, Magician mana regen and four input bugs. Details in the spec's `DECISIONS.md`.
+
+**2026-10-09:** recommendation 6 is half done. Monster life and damage now ramp across the three floors of each
+act (bosses excluded), which flattens the floor 3 → 4 step in bot runs (flask use +76% → +8%). The balance
+suite was retuned to stay in band; the numbers are in the spec's `DECISIONS.md`. Floor-by-floor `actHp` and
+bringing elites to the measured 5–9 s / 15–25 s bands remain open.

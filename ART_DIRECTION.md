@@ -36,6 +36,10 @@ mirrors the UI ones as custom properties. Code outside those two files should na
 - Dark schools (`SCHOOL_NORMAL_BLEND`) draw with normal blending; additive blending can't show dark matter.
 - Statuses take their element's mid colour: burning fire, chilled cold, frozen the cold **core**, shocked
   lightning, poisoned poison, bleeding blood.
+- A Frozen body is washed in the cold **mid** colour (55%) and outlined in the cold core; Chilled is the same
+  hue at 30% with no outline. A near-white wash alone only makes pale monsters paler.
+- Effects that last should look like they last: Frost Nova leaves a frost disc on the ground for about a
+  second, and a channelled Whirlwind overlaps its sweeps and turns the hero's body so the spin never blinks.
 
 ## Danger and allegiance
 

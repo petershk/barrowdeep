@@ -137,6 +137,15 @@
     s.resCap = cap;
   }
 
+  const NO_RAMP = { hp: 1, dmg: 1 };
+  /** balance.monsters.floorRamp for the current floor's place in its act (acts I–IV; never bosses) */
+  function floorRamp(world, rank) {
+    const R = Balance.monsters.floorRamp, f = world.floor;
+    if (!R || rank.boss || !f || typeof f.key !== 'number' || f.n > LAST_ACT * 3) return NO_RAMP;
+    const i = (f.n - 1) % 3;
+    return { hp: R.hp[i], dmg: R.dmg[i] };
+  }
+
   function monsterStats(world, e) {
     const def = BD.data.monsters[e.def] || BD.data.bosses && BD.data.bosses[e.def];
     const s = newStats();
@@ -154,8 +163,10 @@
     let baseHp = def.hp;
     if (e.rank === 'keeper' || e.rank === 'unique') baseHp = actMean * ((M.keeperAct && M.keeperAct[act]) || 1);
     else if (e.rank === 'champion') baseHp = ((def.hp + actMean) / 2) * ((M.championAct && M.championAct[act]) || 1);
-    s.maxLife = Math.max(1, Math.round((e.hpBase || baseHp * hpK * rank.hp * actH * (def.hpMult || 1)) * diff.hp * (e.hpMult || 1)));
-    const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * (def.dmgMult || 1) * (e.dmgMult || 1);
+    const ramp = floorRamp(world, rank);
+    const life = e.hpBase || baseHp * hpK * rank.hp * actH * ramp.hp * (def.hpMult || 1);
+    s.maxLife = Math.max(1, Math.round(life * diff.hp * (e.hpMult || 1)));
+    const dmgK = Math.pow(M.dmgGrowth, al - 1) * rank.dmg * diff.dmg * actK * ramp.dmg * (def.dmgMult || 1) * (e.dmgMult || 1);
     s.dmgLo = def.dmg[0] * dmgK;
     s.dmgHi = def.dmg[1] * dmgK;
     s.attackCycleMs = def.attackMs;

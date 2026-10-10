@@ -193,6 +193,7 @@ body.no-hud .hud, body.no-hud .pips { display: none; }
 body.modal-open .announce, body.modal-open .feed { visibility: hidden; }
 .announce.place { font-size: 34px; color: var(--bone); }
 .announce.level { color: var(--xp); }
+.announce.blessing { font-size: 30px; }
 .feed { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; max-width: 40vw; }
 .feed-line { font-size: 15px; color: var(--bone); text-shadow: 0 0 4px #000, 0 1px 0 #000; transition: opacity 1.5s; }
 .feed-line.gold { color: var(--gold); }

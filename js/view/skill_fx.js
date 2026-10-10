@@ -29,9 +29,19 @@
     ],
     light: { radius: 3, color: '#e8d8b0', intensity: 0.6, life: 220 }, shake: 0.5,
   };
+  // Whirlwind ticks every 400 ms; each spin outlives its tick so a held channel reads as one unbroken blur
   FxRecipes.spin = {
-    shapes: [{ kind: 'spin', radius: 1.1, life: 380, palette: 'steel' }],
-    particles: [{ count: 8, shape: 'ring', radius: 1, speed: [0.002, 0.004], life: [150, 300], size: [1, 2], palette: 'steel' }],
+    shapes: [
+      { kind: 'spin', radius: 1.1, life: 520, palette: 'steel' },
+      { kind: 'ring', from: 0.5, to: 1.3, life: 400, palette: 'dust' },
+    ],
+    particles: [
+      { count: 10, shape: 'ring', radius: 1, speed: [0.002, 0.004], life: [150, 300], size: [1, 2], palette: 'steel' },
+      {
+        count: 8, shape: 'ring', radius: 0.8, speed: [0.001, 0.002], z: [0, 3], vz: [0.01, 0.03],
+        life: [300, 500], size: [2, 3], palette: 'dust',
+      },
+    ],
   };
   FxRecipes.berserk = {
     particles: [{ count: 16, shape: 'cone', spread: 0.9, speed: [0.002, 0.005], life: [250, 500], size: [1.5, 3.5], palette: 'blood' }],
@@ -72,6 +82,7 @@
     }],
     shapes: [
       { kind: 'ring', from: 0.3, to: 2.6, life: 360, palette: 'cold' },
+      { kind: 'disc', radius: 1.35, life: 1400, palette: 'cold', alpha: 0.28 },   // frost left on the ground
       { kind: 'crystal', rays: 6, radius: 1.8, life: 700, palette: 'cold' },
       { kind: 'flash', radius: 1.2, life: 160, palette: 'cold' },
     ],

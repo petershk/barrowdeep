@@ -67,7 +67,7 @@
   });
 
   boss('mygra', 3, {
-    hpMult: 0.7, dmgMult: 0.9,
+    hpMult: 0.7, dmgMult: 1.0,
     name: 'Mygra the Brood Mother', title: 'Queen of the Deep Caves', sprite: 'spider', family: 'beast', arena: 'cavern',
     pal: { p: '#3a2a4a', P: '#5a3a6a', R: '#ff4070' },
     kit: [
@@ -88,7 +88,7 @@
   });
 
   boss('hakthul', 4, {
-    hpMult: 1.3, dmgMult: 0.65,
+    hpMult: 1.22, dmgMult: 0.65,
     name: 'Hakthul the Dread Knight', title: 'Warden of the Burning Halls', sprite: 'hellknight', family: 'demon', arena: 'lava_hall', dr: 15,
     kit: [
       { move: 'shield_charge', weight: 3, minRange: 2, maxRange: 6, cdMs: 7000, mult: 8, armMs: 700, length: 6, exposedMs: 2000 },

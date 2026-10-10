@@ -3,6 +3,12 @@
 (function (BD) {
   'use strict';
 
+  /** a shrine's blessing says what it does ("Haste: +30% movement speed on this floor") */
+  function announceBlessing(ev) {
+    const b = ev.id === 'shrine' && BD.data.shrineBuffs.find((x) => x.id === ev.buff);
+    if (b) BD.ui.log.announce(b.name + ': ' + b.desc, 'blessing');
+  }
+
   function wire(bus) {
     BD.ui.tooltip.init();
     const Log = BD.ui.log;
@@ -27,7 +33,7 @@
       let name;
       if (ev.key === 'town') name = 'Town of Brennor';
       else if (typeof ev.key === 'string') name = 'The guardian\'s lair';
-      else name = BD.data.biomes[f.biome].name + ' — floor ' + ev.n;
+      else name = BD.data.lookFor(f.biome, ev.n).name + ' — floor ' + ev.n;
       Log.announce(name, 'place');
     });
     bus.on('ui.panel', () => {
@@ -57,6 +63,7 @@
       restless_dead: 'The dead lie still at last.',
     };
     bus.on('event.complete', (ev) => Log.line(eventDone[ev.id] || 'Done.', 'gold'));
+    bus.on('event.complete', announceBlessing);
     bus.on('event.wave', (ev) => Log.line('Wave ' + ev.n + '.'));
     bus.on('trap.disarm', (ev) => Log.line('Trap disarmed (+' + ev.gold + ' gold).'));
     bus.on('trap.disarm.start', () => Log.line('Disarming… hold still.'));

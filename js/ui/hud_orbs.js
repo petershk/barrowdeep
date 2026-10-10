@@ -152,7 +152,7 @@
       for (const st of want) {
         const d = BD.data.statuses[st.id];
         const style = { borderColor: Palette.STATUS_COLOR[st.id] || M.muted };
-        chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: d.name, style }, [
+        chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: chipTitle(st, d), style }, [
           h('span.chip-name', d.name), h('span.chip-t'),
         ]));
       }
@@ -160,8 +160,20 @@
     }
     want.forEach((st, i) => {
       const c = chips.children[i];
-      if (c) setText(c.lastChild, st.remainingMs > 0 ? (st.remainingMs / 1000).toFixed(1) + 's' : '');
+      if (c) setText(c.lastChild, chipTime(st));
     });
+  }
+
+  /** "Shrine of Wrath — +25% damage until you leave this floor." */
+  function chipTitle(st, d) {
+    const text = (BD.data.statusText[st.id] || '').replace('{m}', String(Math.round(st.magnitude || 0)));
+    return text ? d.name + ' — ' + text : d.name;
+  }
+
+  /** seconds left; floor-long buffs (shrines) say so */
+  function chipTime(st) {
+    if (st.remainingMs > 0) return (st.remainingMs / 1000).toFixed(1) + 's';
+    return st.id.startsWith('shrine_') ? 'floor' : '';
   }
 
   /** how many pips are lit and how many there are: combo points, else focus, else none */

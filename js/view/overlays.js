@@ -136,8 +136,10 @@
   }
 
   // ---------- status on the body (07 §2.4): tints, embers, drips, sparks, circling stars ----------
-  // one tint at a time, strongest first: [status, tint colour (STATUS_COLOR), alpha]
-  const TINTS = [['frozen', 0.5], ['chilled', 0.3], ['burning', 0.16], ['poisoned', 0.14]];
+  // one tint at a time, strongest first: [status, alpha, colour (default STATUS_COLOR)]. Frozen is a strong
+  // wash of the cold mid colour (its near-white STATUS_COLOR would only make pale monsters paler) plus a
+  // frost outline (render.js); Chilled is the same hue, faint, with no outline.
+  const TINTS = [['frozen', 0.55, BD.view.palette.SCHOOL.cold.mid], ['chilled', 0.3], ['burning', 0.16], ['poisoned', 0.14]];
   // per-second body particles: embers rise off a burning body; poison and blood drip
   const EMBER = { vz: 0.035, g: -0.00004, life: 550, size: 1.6, ambient: true, blend: 'lighter', z0: 0.2 };
   const DRIP = { vz: 0, g: 0.0003, life: 700, size: 1.8, ambient: true, blend: 'normal', z0: 0.35 };
@@ -153,9 +155,9 @@
     return false;
   }
   function bodyTint(e, art, frame, fi, ep, opts) {
-    for (const [id, al] of TINTS) {
+    for (const [id, al, col] of TINTS) {
       if (!has(e, id)) continue;
-      const tint = BD.view.palette.STATUS_COLOR[id];
+      const tint = col || BD.view.palette.STATUS_COLOR[id];
       BD.view.render.drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint, palKey: 'st_' + id, alpha: al }));
       return;
     }

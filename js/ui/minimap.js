@@ -97,7 +97,7 @@
   function paintBuf(f) {
     const g = buf.getContext('2d');
     const img = g.createImageData(f.w, f.h);
-    const pal = BD.data.biomes[f.biome].pal;
+    const pal = BD.data.lookOf(f).pal;
     const wall = Palette.rgb(Palette.shade(pal.wallTop, 1.5)), floor = Palette.rgb(Palette.shade(pal.floorA, 1.3));
     for (let i = 0; i < f.w * f.h; i++) {
       if (!f.explored[i]) continue;

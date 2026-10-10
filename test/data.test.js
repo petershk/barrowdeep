@@ -119,4 +119,18 @@ module.exports = (T) => {
     }
     T.eq(missing.join(','), '', 'unimplemented powers');
   });
+
+  T.test('every status has tooltip text', () => {
+    for (const id in D.statuses) T.ok(typeof D.statusText[id] === 'string' && D.statusText[id].length > 0, 'statusText.' + id);
+  });
+
+  T.test('floor looks: the floors of an act look different, and floors stay darker than walls', () => {
+    const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return 0.2126 * (n >> 16) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255); };
+    for (let act = 1; act <= 4; act++) {
+      const looks = [1, 2, 3].map((k) => { const n = (act - 1) * 3 + k; return D.lookFor(D.floors.byN(n).biome, n); });
+      T.eq(new Set(looks.map((l) => l.name)).size, 3, 'act ' + act + ' floor names');
+      T.eq(new Set(looks.map((l) => l.pal.floorA)).size, 3, 'act ' + act + ' floor colours');
+      for (const l of looks) T.ok(lum(l.pal.floorA) < lum(l.pal.wallTop), l.name + ': floor darker than wall top');
+    }
+  });
 };

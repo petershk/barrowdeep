@@ -87,7 +87,7 @@
   }
 
   function bakeChunk(f, cx, cy) {
-    const pal = BD.data.biomes[f.biome].pal;
+    const look = BD.data.lookOf(f), pal = look.pal;
     let ent = state.chunks.get(cy * state.nx + cx);
     if (!ent) {
       ent = { canvas: mk(CW, CHH) };
@@ -110,7 +110,7 @@
       g.drawImage(diamond(col, t !== T.WATER && t !== T.LAVA), sx, sy);
       if (t === T.LAVA) lava = true;
       else if (t === T.WATER) drawRipples(g, col, sx, sy, x, y);
-      else if (t !== T.CHASM) drawFloorDetail(g, f.biome, col, sx, sy, x, y);
+      else if (t !== T.CHASM) drawFloorDetail(g, look.biome, col, sx, sy, x, y);
       if (f.decal && f.decal[i]) drawDecal(g, f.decal[i], sx, sy, x, y, pal);
     }
     if (lava) bakeLava(ent, f, cx, cy);
@@ -355,12 +355,12 @@
 
   // ---------- prisms ----------
   const prismCache = new Map();
-  /** Wall / pillar / stub prism. Returns { canvas, ax, ay } with (ax, ay) = the tile centre. */
-  function getPrism(biome, kind) {
-    const key = biome + '|' + kind;
+  /** Wall / pillar / stub prism for a look key (BD.data.looks). Returns { canvas, ax, ay } with (ax, ay) = the tile centre. */
+  function getPrism(lookKey, kind) {
+    const key = lookKey + '|' + kind;
     let p = prismCache.get(key);
     if (p) return p;
-    const bdef = BD.data.biomes[biome];
+    const bdef = BD.data.looks[lookKey];
     let pal = bdef.pal;
     const townWall = kind === 'building' || kind === 'door';
     let H = iso.WALL_H;

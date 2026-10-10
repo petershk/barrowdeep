@@ -63,12 +63,15 @@
         unique: { hp: 11, dmg: 1.4, xp: 7 },
         keeper: { hp: 9.5, dmg: 1.4, xp: 7, fearless: true, steady: true },
         boss: { hp: 35, dmg: 1.8, xp: 40, boss: true, fearless: true, steady: true },
-        malgoth: { hp: 125, dmg: 0.8, xp: 0, boss: true, fearless: true, steady: true },
+        malgoth: { hp: 118, dmg: 0.8, xp: 0, boss: true, fearless: true, steady: true },
       },
       projectileSpeed: 6, flowRadius: 30,
-      actDmg: { 1: 1.04, 2: 1.1, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
+      actDmg: { 1: 1.06, 2: 1.14, 3: 0.9, 4: 0.74 },   // per-act damage correction (rosters hit harder each act; tuned by the balance bot, 05 §3)
       actHp: { 1: 2.25, 2: 3.75, 3: 6.4, 4: 6.0 },
-      championAct: { 1: 0.85 },                        // champion durability per act (05 §4 elite band; 1 where unlisted)
+      // life and damage by a floor's place in its act (first, second, third), so difficulty climbs inside an
+      // act instead of jumping at each act boundary; the act mean stays ~1. Bosses are tuned separately.
+      floorRamp: { hp: [0.88, 1, 1.12], dmg: [0.92, 1, 1.08] },
+      championAct: { 1: 0.85, 2: 1.08 },                        // champion durability per act (05 §4 elite band; 1 where unlisted)
       keeperAct: { 1: 1, 2: 1, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
       corpseMs: 10000,
       trashXpBase: 10,                                  // xp of a normal monster at AL 1 (grows by xpGrowth per AL)

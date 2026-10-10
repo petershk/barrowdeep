@@ -204,4 +204,24 @@ module.exports = (T) => {
     T.eq(xp(1 + X.earlyLevels), Math.round(X.base * Math.pow(X.growth, X.earlyLevels)));
     for (let L = 1; L < 29; L++) T.ok(xp(L + 1) > xp(L), 'xpToNext rises at ' + L);
   });
+
+  T.test('Frost Nova hits and freezes every enemy around the caster', () => {
+    const w = setup('magician', 'frost_nova', 1);
+    const p = w.player, f = w.floor;
+    for (const e of [...f.entities.values()]) if (e.kind === 'monster') { BD.sim.entities.vacate(f, e); f.entities.delete(e.id); }
+    const ring = [];
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+      if (!BD.sim.entities.isFree(f, p.x + dx, p.y + dy)) continue;
+      const m = BD.sim.monsters.spawn(w, 'rotting_zombie', p.x + dx, p.y + dy, { hpBase: 1e6, alert: false });
+      m.ai.state = 'dormant';
+      ring.push({ m, hp: m.hp });
+    }
+    T.ok(ring.length >= 4, 'room for a ring of dummies');
+    T.eq(BD.sim.abilities.tryCast(w, p, 'frost_nova', { x: p.x, y: p.y }), 'cast');
+    for (let i = 0; i < Math.ceil(1500 / STEP); i++) { BD.sim.world.step(w, STEP); w.events.length = 0; }   // past the cast time
+    for (const r of ring) {
+      T.ok(r.m.hp < r.hp, 'dummy at ' + (r.m.x - p.x) + ',' + (r.m.y - p.y) + ' was hit');
+      T.ok(r.m.statuses.some((st) => st.id === 'frozen'), 'dummy at ' + (r.m.x - p.x) + ',' + (r.m.y - p.y) + ' is frozen');
+    }
+  });
 };

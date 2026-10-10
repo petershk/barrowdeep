@@ -10,7 +10,7 @@
   const Sprites = BD.view.sprites;
   const Lighting = BD.view.lighting;
   const Grid = BD.core.grid;
-  const { MEANING } = BD.view.palette;
+  const { MEANING, STATUS_COLOR } = BD.view.palette;
 
   /** @type {HTMLCanvasElement} */ let canvas = null;
   /** @type {CanvasRenderingContext2D} */ let ctx = null;
@@ -47,11 +47,11 @@
 
   // ---------- flat props: stairs ----------
   const flatCache = new Map();
-  function stairsCanvas(kind, biome) {
-    const key = kind + biome;
+  function stairsCanvas(kind, lookKey) {
+    const key = kind + lookKey;
     let c = flatCache.get(key);
     if (c) return c;
-    const pal = BD.data.biomes[biome].pal;
+    const pal = BD.data.looks[lookKey].pal;
     c = document.createElement('canvas');
     c.width = 32;
     c.height = 17;
@@ -157,9 +157,9 @@
    *  the hero so rooms sit in a murky haze instead of floating on black; then a soft vignette band at the
    *  edge of vision (07 §1.3). 'lighten' only raises pixels darker than the fog, so the lit world is untouched. */
   function drawFogAndVignette(f, pp) {
-    const v = iso.view, pal = BD.data.biomes[f.biome].pal;
-    if (fogKey !== f.biome) {
-      fogKey = f.biome;
+    const v = iso.view, look = BD.data.lookOf(f), pal = look.pal;
+    if (fogKey !== look.key) {
+      fogKey = look.key;
       fogInner = BD.view.tiles.mix(pal.fog, pal.floorA, 0.12);
       fogOuter = pal.fog;
     }
@@ -222,7 +222,7 @@
       const kind = stairsKind(f.tiles[Grid.idx(f, fp.x, fp.y)]);
       if (!kind) continue;
       iso.toScreen(fp.x, fp.y, tmp);
-      ctx.drawImage(stairsCanvas(kind, f.biome), tmp.x - 16 * S, tmp.y - 8 * S, 32 * S, 17 * S);
+      ctx.drawImage(stairsCanvas(kind, BD.data.lookOf(f).key), tmp.x - 16 * S, tmp.y - 8 * S, 32 * S, 17 * S);
     }
   }
 
@@ -294,7 +294,7 @@
   }
 
   function drawTall(f, t, x, y, i, pp, realMs, hover) {
-    const biome = f.biome;
+    const biome = BD.data.lookOf(f).key;
     if (t === T.GATE) {
       // draw the 2×2 gate once, from its top-left tile
       if (f.gatePos && x === f.gatePos.x + 1 && y === f.gatePos.y + 1) {
@@ -382,7 +382,7 @@
   function drawActor(world, e, ep, alpha) {
     const s = EntityView.stateOf(e.id);
     const art = EntityView.artOf(e);
-    const flip = e.dir >= 2 && e.dir <= 5;
+    const flip = spinning(e) ? Math.floor(timeMs / SPIN_FLIP_MS) % 2 === 0 : e.dir >= 2 && e.dir <= 5;
     const { frame, fi } = actorFrame(e, s);
     const { dx, dy } = actorOffset(e, s);
     const scale = EntityView.scaleOf(e);
@@ -395,7 +395,8 @@
     if (!e.dead) shadow(ep.x, ep.y, scale);
     const windup = !e.dead && e.attack && e.attack.telegraph && e.attack.phase === 'windup';
     if (windup) windupJudder(e, opts);
-    if (windup) drawWindupRim(ep, art, frame, fi, opts);
+    if (windup) drawRim(ep, art, frame, fi, opts, MEANING.hostile, Math.min(1, windupPulse() + 0.1));
+    else if (frozen(e)) drawRim(ep, art, frame, fi, opts, STATUS_COLOR.frozen, 0.85);
     const box = drawArt(art, frame, fi, ep.x, ep.y, opts);
     if (box) {
       for (const fn of hooks.actorBody || []) fn(ctx, e, art, frame, fi, ep, opts, box);   // statuses on the body (overlays.js)
@@ -424,18 +425,21 @@
     opts.dx += (Math.random() * 2 - 1) * 3.5 * iso.view.Z;
     opts.dy += (Math.random() * 2 - 1) * 1.6 * iso.view.Z;
   }
-  /** a telegraphed attack winding up: a pulsing hostile-red outline around the normal sprite, drawn
-   *  as the red silhouette offset one art pixel in four directions behind it */
-  function drawWindupRim(ep, art, frame, fi, opts) {
+  /** an outline around the normal sprite, drawn as a one-colour silhouette offset one art pixel in four
+   *  directions behind it: pulsing hostile red for a telegraphed wind-up, frost for Frozen */
+  function drawRim(ep, art, frame, fi, opts, col, alpha) {
     const S = iso.view.S * (opts.scale || 1);
-    ctx.globalAlpha = Math.min(1, windupPulse() + 0.1);
+    ctx.globalAlpha = alpha;
     for (const [ox, oy] of RIM_OFFSETS) {
-      const o = Object.assign({}, opts, { tint: MEANING.hostile, palKey: 'red', rim: false, dx: opts.dx + ox * S, dy: opts.dy + oy * S });
+      const o = Object.assign({}, opts, { tint: col, palKey: 'rim' + col, rim: false, dx: opts.dx + ox * S, dy: opts.dy + oy * S });
       drawArt(art, frame, fi, ep.x, ep.y, o);
     }
     ctx.globalAlpha = 1;
   }
   const RIM_OFFSETS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  const SPIN_FLIP_MS = 90;   // a channelled spin (Whirlwind) turns the body this often
+  const spinning = (e) => !!(e.attack && e.attack.phase === 'channel' && e.attack.abilityId === 'whirlwind');
+  const frozen = (e) => !e.dead && !!e.statuses && e.statuses.some((st) => st.id === 'frozen');
 
   /** the hero's soft warm floor halo, so the player is found first in any crowd */
   function heroHalo(tx, ty) {

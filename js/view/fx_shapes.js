@@ -1,6 +1,6 @@
 // @ts-check
 // Shape kinds for FX: ring (iso ellipse expanding), flash (school mid with a small core), arc
-// (crescent/cleave), spike (thrust), star (rays squashed 0.55 in y), dash (speed lines), spin, beam
+// (crescent/cleave), disc (lingering ground patch), spike (thrust), star (rays squashed 0.55 in y), dash (speed lines), spin, beam
 // (jagged), column (soft-edged, with a bright core line), lob (arcing projectile), and the element
 // motifs from ART_DIRECTION.md: fork (lightning), crystal (cold), tongues (fire), puff (poison/smoke).
 (function (BD) {
@@ -88,6 +88,19 @@
       ctx.stroke();
       ctx.strokeStyle = pal.core;
       ctx.lineWidth = Math.max(1, zk * fade);
+      ctx.stroke();
+    },
+    disc(ctx, s, t, zk, { S, fade, k, pal }) {
+      // a lingering patch on the ground (frost): a soft fill and a thin bright edge, fading out
+      const rx = (s.radius || 1) * k * iso.HW * S, ry = (s.radius || 1) * k * iso.HH * S;
+      ctx.globalAlpha = fade * (s.alpha || 0.3);
+      ctx.fillStyle = pal.mid;
+      ctx.beginPath();
+      ctx.ellipse(a.x, a.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = fade * 0.7;
+      ctx.strokeStyle = pal.core;
+      ctx.lineWidth = Math.max(1, zk);
       ctx.stroke();
     },
     flash(ctx, s, t, zk, { S, fade, k, pal, lift }) {

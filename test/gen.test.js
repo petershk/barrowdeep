@@ -43,4 +43,9 @@ module.exports = (T) => {
     const b = BD.sim.gen.generateFloor({ n: 2, seed: 'abc' });
     T.eq(BD.core.util.hashOf(Array.from(a.tiles)), BD.core.util.hashOf(Array.from(b.tiles)));
   });
+
+  T.test('a layout that cannot fit its features is re-rolled, not a crash (seed h0, floor 9: no gate wall)', () => {
+    const plan = BD.sim.gen.generateFloor({ n: 9, seed: 'h0' });
+    T.ok(plan.gatePos || plan.tiles.some((t) => t === BD.data.tiles.T.GATE), 'floor 9 has its gate');
+  });
 };

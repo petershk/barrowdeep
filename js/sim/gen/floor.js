@@ -15,13 +15,26 @@
   const FREE_NEIGHBOUR_MAX_R = 6; // freeNeighbour searches rings up to (not including) this radius
   const GATE_MIN_STAIRS_DIST = 12;
   const GATE_TOP_PICKS = 5;       // the gate goes on one of the 6 farthest candidate walls
+  const MAX_ATTEMPTS = 8;         // re-rolls of a layout that can't fit its features
 
   /** @param {{n:number, biome?:string, al?:number, seed:string|number, difficulty?:string}} spec */
   function generateFloor(spec) {
     const fl = BD.data.floors.byN(spec.n);
     const biome = BD.data.biomes[spec.biome || fl.biome];
     const s = Object.assign({ biome: biome.id, al: fl.al, difficulty: 'penitent' }, spec);
-    const rng = makeRng(s.seed + ':floor:' + s.n);
+    // a layout that can't fit its features (e.g. no wall for the gate) is re-rolled from a derived seed;
+    // the first attempt uses the plain seed, so every floor that generated before generates the same
+    for (let k = 0; ; k++) {
+      const rng = makeRng(s.seed + ':floor:' + s.n + (k ? ':retry' + k : ''));
+      try {
+        return build(s, biome, fl, rng);
+      } catch (e) {
+        if (k + 1 >= MAX_ATTEMPTS) throw e;
+      }
+    }
+  }
+
+  function build(s, biome, fl, rng) {
     if (biome.layout === 'sanctum') return BD.sim.gen.sanctum.generate(s, rng);
     const p = Carve.newPlan(s, biome.w, biome.h);
     BD.sim.gen.layouts[biome.layout](p, rng, biome.params || {});

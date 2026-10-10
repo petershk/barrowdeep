@@ -80,9 +80,9 @@
     sprite: 'demon', pal: { R: '#7a8a9c', r: '#4a5668', W: '#e0d8c4', Y: '#ffd75a' }, behaviours: [{ id: 'cleave_cone', radius: 2, windupMs: 700, cdMs: 5000 }, { id: 'melee' }] });
   mon('succubus', { name: 'Succubus', act: 4, family: 'demon', role: 'caster', hp: 26, dmg: [5, 8], attackMs: 2000, moveMs: 350, xp: 16,
     sprite: 'succubus', aggro: { notice: 8, leash: 14 },
-    behaviours: [{ id: 'blink_away', dist: 5, cdMs: 5000 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 7, projectile: 'blood_bolt' }] });
+    behaviours: [{ id: 'blink_away', dist: 5, cdMs: 7000 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 7, projectile: 'blood_bolt' }] });
   mon('hell_knight', { name: 'Hell Knight', act: 4, family: 'demon', role: 'tank', hp: 55, dmg: [6, 10], attackMs: 1500, moveMs: 420, xp: 22, dr: 25,
-    sprite: 'hellknight', behaviours: [{ id: 'block_front', pct: 0.5 }, { id: 'charge_line', len: 5, windupMs: 700, cdMs: 7000 }, { id: 'melee' }] });
+    sprite: 'hellknight', behaviours: [{ id: 'block_front', pct: 0.4 }, { id: 'charge_line', len: 5, windupMs: 700, cdMs: 7000 }, { id: 'melee' }] });
   mon('chaos_spawn', { name: 'Chaos-Spawn', act: 4, family: 'demon', role: 'brute', hp: 34, dmg: [4, 8], attackMs: 1200, moveMs: 360, xp: 14,
     sprite: 'chaos', pal: { M: '#d89a8a', m: '#9a5a5a', Y: '#ffd75a' }, behaviours: [{ id: 'split', into: 'chaos_spawnling', count: 2, hpPct: 0.4 }, { id: 'melee' }] });
   mon('chaos_spawnling', { name: 'Chaos Spawnling', act: 4, family: 'demon', role: 'swarmer', hp: 10, dmg: [2, 4], attackMs: 900, moveMs: 300, xp: 4,

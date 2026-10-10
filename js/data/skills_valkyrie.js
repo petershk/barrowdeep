@@ -14,12 +14,12 @@
     id: 'aimed_shot', branch: 'marksman', tier: 1, name: 'Aimed Shot', icon: 'aimed_shot', school: 'holy',
     tags: ['projectile', 'spender', 'physical'], resource: { type: 'focus', cost: 'all', minStart: 2 }, cooldownMs: 0, usesAttackSpeed: true, cancelOnMove: true, onCommit: true,
     targeting: { mode: 'point', range: 10, requiresLOS: false, outOfRange: 'approach' }, delivery: arrow({ maxDist: 12 }),
-    effects: [{ type: 'damage', source: 'weapon', mult: 2.0, perFocus: 0.3, canCrit: true }],
+    effects: [{ type: 'damage', source: 'weapon', mult: 2.3, perFocus: 0.3, canCrit: true }],
     breakpoints: [
       { rank: 3, set: { pierceAt5: true }, text: 'At 5 focus, the arrow pierces every enemy.' },
       { rank: 5, set: { extraAt5: 2 }, text: 'At 5 focus, 2 more arrows fly at nearby enemies.' },
     ],
-    desc: 'Needs 2 focus. Draw (moving cancels it, free) and loose an arrow for 2.0× + 0.3× per focus. Spends all focus.',
+    desc: 'Needs 2 focus. Draw (moving cancels it, free) and loose an arrow for 2.3× + 0.3× per focus. Spends all focus.',
   });
   sk({
     id: 'piercing_shot', branch: 'marksman', tier: 2, name: 'Piercing Shot', icon: 'piercing_shot', school: 'steel',

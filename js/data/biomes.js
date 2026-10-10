@@ -59,4 +59,49 @@
       ambient: 'hell', motes: 'embers', wallStyle: 'ashlar', light: { min: 0.28, peak: 1.35, falloff: 0.75, reach: 1, tint: [0.96, 0.84, 1] },
     },
   };
+
+  // Per-floor looks (view only; the sim and generator still see the act's biome). Each act's first floor
+  // wears the biome as defined above; its second and third floors re-dress it with their own name, palette,
+  // masonry and light, so three floors of one act never look the same.
+  const VARIANTS = {
+    2: { name: 'The Undercroft', wallStyle: 'rubble', light: { tint: [0.92, 1, 0.94] }, pal: {
+      floorA: '#3f4640', floorB: '#373e38', wallTop: '#56605a', wallFace: '#39423c', wallSide: '#2d3430', fog: '#05080a', decal: '#252b26' } },
+    3: { name: 'The Ossuary', light: { tint: [0.94, 0.92, 1] }, pal: {
+      floorA: '#46404c', floorB: '#3e3844', wallTop: '#686070', wallFace: '#48424f', wallSide: '#36313c', fog: '#08060c', decal: '#2a2530' } },
+    5: { name: 'The Bone Galleries', wallStyle: 'ashlar', pal: {
+      floorA: '#51483a', floorB: '#483f33', wallTop: '#6a5c46', wallFace: '#4c4232', wallSide: '#3a3226', fog: '#0b0805', decal: '#30281f' } },
+    6: { name: 'The Deep Crypts', light: { tint: [1, 0.9, 0.84] }, pal: {
+      floorA: '#46362e', floorB: '#3e3029', wallTop: '#5a4436', wallFace: '#402f26', wallSide: '#30241d', fog: '#0a0504', decal: '#2a1e18' } },
+    8: { name: 'The Drowned Caves', light: { tint: [0.84, 0.95, 1] }, pal: {
+      floorA: '#2e3e40', floorB: '#283638', wallTop: '#3e5254', wallFace: '#2b3a3c', wallSide: '#1f2c2e', fog: '#030809', decal: '#1b2526' } },
+    9: { name: 'The Fungal Deep', light: { tint: [1, 1, 0.8] }, pal: {
+      floorA: '#3c3e2a', floorB: '#343624', wallTop: '#50523a', wallFace: '#383a28', wallSide: '#2a2c1e', fog: '#070802', decal: '#24261a' } },
+    11: { name: 'The Burning Halls', pal: {
+      floorA: '#4a2a1a', floorB: '#422416', wallTop: '#643822', wallFace: '#48281a', wallSide: '#361d12', fog: '#0c0502', decal: '#2a160c' } },
+    12: { name: 'The Pit', pal: {
+      floorA: '#3a1a1c', floorB: '#331618', wallTop: '#52221f', wallFace: '#3a1816', wallSide: '#2a1110', fog: '#080202', decal: '#220e0e' } },
+  };
+  /** every look by key: 'church', 'catacombs', … and 'church:2', 'church:3', … for the variants */
+  BD.data.looks = {};
+  for (const id in BD.data.biomes) BD.data.looks[id] = Object.assign({ key: id, biome: id }, BD.data.biomes[id]);
+  BD.data.lookVariants = VARIANTS;
+  /** the look of floor n in a biome (floor n's variant when it has one, else the biome) */
+  BD.data.lookFor = (biome, n) => {
+    const v = VARIANTS[n], base = BD.data.looks[biome];
+    if (!v || !base || biome === 'town' || biome === 'sanctum') return base;
+    const key = biome + ':' + n;
+    if (!BD.data.looks[key]) {
+      BD.data.looks[key] = Object.assign({}, base, v, {
+        key, pal: Object.assign({}, base.pal, v.pal), light: Object.assign({}, base.light, v.light),
+      });
+    }
+    return BD.data.looks[key];
+  };
+  /** the look of a floor object ({ biome, n }); cached per floor since the renderer asks every tile */
+  const lookCache = new WeakMap();
+  BD.data.lookOf = (f) => {
+    let l = lookCache.get(f);
+    if (!l) lookCache.set(f, (l = BD.data.lookFor(f.biome, f.n)));
+    return l;
+  };
 })(globalThis.BD);
