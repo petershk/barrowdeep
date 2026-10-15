@@ -80,7 +80,7 @@
 
   /**
    * @returns {{ id, name, rank, maxRank, tier, branch, cost, cooldown, cast, range, desc,
-   *   lines:any[], breakpoints:any[], keystone:boolean }}
+   *   lines:any[], breakpoints:any[], keystone:boolean, forms:any[], formRank:number }}
    */
   function describe(world, p, id, rankOverride) {
     const base = id === 'attack' ? Abilities().basicFor(world, p) : Abilities().def(id);
@@ -91,7 +91,7 @@
       tier: base.tier, branch: base.branch, keystone: !!base.keystone,
       cost: base.keystone ? '' : costText(ab), cooldown: cooldownText(world, p, ab),
       cast: '', range: ab.targeting && ab.targeting.range && ab.targeting.mode !== 'self' ? ab.targeting.range + ' tiles' : '',
-      desc: base.desc, lines: [], breakpoints: [],
+      desc: base.desc, lines: [], breakpoints: [], forms: [], formRank: SkillBalance.formRank,
     };
     if (!base.keystone) {
       const tm = Abilities().timing(world, p, ab);
@@ -113,7 +113,13 @@
       const t = effectText(eff, rank);
       if (t) out.lines.push({ kind: 'effect', text: t });
     }
-    for (const bp of base.breakpoints || []) out.breakpoints.push({ rank: bp.rank, text: bp.text || '', active: rank >= bp.rank });
+    const form = (base.forms || []).find((f) => f.id === ab.form);
+    for (const bp of base.breakpoints || []) {
+      const gone = !!(form && form.replaces && form.replaces.includes(bp.rank));
+      const text = (bp.text || '') + (gone ? ' (replaced by ' + form.name + ')' : '');
+      out.breakpoints.push({ rank: bp.rank, text, active: rank >= bp.rank && !gone });
+    }
+    out.forms = (base.forms || []).map((f) => ({ id: f.id, name: f.name, verb: f.verb, text: f.text, on: ab.form === f.id }));
     return out;
   }
 

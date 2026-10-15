@@ -6,7 +6,7 @@
 
   const A = {
     ctx: /** @type {AudioContext|null} */ (null),
-    master: null, sfx: null, music: null, amb: null, reverb: null, noiseBuf: null,
+    master: null, sfx: null, music: null, amb: null, reverb: null, sfxVerb: null, noiseBuf: null,
     ready: false,
   };
   const lvl = (k) => {
@@ -46,12 +46,18 @@
       const c = ir.getChannelData(ch);
       for (let i = 0; i < rl; i++) c[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6);
     }
-    A.reverb = ctx.createConvolver();
-    A.reverb.buffer = ir;
-    const wet = ctx.createGain();
-    wet.gain.value = 0.8;
-    A.reverb.connect(wet);
-    wet.connect(A.amb);
+    // two sends on the same room: ambience and music beds return on the ambience bus, effects on the
+    // effects bus, so each slider governs its own tail
+    const room = (bus) => {
+      const c = ctx.createConvolver(), wet = ctx.createGain();
+      c.buffer = ir;
+      wet.gain.value = 0.8;
+      c.connect(wet);
+      wet.connect(bus);
+      return c;
+    };
+    A.reverb = room(A.amb);
+    A.sfxVerb = room(A.sfx);
     BD.audio.host.onVolumeChange(applyVolumes);
     applyVolumes();
     A.ready = true;

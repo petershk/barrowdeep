@@ -69,11 +69,31 @@
         }
       }
     }
+    if (p) applyForm(out, ab, rank, p);
     if (ab.resource && ab.resource.type === 'mana' && typeof ab.resource.cost === 'number' && p) {
       out.resource = Object.assign({}, out.resource, { cost: manaCost(ab.resource.cost, p.level) });
     }
     if (BD.sim.powers && p) BD.sim.powers.modifyAbility(out, rank, p);
     return out;
+  }
+  /** the Form the hero picked for this skill, once its bought rank opens Forms (null otherwise) */
+  function formOf(p, ab) {
+    const id = p && p.forms && p.forms[ab.id];
+    if (!id || !ab.forms || (p.skills[ab.id] || 0) < SkillBalance.formRank) return null;
+    return ab.forms.find((f) => f.id === id) || null;
+  }
+  /** a Form works like a breakpoint that the player chooses: set/add/addSelf, then an optional mod(ab, rank) */
+  function applyForm(out, ab, rank, p) {
+    const form = formOf(p, ab);
+    if (!form) return;
+    out.form = form.id;
+    if (form.add) out.effects = out.effects.concat(form.add);
+    if (form.addSelf) out.selfEffects = out.selfEffects.concat(form.addSelf);
+    for (const k in form.set || {}) {
+      const v = form.set[k];
+      out[k] = typeof v === 'object' && v && !Array.isArray(v) ? Object.assign({}, out[k], v) : v;
+    }
+    if (form.mod) form.mod(out, rank);
   }
   /** mana costs grow with character level, as the mana pool does (rage, energy and focus pools don't grow) */
   function manaCost(base, level) {
@@ -270,6 +290,7 @@
   }
 
   function commit(world, p, ab, rank, tgt, opts) {
+    if (p.move && !p.move.kind && p.move.elapsed >= p.move.dur * 0.45) p.move = null;
     const res = ab.resource || { type: 'none', cost: 0 };
     const spent = res.type && res.type !== 'none' && res.cost ? Resources().spend(world, p, res.type, res.cost) : 0;
     const cd = cdTime(world, p, ab);
@@ -372,7 +393,8 @@
   function chargeTick(world, p, dt) {
     if (!p.charges) return;
     for (const id in p.charges) {
-      const c = p.charges[id], ab = def(id);
+      // resolved: breakpoints and Forms can change charges and recharge time
+      const c = p.charges[id], ab = resolved(def(id), Math.max(1, rankOf(world, p, id)), p);
       const mc = maxCharges(world, p, ab);
       if (c.n >= mc) {
         c.ms = 0;
@@ -416,7 +438,7 @@
 
   BD.sim.abilities = {
     canBePrimary, defaultSlot, manaCost, affordable,
-    def, rankOf, scale, resolved, basicFor, cooldownLeft, cdTime, maxCharges, timing,
+    def, rankOf, scale, resolved, formOf, basicFor, cooldownLeft, cdTime, maxCharges, timing,
     tryCast, validate, resolveTarget, commit, cancel, actionTick, fireApproach, system, passiveMods,
   };
   BD.sim.world.addSystem('abilities', system, 8);

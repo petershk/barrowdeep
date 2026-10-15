@@ -40,6 +40,7 @@
   const CUES = {
     damage(ev) {
       if (ev.isDot || !ev.total) return null;
+      if (isPlayer(ev.tgtId) && ev.blocked) return null;   // a block voices itself
       if (isPlayer(ev.tgtId)) return ['hurt', { vol: has(ev.tags, 'heavy') ? 1.3 : 1, priority: true }];
       const src = ent(ev.srcId);
       if (!src) return null;
@@ -52,6 +53,10 @@
           out.push([ELEMENT_HIT[ev.maxPart] || 'ranged_impact', at(ev)]);
         } else out.push([MELEE[fx] || 'melee_club', at(ev, { vol: src.kind === 'ally' ? 0.5 : 1 })]);
         if (ev.crit) out.push(['crit_ring', at(ev)]);
+        if (ev.lethal && src.kind === 'player') {
+          const t = ent(ev.tgtId), elite = !!(t && t.rank && t.rank !== 'normal' && t.rank !== 'minion');
+          out.push(elite ? ['kill_elite', at(ev, { reverb: 0.3 })] : ['kill', at(ev)]);
+        }
         return out;
       }
       return ['melee_club', at(ev, { vol: 0.4 })];   // monsters hurting allies
@@ -65,7 +70,8 @@
       if (!isPlayer(ev.id)) return null;
       if (ev.abilityId === 'attack') {
         if (SHOT[ev.weapon]) return [SHOT[ev.weapon], at(ev)];
-        return ev.weapon === 'staff' && currentWorld().player.def === 'magician' ? ['wand', at(ev)] : null;
+        if (ev.weapon === 'staff' && currentWorld().player.def === 'magician') return ['wand', at(ev)];
+        return MELEE[ev.weapon] ? ['swing', at(ev)] : null;   // the blade moving, before the hit lands
       }
       if (Object.prototype.hasOwnProperty.call(CAST, ev.abilityId)) return CAST[ev.abilityId] ? [CAST[ev.abilityId], at(ev)] : null;
       const sk = BD.data.skills[ev.abilityId];
@@ -112,7 +118,10 @@
     rally: (ev) => ['shout', at(ev, { vol: 0.5, pitch: 1.3 })],
     rout: (ev) => ['shout', at(ev, { vol: 0.5, pitch: 0.8 })],
     // monsters
-    'monster.windup': (ev) => (ev.heavy ? ['windup', at(ev)] : null),
+    // a heavy wind-up's riser lasts as long as the wind-up; ordinary swings near the hero get a whoosh
+    'monster.windup': (ev) => (ev.heavy ? ['windup', at(ev, { stretch: Math.max(0.6, Math.min(3, (ev.ms || 420) / 420)) })]
+      : ev.kind === 'melee' ? ['swing', at(ev, { vol: 0.5, pitch: 0.8 })] : null),
+    'resource.short': (ev) => (isPlayer(ev.id) ? ['empty', {}] : null),
     'monster.shoot': (ev) => [ev.kind && /bolt|fire|ice|spark|orb|magic/.test(ev.kind) ? 'wand' : 'bow', at(ev, { vol: 0.6 })],
     'monster.alert': (ev) => (ev.keeper || ev.rank === 'champion' ? ['alert', at(ev)] : null),
     death(ev) {
@@ -167,6 +176,7 @@
     respec: () => ['ui_confirm', {}],
     stash: () => ['equip_leather', {}],
     'skill.learn': () => ['ui_confirm', {}],
+    'skill.form': () => ['ui_confirm', {}],
     'attr.spend': () => ['ui_click', {}],
     levelup: () => [['level', { priority: true }]],
     // world
@@ -203,9 +213,9 @@
   };
 
   // events that are deliberately silent: bookkeeping, visual-only, or voiced by a neighbouring cue
-  const SILENT = ['resource.short',
+  const SILENT = [
     'ability.cancel', 'ability.end', 'ability.ready', 'act.complete.ui', 'announce', 'bar.change', 'bone_wall.end', 'brand',
-    'collide', 'corpse', 'corpse.eaten', 'corpse.end', 'deploy.end', 'ally.end', 'floor.enter', 'keeper.ping', 'knockback', 'lob',
+    'collide', 'corpse', 'corpse.eaten', 'corpse.end', 'deploy.end', 'ally.end', 'flinch', 'floor.enter', 'keeper.ping', 'knockback', 'lob',
     'monster.attack', 'monster.cancel', 'power', 'projectile.end', 'projectile.hit', 'projectile.spawn', 'resource.change',
     'run.death', 'run.harvest', 'save.request', 'shimmer', 'spawn', 'status.end', 'xp', 'zone.end', 'zone.resolve', 'zone.tick'];
 

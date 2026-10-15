@@ -19,8 +19,9 @@
       const edge = h('div.sk-edge');
       const key = h('div.sk-key', s === 'evade' ? 'Space' : KEYS[s]);
       const cnt = h('div.sk-count');
-      const box = h('div.sk-slot' + (s === 'evade' ? '.evade' : ''), { data: { slot: s } }, [icon, mask, edge, key, cnt]);
-      slots[s] = { box, icon, mask, edge, key, cnt, id: undefined };
+      const cd = h('div.sk-cd');
+      const box = h('div.sk-slot' + (s === 'evade' ? '.evade' : ''), { data: { slot: s } }, [icon, mask, edge, cd, key, cnt]);
+      slots[s] = { box, icon, mask, edge, cd, key, cnt, id: undefined };
       el.appendChild(box);
       box.addEventListener('mousedown', (ev) => {
         ev.stopPropagation();
@@ -63,6 +64,12 @@
     document.querySelector('.hud .bar-slot').appendChild(el);
   }
 
+  /** seconds left on a recharging slot: "4.2", whole seconds from 10 s up, blank when ready */
+  function cdText(frac, leftMs) {
+    if (frac <= 0 || leftMs < 100) return '';
+    return (leftMs / 1000).toFixed(leftMs < 10000 ? 1 : 0);
+  }
+
   function frame(world, ms) {
     if (!el) {
       if (!document.querySelector('.hud .bar-slot')) return;
@@ -80,10 +87,11 @@
         sl.icon.src = iconId ? BD.view.icons.url(iconId) : '';
         sl.icon.style.visibility = iconId ? 'visible' : 'hidden';
       }
-      let frac = 0, label = '';
+      let frac = 0, label = '', leftMs = 0;
       if (id === 'evade') {
         const max = 3000;
-        frac = Math.min(1, (p.cooldowns.evade || 0) / max);
+        leftMs = p.cooldowns.evade || 0;
+        frac = Math.min(1, leftMs / max);
         if (p.evadeCharges !== undefined) label = String(p.evadeCharges);
       } else if (id) {
         const ab = BD.data.skills[id];
@@ -92,9 +100,11 @@
           const n = c ? c.n : ab.charges;
           label = String(n);
           frac = c && n <= 0 ? Math.min(1, c.ms / BD.sim.abilities.cdTime(world, p, ab)) : 0;
+          leftMs = c && n <= 0 ? c.ms : 0;
         } else {
           const cd = p.cooldowns[id] || 0;
           frac = cd > 0 ? Math.min(1, cd / Math.max(1, BD.sim.abilities.cdTime(world, p, ab))) : 0;
+          leftMs = cd;
         }
         const res = ab.resource || {};
         const hasCost = res.type && res.type !== 'none' && typeof res.cost === 'number' && res.cost > 0;
@@ -114,6 +124,7 @@
         sl.box.classList.add('ready');
       } else sl.box.classList.remove('ready');
       setText(sl.cnt, label);
+      setText(sl.cd, cdText(frac, leftMs));
     }
   }
 

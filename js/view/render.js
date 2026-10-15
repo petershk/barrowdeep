@@ -10,7 +10,7 @@
   const Sprites = BD.view.sprites;
   const Lighting = BD.view.lighting;
   const Grid = BD.core.grid;
-  const { MEANING, STATUS_COLOR } = BD.view.palette;
+  const { MEANING, STATUS_COLOR, SCHOOL } = BD.view.palette;
 
   /** @type {HTMLCanvasElement} */ let canvas = null;
   /** @type {CanvasRenderingContext2D} */ let ctx = null;
@@ -68,7 +68,7 @@
       }
     }
     if (kind === 'sealed') {
-      g.fillStyle = '#c02020';
+      g.fillStyle = SCHOOL.seal.mid;
       for (let i = -4; i <= 4; i++) {
         g.fillRect(16 + i * 2, 8 + i, 2, 1);
         g.fillRect(16 - i * 2, 8 + i, 2, 1);
@@ -144,6 +144,7 @@
     if (BD.view.fx) BD.view.fx.collectLights(world);
     const R = f.fovRadius || 6;
     Lighting.draw(ctx, f, pp, R, timeMs);
+    drawGrade(f);
     drawFogAndVignette(f, pp);
 
     for (const fn of hooks.overlays) fn(ctx, world, alpha, timeMs, realMs);
@@ -151,6 +152,21 @@
     v.oy = baseOy;
     for (const fn of hooks.fx) fn(ctx, world, alpha, timeMs, realMs);
     for (const fn of hooks.top) fn(ctx, world, alpha, timeMs, realMs);
+  }
+
+  /** The biome's mood: one soft-light wash over the lit world (biomes.js `grade`). Soft-light leaves blacks
+   *  black and whites white, so it tints the mid-tones (stone, floor, flesh) without dimming lights or UI. */
+  function drawGrade(f) {
+    const g = BD.data.lookOf(f).grade;
+    if (!g) return;
+    const v = iso.view;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.globalAlpha = g[1];
+    ctx.fillStyle = g[0];
+    ctx.fillRect(0, 0, v.w, v.h);
+    ctx.restore();
   }
 
   /** Off-map and unexplored space is the biome's fog (07 §1.2 step 1), lifted toward the floor colour near
@@ -317,6 +333,7 @@
     iso.toScreen(x, y, tmp);
     if (al < 1) ctx.globalAlpha = al;
     ctx.drawImage(pr.canvas, Math.round(tmp.x - pr.ax * S), Math.round(tmp.y - pr.ay * S), pr.canvas.width * S, pr.canvas.height * S);
+    if (kind === 'wall' && BD.view.sconces) BD.view.sconces.drawOn(ctx, f, x, y, i, timeMs, al);
     if (al < 1) ctx.globalAlpha = 1;
   }
 
@@ -341,6 +358,7 @@
         }
       }
     }
+    if (BD.view.sconces) BD.view.sconces.collectLights(f, sMin, sMax);
   }
 
   /** which animation frame an actor shows: death, hurt, attack, walk or idle */
@@ -383,9 +401,10 @@
     const s = EntityView.stateOf(e.id);
     const art = EntityView.artOf(e);
     const flip = spinning(e) ? Math.floor(timeMs / SPIN_FLIP_MS) % 2 === 0 : e.dir >= 2 && e.dir <= 5;
+    s.flip = flip;     // gear_fx.js mirrors its weapon anchor with the sprite
     const { frame, fi } = actorFrame(e, s);
     const { dx, dy } = actorOffset(e, s);
-    const scale = EntityView.scaleOf(e);
+    const scale = EntityView.scaleOf(e) * EntityView.actorK();
     const opts = {
       flip, pal: EntityView.palOf(e), palKey: e.def + (e.rank === 'keeper' || e.rank === 'unique' ? e.rank : ''),
       scale, dx, dy, doll: BD.view.paperdoll ? BD.view.paperdoll.dollOf(e) : '', rim: !e.dead,
@@ -393,17 +412,21 @@
     for (const fn of actorUnder) fn(ctx, world, e, ep, s, timeMs);
     if (e.kind === 'player') heroHalo(ep.x, ep.y);
     if (!e.dead) shadow(ep.x, ep.y, scale);
-    const windup = !e.dead && e.attack && e.attack.telegraph && e.attack.phase === 'windup';
+    // hostile red is for enemies only: the hero's own wind-up builds in its skill's school instead
+    const windup = !e.dead && e.kind !== 'player' && e.attack && e.attack.telegraph && e.attack.phase === 'windup';
+    const charge = !e.dead && BD.view.skillFx ? BD.view.skillFx.chargeOf(e) : null;
     if (windup) windupJudder(e, opts);
     if (windup) drawRim(ep, art, frame, fi, opts, MEANING.hostile, Math.min(1, windupPulse() + 0.1));
+    else if (charge) drawRim(ep, art, frame, fi, opts, (SCHOOL[charge.school] || SCHOOL.steel).mid, 0.2 + 0.6 * charge.k);
     else if (frozen(e)) drawRim(ep, art, frame, fi, opts, STATUS_COLOR.frozen, 0.85);
     const box = drawArt(art, frame, fi, ep.x, ep.y, opts);
     if (box) {
       for (const fn of hooks.actorBody || []) fn(ctx, e, art, frame, fi, ep, opts, box);   // statuses on the body (overlays.js)
       if (s.flash > 0) {
         const flashPref = BD.view.host.prefs.flash / 100;
-        ctx.globalAlpha = (s.flash / 120) * flashPref;
-        drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: '#ffffff', palKey: 'white' }));
+        // capped so the sprite's own shading still reads through the flash (no white blobs)
+        ctx.globalAlpha = (s.flash / 120) * flashPref * FLASH_MAX;
+        drawArt(art, frame, fi, ep.x, ep.y, Object.assign({}, opts, { tint: SCHOOL.steel.core, palKey: 'white' }));
         ctx.globalAlpha = 1;
       }
       if (windup) {
@@ -414,11 +437,27 @@
       }
       e._box = box;
     }
+    if (charge && !charge.melee) chargeGlow(ep, opts, charge);
     for (const fn of actorOver) fn(ctx, world, e, ep, s, timeMs, box);
   }
 
+  /** the gathering light at the hero's hands: grows and brightens across the cast */
+  function chargeGlow(ep, opts, charge) {
+    const pal = SCHOOL[charge.school] || SCHOOL.steel, zk = iso.view.Z * iso.view.dpr;
+    iso.toScreen(ep.x, ep.y, tmp);
+    const r = (6 + 12 * charge.k) * zk, y = tmp.y + opts.dy - 18 * zk * EntityView.actorK();
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.35 + 0.55 * charge.k;
+    ctx.drawImage(BD.view.fx.glow(pal.mid), tmp.x + opts.dx - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 0.5 + 0.5 * charge.k;
+    const c = r * 0.35;
+    ctx.drawImage(BD.view.fx.glow(pal.core), tmp.x + opts.dx - c, y - c, c * 2, c * 2);
+    ctx.restore();
+  }
+  const FLASH_MAX = 0.6;
   /** the wind-up pulse (07 §2.4) */
-  const windupPulse = () => 0.4 + 0.5 * Math.abs(Math.sin(timeMs / 55));
+  const windupPulse = () => 0.4 + 0.5 * BD.view.fx.beat('danger', timeMs);
   /** shake in the last 250 ms before the blow lands (moves the sprite and its rim together) */
   function windupJudder(e, opts) {
     if (e.attack.remaining >= 250) return;

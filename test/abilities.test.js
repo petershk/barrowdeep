@@ -224,4 +224,15 @@ module.exports = (T) => {
       T.ok(r.m.statuses.some((st) => st.id === 'frozen'), 'dummy at ' + (r.m.x - p.x) + ',' + (r.m.y - p.y) + ' is frozen');
     }
   });
+
+  T.test('Magician spells scale with weapon damage, dmg_pct and flat elemental adds while staying balanced', () => {
+    const w = setup('magician', 'fireball', 3);
+    const p = w.player;
+    const baseHit = BD.sim.describe.numbers(w, p, 'fireball', 3)[0].hi;
+    p.equip.weapon = BD.sim.items.make(w, 'battle_staff', 20, 'rare', [{ id: 'dmg_pct', roll: 0.8 }, { id: 'fire_add', roll: 0.8 }]);
+    BD.sim.stats.bump(p);
+    const staffHit = BD.sim.describe.numbers(w, p, 'fireball', 3)[0].hi;
+    T.ok(staffHit > baseHit * 1.4, 'an ilvl-20 rare Battle Staff with +dmg% and +fire_add boosts Fireball');
+    T.ok(staffHit < baseHit * 3.2, 'spell weapon scaling stays bounded relative to weapon classes');
+  });
 };

@@ -28,13 +28,17 @@
     if (BD.view.fxRecipes['impact_' + school]) return 'impact_' + school;
     return hasTag(ev, 'projectile') ? 'impact_arrow' : 'impact_magic';
   }
+  /** skills whose hits get a recipe of their own on top of the normal impact, in the skill's school */
+  const HEAVY_HIT = { aimed_shot: 'heavy_shot' };
+  /** the direction of each killing blow, read by the death that follows it in the same event batch */
+  const killDir = new Map();
   const isElite = (e) => !!(e && e.rank && e.rank !== 'normal' && e.rank !== 'minion');
 
   /** hitstop (ms): elite kill 80, crit 65, heavy 60, kill 50; 0 = none */
   function hitstopMs(ev, tgt) {
     if (ev.lethal && isElite(tgt)) return 80;
     if (ev.crit) return 65;
-    if (hasTag(ev, 'heavy')) return 60;
+    if (hasTag(ev, 'heavy') || HEAVY_HIT[ev.abilityId]) return 60;
     return ev.lethal ? 50 : 0;
   }
   /** dealt numbers are bone, tinted by a non-physical element's mid colour; taken numbers are red */
@@ -55,6 +59,11 @@
       recipe = playerHitRecipe(ev, fx, school);
       Fx().play(recipe, x, y, { dir: { x: x - src.x, y: y - src.y }, school, scale: ev.crit ? 1.6 : 1 });
       if (ev.crit) Fx().play('crit_accent', x, y);
+      if (HEAVY_HIT[ev.abilityId]) {
+        const sk = BD.data.skills[ev.abilityId];
+        const dir = { x: x - src.x, y: y - src.y };
+        Fx().play(HEAVY_HIT[ev.abilityId], x, y, { dir, school: (sk && sk.school) || school, scale: ev.crit ? 1.4 : 1 });
+      }
     } else if (toPlayer) {
       Fx().play('monster_hit', x, y, { dir: src ? { x: x - src.x, y: y - src.y } : null });
       if (hasTag(ev, 'heavy')) BD.view.camera.addTrauma(0.15);
@@ -79,6 +88,10 @@
     const tgt = Entities().get(w, ev.tgtId), src = Entities().get(w, ev.srcId);
     const toPlayer = tgt && tgt.kind === 'player';
     if (!ev.isDot) playHitFx(w, ev, src, tgt, toPlayer);
+    if (ev.lethal && src && !toPlayer) {
+      const l = Math.hypot(ev.x - src.x, ev.y - src.y) || 1, push = ev.crit || hasTag(ev, 'heavy') || HEAVY_HIT[ev.abilityId] ? 0.5 : 0.3;
+      killDir.set(ev.tgtId, { x: (ev.x - src.x) / l * push, y: (ev.y - src.y) / l * push });
+    }
     const dt = damageText(ev, toPlayer);
     if (ev.isDot) {
       // damage over time merges per target per second instead of a number every tick
@@ -89,6 +102,7 @@
   /** a new world or floor: drop every transient visual */
   function wireResets(bus) {
     bus.on('app.world', () => {
+      killDir.clear();
       Fx().clear();
       FloatText().clear();
       EntityView.clear();
@@ -109,6 +123,12 @@
   /** hits, misses, healing, xp, statuses, deaths and alerts */
   function wireCombat(bus) {
     bus.on('damage', onDamage);
+    bus.on('flinch', (ev) => {
+      const s = EntityView.stateOf(ev.id);
+      s.recoil = 220;
+      s.hurt = 220;
+      BD.view.host.hitstop(25);
+    });
     bus.on('miss', (ev) => {
       if (ev.reason === 'whiff') Fx().play('whiff', ev.x, ev.y);
       else if (ev.reason === 'immune') FloatText().add('Immune', ev.x, ev.y, 'miss', { id: ev.tgtId });
@@ -130,20 +150,25 @@
     bus.on('status.apply', (ev) => {
       if (BD.view.fxRecipes['status_' + ev.status]) Fx().play('status_' + ev.status, ev.x, ev.y);
       if (!STATUS_WORDS[ev.status] || ev.id === 1) return;
+      // one word per status per group: a nova that freezes five monsters says FROZEN once
+      if (!FloatText().once('status:' + ev.status, ev.x, ev.y, 600, 3)) return;
       FloatText().add(STATUS_WORDS[ev.status], ev.x, ev.y, 'status', { id: ev.id, color: BD.view.palette.STATUS_COLOR[ev.status] });
     });
     bus.on('reaction', (ev) => FloatText().add(ev.name + '!', ev.x, ev.y, 'reaction', { id: ev.tgtId }));
     bus.on('death', (ev) => {
       if (ev.kind === 'player') return;
       const elite = ev.rank && ev.rank !== 'normal' && ev.rank !== 'minion';
-      // the elite recipe carries its own shake
-      Fx().play(elite ? 'death_elite' : 'death', ev.x, ev.y, { school: BD.view.palette.ELEMENT_SCHOOL[ev.element] || 'bone' });
-      BD.view.world.addGhost(currentWorld(), ev);
+      const push = killDir.get(ev.id) || null;
+      killDir.delete(ev.id);
+      // the elite recipe carries its own shake; the spray follows the killing blow
+      Fx().play(elite ? 'death_elite' : 'death', ev.x, ev.y, { school: BD.view.palette.ELEMENT_SCHOOL[ev.element] || 'bone', dir: push });
+      BD.view.world.addGhost(currentWorld(), ev, elite ? null : push);
       if (!elite) BD.view.camera.addTrauma(0.05);
     });
     bus.on('monster.alert', (ev) => {
       EntityView.stateOf(ev.id).alertT = 900;
-      FloatText().add('!', ev.x, ev.y, 'alert', { id: ev.id });
+      // one "!" per pack: the first monster to spot you speaks for the ones beside it
+      if (FloatText().once('alert', ev.x, ev.y, 1200, 4)) FloatText().add('!', ev.x, ev.y, 'alert', { id: ev.id });
     });
   }
 
@@ -243,6 +268,7 @@
   // per-frame updates and top-layer draws
   BD.view.render.hooks.fx.push((ctx, world, alpha, t, realMs) => {
     const ms = BD.view.host.paused() ? 0 : realMs;
+    if (BD.view.skillFx) BD.view.skillFx.chargeTick(world, ms);
     Fx().update(ms);
     FloatText().update(ms);
     BD.view.world.update(ms);

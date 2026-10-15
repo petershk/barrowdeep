@@ -91,6 +91,10 @@
       }
     }
     for (const k in p.bar || {}) if (p.bar[k] && !D.skills[p.bar[k]]) p.bar[k] = null;
+    for (const id in p.forms || {}) {
+      const sk = D.skills[id];
+      if (!sk || !sk.forms || !sk.forms.some((f) => f.id === p.forms[id])) delete p.forms[id];
+    }
     if (p.bar && !('lmb' in p.bar)) p.bar.lmb = null;          // saves from before the left-click slot
     p.statuses = (p.statuses || []).filter((st) => D.statuses[st.id]);
     if (p.background && !D.backgrounds[p.background]) {

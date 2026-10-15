@@ -78,7 +78,18 @@
     if (f.road && f.road[Grid.idx(f, x, y)]) return Palette.shade(pal.road, 0.97 + (hash(x, y, 3) % 5) * 0.015);
     // a quiet per-tile value shift (k 0.97–1.05, quantised so the diamond cache stays small)
     const k = 0.97 + (hash(x, y, 1) % 5) * 0.02;
-    return Palette.shade(floorBase(pal, x, y), k);
+    return Palette.shade(stain(f, floorBase(pal, x, y), x, y), k);
+  }
+
+  /** Room-sized patches (moss, damp, soot) from world-space noise, so a big floor is never one flat colour.
+   *  Three steps only (none, light, heavy), so the diamond cache stays small. */
+  const STAIN = { church: '#2e2e36', catacombs: '#2e261c', caves: '#4a6430', hell: '#1e0806', sanctum: '#1e0c24' };
+  function stain(f, col, x, y) {
+    const look = BD.data.lookOf(f), tint = STAIN[look.biome];
+    if (!tint) return col;
+    const n = vnoise(x / 5.5, y / 5.5, 23) * 0.7 + vnoise(x / 2.2, y / 2.2, 29) * 0.3;
+    if (n < 0.5) return col;
+    return mix(col, tint, n < 0.64 ? 0.22 : 0.42);
   }
 
   function reset(f) {
@@ -112,6 +123,8 @@
       else if (t === T.WATER) drawRipples(g, col, sx, sy, x, y);
       else if (t !== T.CHASM) drawFloorDetail(g, look.biome, col, sx, sy, x, y);
       if (f.decal && f.decal[i]) drawDecal(g, f.decal[i], sx, sy, x, y, pal);
+      if (t !== T.CHASM && t !== T.LAVA) drawWallShade(g, f, sx, sy, x, y);
+      if (t === T.FLOOR) drawRubble(g, f, col, sx, sy, x, y);
     }
     if (lava) bakeLava(ent, f, cx, cy);
     state.lava = state.lava || lava;
@@ -134,6 +147,48 @@
       g.fillRect(sx + px, sy + py, w, grass && lit ? 2 : 1);
     }
     if ((h >>> 24) % (biome === 'hell' ? 4 : 7) === 0) drawCrack(g, Palette.shade(col, 0.7), sx, sy, h2);
+  }
+
+  /** a wall blocks sky-light: a tile edge that meets a wall behind it (its upper-left or upper-right
+   *  neighbour on screen) darkens in a 4 px band, so walls stand on the floor instead of floating on it */
+  const SHADE = [0.34, 0.22, 0.12, 0.05];
+  const blocks = (f, x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && (f.tiles[Grid.idx(f, x, y)] === T.WALL
+    || f.tiles[Grid.idx(f, x, y)] === T.TOWN_DOOR);
+  function drawWallShade(g, f, sx, sy, x, y) {
+    const left = blocks(f, x - 1, y), right = blocks(f, x, y - 1);
+    if (!left && !right) return;
+    for (let px = 1; px < 31; px++) {
+      const onLeft = px < 16;
+      if (onLeft ? !left : !right) continue;
+      const edge = onLeft ? 8 - (px + 0.5) / 2 : (px - 15.5) / 2;
+      for (let d = 0; d < SHADE.length; d++) {
+        const py = Math.ceil(edge) + d;
+        if (!inside(px, py, 0.98)) continue;
+        g.fillStyle = 'rgba(0,0,0,' + SHADE[d] + ')';
+        g.fillRect(sx + px, sy + py, 1, 1);
+      }
+    }
+  }
+
+  /** fallen stone at the foot of a wall: two to four lit-top chips along the edge that meets it */
+  function drawRubble(g, f, col, sx, sy, x, y) {
+    const left = blocks(f, x - 1, y), right = blocks(f, x, y - 1);
+    const h = hash(x, y, 31);
+    if ((!left && !right) || h % 100 >= 38) return;
+    const top = Palette.shade(col, 1.35), side = Palette.shade(col, 0.62);
+    const n = 2 + ((h >>> 7) % 3);
+    for (let k = 0; k < n; k++) {
+      const onLeft = left && (!right || ((h >>> (9 + k)) & 1) === 0);
+      const px = onLeft ? 3 + ((h >>> (12 + k * 3)) % 11) : 17 + ((h >>> (12 + k * 3)) % 11);
+      const edge = onLeft ? 8 - (px + 0.5) / 2 : (px - 15.5) / 2;
+      const py = Math.ceil(edge) + 2 + ((h >>> (20 + k)) & 1);
+      const big = ((h >>> (24 + k)) & 1) === 1;
+      if (!inside(px, py + 1, 0.9)) continue;
+      g.fillStyle = top;
+      g.fillRect(sx + px, sy + py, big ? 3 : 2, 1);
+      g.fillStyle = side;
+      g.fillRect(sx + px, sy + py + 1, big ? 3 : 2, 1);
+    }
   }
 
   /** a 3–6 px hairline crack wandering along the iso axes */
@@ -260,7 +315,7 @@
   function drawLava(ctx, f, timeMs) {
     if (!state || !state.lava) return;
     const v = iso.view, S = v.S, out = { x: 0, y: 0 };
-    const beat = Math.sin((timeMs / 1600) * Math.PI * 2);
+    const beat = BD.view.fx.beat('ambient', timeMs) * 2 - 1;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const [key, ent] of state.chunks) {

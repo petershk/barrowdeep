@@ -6,7 +6,6 @@
   'use strict';
 
   const SCHOOL = {
-    general: { core: '#ece0ff', mid: '#b88aff', edge: '#7a4fd0' },
     fire: { core: '#fff2b0', mid: '#ff8a2a', edge: '#c8300f' },
     holy: { core: '#fffbe0', mid: '#ffd75a', edge: '#d09a20' },
     shadow: { core: '#e8a8c8', mid: '#a03070', edge: '#2a0a24' },
@@ -38,7 +37,7 @@
   /** elemental statuses use their element's mid (frozen: cold core); the rest are spread so no two collide.
    *  Colour alone is not enough at pip size: every status also has its own glyph (07 §2.4). */
   const STATUS_COLOR = {
-    burning: '#ff8a2a', chilled: '#7fe8ff', frozen: '#e8f8ff', shocked: '#9fb0ff', poisoned: '#8ed24a', bleeding: '#a8142a',
+    burning: '#ff8a2a', chilled: '#7fe8ff', frozen: '#f4fdff', shocked: '#9fb0ff', poisoned: '#8ed24a', bleeding: '#c0341c',
     stunned: '#f0e070', feared: '#a03070', weakened: '#a09080', vulnerable: '#ff5070', exposed: '#ffd23a', rooted: '#8a6a3a',
     slowed: '#6080a0', blinded: '#606070', taunted: '#ff7a5a', enraged: '#d01818', hidden: '#5a5070', hasted: '#3cc8b4',
     shielded: '#c8d8e8', braced: '#b0a890',
@@ -48,8 +47,8 @@
     life: '#c41e1e', lifeLow: '#ff3b30', rage: '#c8461c', energy: '#3cc8b4', mana: '#3a6ee0', focus: '#f0e0a0',
     xp: '#c8a870', souls: '#b06aff', good: '#6ad06a', bad: '#e05050', text: '#d8d0c0', muted: '#9a9080', dim: '#5a5248',
     uiGold: '#c9a227', border: '#5a4a28', dmg: '#d8d0c0', dmgTaken: '#ff4a3a', crit: '#ffd23a', gold: '#e8c050',
-    exposed: '#ffd23a', hostile: '#ff3a1a', hostileCB: '#ff3aa0', friendly: '#e8d8b0', lockon: '#ffffff',
-    alert: '#ff3a1a', champion: '#7aa0e0', unique: '#e0c84a', boss: '#b0201a', outline: '#0a0806',
+    exposed: '#ffd23a', hostile: '#ff3a1a', hostileCB: '#ff3aa0', friendly: '#e8d8b0', lockon: '#ffffff', reaction: '#ffffff',
+    alert: '#ff3a1a', ally: '#4ab0ff', champion: '#7aa0e0', unique: '#e0c84a', boss: '#b0201a', outline: '#0a0806',
   };
 
   /** '#rrggbb' → [r,g,b] (cached) */

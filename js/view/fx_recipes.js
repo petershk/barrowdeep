@@ -7,6 +7,7 @@
 (function (BD) {
   'use strict';
 
+  const Palette = BD.view.palette;
   const R = {};
   BD.view.fxRecipes = R;
 
@@ -35,7 +36,7 @@
     particles: [{ count: 12, shape: 'ring', speed: [0.002, 0.005], z: [8, 16], vz: [0.02, 0.05], life: [220, 460], size: [1.4, 3], palette: 'steel' }],
     shapes: [{ kind: 'star', rays: 5, radius: 0.9, life: 200, palette: 'steel' }, { kind: 'ring', from: 0.2, to: 0.95, life: 220, palette: 'dust' },
       { kind: 'ring', from: 0.2, to: 0.6, life: 260, delay: 70, palette: 'dust' }, { kind: 'flash', radius: 0.9, life: 140, palette: 'steel' }],
-    light: { radius: 2, color: '#e8e0d0', intensity: 0.6, life: 160 },
+    light: { radius: 2, color: Palette.SCHOOL.steel.mid, intensity: 0.6, life: 160 },
     shake: 0.18,
   };
   R.impact_arrow = {
@@ -79,6 +80,17 @@
   };
   /** a critical hit: a white 4-ray star over the weapon impact */
   R.crit_accent = { shapes: [{ kind: 'star', rays: 4, rot: 0, radius: 0.55, w: 1.4, life: 140, palette: 'steel', z: 16 }] };
+  /** a heavy single shot landing (Aimed Shot): a bright flash, a four-ray star, a spray along the shot */
+  R.heavy_shot = {
+    particles: [{ count: 14, shape: 'cone', spread: 0.5, speed: [0.002, 0.006], z: [10, 18], life: [180, 380], size: [1.5, 3], palette: 'auto' }],
+    shapes: [
+      { kind: 'flash', radius: 1, life: 170, palette: 'auto', z: 14 },
+      { kind: 'star', rays: 4, rot: 0, radius: 0.9, w: 2, life: 200, palette: 'auto', z: 14 },
+      { kind: 'spike', len: 24, w: 3, life: 120, palette: 'auto' },
+    ],
+    light: { radius: 2.5, intensity: 0.9, life: 200 },
+    shake: 0.22,
+  };
   R.monster_hit = {
     particles: [{ count: 6, shape: 'cone', speed: [0.0012, 0.003], life: [200, 380], size: [1.4, 2.6], palette: 'blood' }],
     shapes: [{ kind: 'arc', half: 0.8, radius: 0.45, width: 3, life: 120, palette: 'blood' }],
@@ -103,7 +115,7 @@
   R.flair_light = {
     particles: [{ count: 6, shape: 'ring', speed: [0.003, 0.006], life: [80, 200], size: [1, 2], palette: 'storm' }],
     shapes: [{ kind: 'fork', forks: 2, radius: 0.7, life: 130, palette: 'storm', z: 16 }],
-    light: { radius: 1.4, color: '#9fb0ff', intensity: 0.5, life: 100 },
+    light: { radius: 1.4, color: Palette.SCHOOL.storm.mid, intensity: 0.5, life: 100 },
   };
   R.flair_pois = {
     particles: [{ count: 4, shape: 'ring', speed: [0.0004, 0.001], vz: [0.005, 0.01], g: 0.0002, life: [400, 700], size: [1.5, 2.5], palette: 'poison' }],
@@ -130,20 +142,24 @@
   R.status_stunned = { shapes: [{ kind: 'star', rays: 5, rot: 0, radius: 0.45, life: 220, palette: 'bone', z: 30 }] };
 
   // ---- deaths, levels, world ----
+  // a kill: a burst at the body plus a spray thrown along the killing blow (wire.js passes its direction)
   R.death = {
-    particles: [{ count: 12, shape: 'ring', speed: [0.0008, 0.0025], z: [4, 18], vz: [0.02, 0.05], g: -0.00002, life: [350, 650], size: [1.4, 3], palette: 'auto' }],
-    shapes: [{ kind: 'flash', radius: 0.9, life: 150, palette: 'bone' }],
+    particles: [
+      { count: 12, shape: 'ring', speed: [0.0008, 0.0025], z: [4, 18], vz: [0.02, 0.05], g: -0.00002, life: [350, 650], size: [1.4, 3], palette: 'auto' },
+      { count: 9, shape: 'cone', spread: 0.45, speed: [0.003, 0.006], z: [8, 16], vz: [0.02, 0.05], g: 0.0003, life: [220, 420], size: [1.6, 3], palette: 'auto' },
+    ],
+    shapes: [{ kind: 'flash', radius: 1.1, life: 160, palette: 'bone' }, { kind: 'ring', from: 0.2, to: 1.0, life: 220, palette: 'bone' }],
   };
   R.death_elite = {
     particles: [{ count: 26, shape: 'ring', speed: [0.0015, 0.004], z: [4, 24], vz: [0.03, 0.07], g: -0.00002, life: [450, 850], size: [1.6, 3.4], palette: 'auto' }],
     shapes: [{ kind: 'flash', radius: 1.5, life: 220, palette: 'bone' }, { kind: 'ring', from: 0.2, to: 2.0, life: 420, palette: 'bone' },
       { kind: 'column', height: 90, width: 12, life: 420, palette: 'auto', blend: 'lighter' }],
-    light: { radius: 3, color: '#e8d8b0', intensity: 0.8, life: 400 }, shake: 0.3,
+    light: { radius: 3, color: Palette.SCHOOL.bone.mid, intensity: 0.8, life: 400 }, shake: 0.3,
   };
   R.levelup = {
     particles: [{ count: 40, shape: 'ring', radius: 0.6, speed: [0.0003, 0.001], z: [0, 6], vz: [0.04, 0.09], g: -0.00002, life: [700, 1200], size: [1.5, 3], palette: 'holy' }],
     shapes: [{ kind: 'column', height: 140, width: 18, life: 900, palette: 'holy' }, { kind: 'ring', from: 0.2, to: 2.4, life: 600, palette: 'holy' }],
-    light: { radius: 4, color: '#ffe38a', intensity: 1, life: 900 },
+    light: { radius: 4, color: Palette.SCHOOL.holy.mid, intensity: 1, life: 900 },
   };
   R.evade = {
     shapes: [{ kind: 'dash', life: 200, palette: 'dust' }],
@@ -153,7 +169,7 @@
   R.heal = {
     particles: [{ count: 12, shape: 'ring', radius: 0.5, speed: [0.0002, 0.0006], z: [0, 10], vz: [0.03, 0.06], g: -0.00003, life: [550, 900], size: [1.5, 2.5], palette: 'life' }],
     shapes: [{ kind: 'ring', from: 0.7, to: 0.3, life: 360, palette: 'life' }, { kind: 'flash', radius: 0.6, life: 260, palette: 'life', z: 18 }],
-    light: { radius: 2, color: '#6ad06a', intensity: 0.5, life: 400 },
+    light: { radius: 2, color: Palette.MEANING.good, intensity: 0.5, life: 400 },
   };
   R.portal = {
     particles: [{ count: 30, shape: 'ring', radius: 0.8, speed: [0.0004, 0.0012], vz: [0.03, 0.07], g: -0.00002, life: [600, 1100], size: [1.5, 3], palette: 'portal' }],
@@ -162,12 +178,12 @@
       { kind: 'ring', from: 0.2, to: 1.6, life: 500, delay: 120, palette: 'portal' },
       { kind: 'ring', from: 0.2, to: 2.0, life: 600, delay: 240, palette: 'portal' },
     ],
-    light: { radius: 3, color: '#b06aff', intensity: 1, life: 800 },
+    light: { radius: 3, color: Palette.MEANING.souls, intensity: 1, life: 800 },
   };
   R.seal_break = {
     particles: [{ count: 40, shape: 'ring', speed: [0.002, 0.006], z: [4, 30], vz: [0.03, 0.08], life: [500, 900], size: [1.5, 3.5], palette: 'seal' }],
     shapes: [{ kind: 'column', height: 220, width: 14, life: 1100, palette: 'seal' }, { kind: 'ring', from: 0.3, to: 3, life: 600, palette: 'seal' }],
-    light: { radius: 5, color: '#ff4030', intensity: 1, life: 1000 }, shake: 0.3,
+    light: { radius: 5, color: Palette.SCHOOL.seal.mid, intensity: 1, life: 1000 }, shake: 0.3,
   };
   R.zone_hit = {
     particles: [{ count: 8, shape: 'ring', radius: 0.5, speed: [0.001, 0.003], z: [2, 12], vz: [0.03, 0.06], life: [260, 520], size: [1.5, 3.2], palette: 'auto' }],

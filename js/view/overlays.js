@@ -60,7 +60,7 @@
     const p = world.player, it = p.intent;
     if (!it || it.kind !== 'move' || !it.path || !it.path.length) return;
     const [x, y] = it.path[it.path.length - 1];
-    const k = 0.5 + 0.15 * Math.sin((t / 600) * Math.PI * 2);   // the attention beat
+    const k = 0.35 + 0.3 * BD.view.fx.beat('attention', t);
     diamondPath(ctx, x, y, k);
     ctx.strokeStyle = BD.view.palette.rgba(BD.view.palette.MEANING.friendly, 0.7);
     ctx.lineWidth = iso.view.dpr;

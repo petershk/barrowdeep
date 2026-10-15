@@ -8,7 +8,7 @@
   const HW = 16, HH = 8;          // half tile width / height in art px
   const WALL_H = 19;              // WH 38 / 2
   const ZOOMS = [1.0, 1.5, 2.0, 2.5];
-  const AUTO_MIN_TILES = 14;      // 'auto' zoom: zoom in while this many tiles still fit across the window
+  const AUTO_MIN_TILES = 11;      // 'auto' zoom: zoom in while this many tiles still fit across the window
 
   /** the zoom 'auto' picks for a window this many CSS px wide: 1.5×, or closer on wide screens */
   function autoZoom(cssWidth) {

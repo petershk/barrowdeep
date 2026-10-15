@@ -174,6 +174,18 @@
     return Hits.applyEffects(world, ctx, effects || ab.effects, targets);
   }
 
+  /** the effects of chain hop i: a cycle (Prismatic Arc), else the first hit's or the jumps' list */
+  function chainEffects(ab, i, turn) {
+    if (ab.jumpCycle) return ab.jumpCycle[(i + turn) % ab.jumpCycle.length];
+    return i === 0 ? ab.effects : ab.jumpEffects || ab.effects;
+  }
+  /** a cycling chain starts one element later on each cast, so repeat casts on a pack mix elements on every enemy */
+  function cycleTurn(caster, ab) {
+    if (!ab.jumpCycle) return 0;
+    caster.cycleTurn = ((caster.cycleTurn || 0) + 1) % ab.jumpCycle.length;
+    return caster.cycleTurn;
+  }
+
   function chain(world, ctx, ab, first, jumps, range) {
     if (!first) return [];
     const hit = new Set();
@@ -181,11 +193,12 @@
     let cur = first, from = ctx.caster, mult = 1;
     const falloff = (ab.delivery && ab.delivery.falloff) || CHAIN_FALLOFF;
     const allowRepeat = !!(ab.delivery && ab.delivery.repeat);
+    const turn = cycleTurn(ctx.caster, ab);
     for (let i = 0; i <= jumps && cur; i++) {
       world.events.push({ type: 'chain', srcId: ctx.caster.id, fromX: from.x, fromY: from.y, x: cur.x, y: cur.y, abilityId: ab.id, i });
       ctx.packetMult = mult;
       ctx.centerId = cur.id;
-      results.push(...Hits.applyEffects(world, ctx, i === 0 ? ab.effects : ab.jumpEffects || ab.effects, [cur]));
+      results.push(...Hits.applyEffects(world, ctx, chainEffects(ab, i, turn), [cur]));
       hit.add(cur.id);
       mult *= 1 - falloff;
       from = cur;

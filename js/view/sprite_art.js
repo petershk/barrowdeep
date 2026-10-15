@@ -6,16 +6,16 @@
   BD.view.art = BD.view.art || {};
   const Art = BD.view.art;
   Art.fighter = {
-    pal: {S:"#a49c8e", s:"#9a2a20", d:"#2e2a28", R:"#b23a2c", r:"#74221a", G:"#d2a73f", g:"#8f6f26", W:"#f1f3f6", b:"#4a3015"},
+    pal: {S:"#a49c8e", s:"#9a2a20", d:"#2e2a28", x:"#2e2a28", R:"#b23a2c", r:"#74221a", G:"#d2a73f", g:"#8f6f26", W:"#f1f3f6", b:"#4a3015"},
     frames: { idle: [[
       '......KRRK......',
       '.....KRrrRK.....',
       '....KKSSSSK.....',
       '....KSSSSSSK....',
       '...KSSSSSSSK....',
-      '...KSddddddK....',
-      '...KSSSdSSSK....',
-      '....KSSdSSK.....',
+      '...KSxxxxxxK....',
+      '...KSSSxSSSK....',
+      '....KSSxSSK.....',
       '.....KssssK.....',
       '..KKKSssssSKKK..',
       '.KRRrKssssKKGK..',

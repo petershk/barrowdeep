@@ -6,7 +6,7 @@
 
   const Grid = BD.core.grid;
   const { T, WALK } = BD.data.tiles;
-  let el = null, cv = null, big = false, buf = null, bufKey = '', lastVersion = -1;
+  let el = null, cv = null, gold = null, hint = null, big = false, buf = null, bufKey = '', lastVersion = -1;
   const Palette = BD.view.palette;
   const M = Palette.MEANING;
   /** enemy dot colour by rank (ART_DIRECTION.md: champion = magic blue, keeper/unique = rare gold, boss red) */
@@ -15,7 +15,9 @@
   function mount() {
     const { h, root } = BD.ui.dom;
     cv = /** @type {HTMLCanvasElement} */ (h('canvas'));
-    el = h('div.minimap', [cv, h('div.quest')]);
+    hint = h('div.mm-hint');
+    gold = h('div.mm-gold');
+    el = h('div.minimap', [cv, hint, gold]);
     root().appendChild(el);
   }
   function toggle() {
@@ -28,6 +30,8 @@
     if (!el) mount();
     const f = world.floor;
     if (!f) return;
+    BD.ui.dom.setText(gold, world.player.gold.toLocaleString('en-US') + ' gold');
+    BD.ui.dom.setText(hint, big ? '' : BD.ui.hudOrbs.keyLabel('map') + ' · full map');
     const size = big ? Math.min(window.innerWidth, window.innerHeight) * 0.8 : 200;
     if (cv.width !== Math.round(size)) {
       cv.width = Math.round(size);
@@ -118,9 +122,9 @@
     g.putImageData(img, 0, 0);
   }
 
+  /** kept for scripts and autotests: the quest line now lives in the tracker (js/ui/tracker.js) */
   function setQuest(text) {
-    if (!el) mount();
-    BD.ui.dom.setText(el.querySelector('.quest'), text);
+    if (BD.ui.tracker) BD.ui.tracker.setQuest(text);
   }
 
   BD.ui.minimap = { frame, toggle, setQuest, get big() { return big; } };

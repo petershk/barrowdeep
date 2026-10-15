@@ -39,11 +39,9 @@
     const run = BD.sim.run;
     switch (t) {
       case T.STAIRS_DOWN:
+      case T.STAIRS_SEALED:
         if (run) run.descend(world);
         return true;
-      case T.STAIRS_SEALED:
-        deny(world, 'stairs_sealed');
-        return false;
       case T.STAIRS_UP:
         if (run) run.ascend(world);
         return true;

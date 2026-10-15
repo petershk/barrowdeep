@@ -77,6 +77,16 @@
     return true;
   }, { ui: true });
 
+  /** classes with exclusive keystones: the keystone already learned that rules this one out */
+  function rivalKeystone(p, ab) {
+    if (ab.tier !== SkillBalance.keystoneTier || !(SkillBalance.exclusiveKeystones || []).includes(p.cls)) return null;
+    for (const id in p.skills) {
+      const o = BD.data.skills[id];
+      if (o && o.id !== ab.id && o.tier === SkillBalance.keystoneTier && p.skills[id]) return o;
+    }
+    return null;
+  }
+
   /** can the player put a point into this skill? (tier level gates, keystone prerequisite) */
   function canLearn(world, p, id) {
     const ab = BD.data.skills[id];
@@ -90,6 +100,8 @@
       const t3 = Object.values(BD.data.skills).find((s) => s.cls === p.cls && s.branch === ab.branch && s.tier === 3);
       if (!t3 || !p.skills[t3.id]) return { ok: false, why: 'Requires a point in ' + (t3 ? t3.name : 'tier 3') };
     }
+    const rival = rivalKeystone(p, ab);
+    if (rival) return { ok: false, why: 'Attuned to ' + rival.name + ' (one keystone per hero)' };
     if (!p.unspent.skill) return { ok: false, why: 'No skill points' };
     return { ok: true };
   }
@@ -113,6 +125,19 @@
     world.events.push({ type: 'skill.learn', id: c.id, rank: p.skills[c.id] });
     return true;
   }, { ui: true });
+  /** pick a skill's Form (free to change, like a rune); c.form null clears it */
+  Commands.register('SetForm', (world, c) => {
+    const p = world.player;
+    const ab = BD.data.skills[c.id];
+    if (!ab || !ab.forms || (p.skills[c.id] || 0) < SkillBalance.formRank) return false;
+    if (c.form && !ab.forms.some((f) => f.id === c.form)) return false;
+    p.forms = p.forms || {};
+    if (c.form) p.forms[c.id] = c.form;
+    else delete p.forms[c.id];
+    BD.sim.stats.bump(p);
+    world.events.push({ type: 'skill.form', id: c.id, form: c.form || null });
+    return true;
+  }, { ui: true });
   Commands.register('SetBar', (world, c) => {
     const p = world.player;
     if (c.id && !p.skills[c.id]) return false;
@@ -124,5 +149,5 @@
     return true;
   }, { ui: true });
 
-  BD.sim.progression = { xpToNext, xpFor, gainXp, canLearn };
+  BD.sim.progression = { xpToNext, xpFor, gainXp, canLearn, rivalKeystone };
 })(globalThis.BD);

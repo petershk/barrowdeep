@@ -17,17 +17,22 @@
     ],
     shake: 0.25,
   };
+  // a ground slam: grit thrown low, rocks arcing out and falling back, dust left hanging; earth tones only
   FxRecipes.quake = {
     particles: [{
       count: 26, shape: 'ring', radius: 1.5, speed: [0.001, 0.003], z: [0, 6],
       vz: [0.03, 0.07], life: [400, 700], size: [2, 4], palette: 'dust',
+    }, {
+      count: 16, shape: 'ring', radius: 0.8, speed: [0.002, 0.005], z: [0, 4],
+      vz: [0.07, 0.13], g: 0.0005, life: [550, 850], size: [2.5, 4.5], color: 'edge', palette: 'dust',
     }],
     shapes: [
+      { kind: 'disc', radius: 1.3, life: 500, palette: 'dust', alpha: 0.4 },
       { kind: 'ring', from: 0.3, to: 2.6, life: 380, palette: 'dust' },
-      { kind: 'ring', from: 0.3, to: 3.4, life: 460, delay: 90, palette: 'bone' },
-      { kind: 'puff', n: 7, radius: 1.4, size: 9, life: 700, palette: 'dust', alpha: 0.5, z: 2 },
+      { kind: 'ring', from: 0.3, to: 3.4, life: 460, delay: 90, palette: 'dust' },
+      { kind: 'puff', n: 10, radius: 1.6, size: 11, life: 900, palette: 'dust', alpha: 0.55, z: 2 },
     ],
-    light: { radius: 3, color: '#e8d8b0', intensity: 0.6, life: 220 }, shake: 0.5,
+    light: { radius: 3, color: Palette.SCHOOL.bone.mid, intensity: 0.6, life: 220 }, shake: 0.5,
   };
   // Whirlwind ticks every 400 ms; each spin outlives its tick so a held channel reads as one unbroken blur
   FxRecipes.spin = {
@@ -58,9 +63,17 @@
     ],
   };
   FxRecipes.ki = {
-    particles: [{ count: 10, shape: 'cone', spread: 0.5, speed: [0.002, 0.005], life: [160, 320], size: [1.2, 2.6], palette: 'ki' }],
-    shapes: [{ kind: 'spike', len: 20, w: 3, life: 110, palette: 'ki' }, { kind: 'star', rays: 6, radius: 0.6, life: 160, palette: 'ki' }],
-    shake: 0.12,
+    particles: [{
+      count: 16, shape: 'cone', spread: 0.6, speed: [0.002, 0.006], z: [10, 18], life: [180, 360], size: [1.5, 3], palette: 'ki',
+    }],
+    shapes: [
+      { kind: 'flash', radius: 0.9, life: 140, palette: 'ki', z: 14 },
+      { kind: 'spike', len: 26, w: 4, life: 120, palette: 'ki' },
+      { kind: 'star', rays: 6, radius: 0.85, w: 2, life: 200, palette: 'ki', z: 14 },
+      { kind: 'ring', from: 0.2, to: 1.0, life: 200, palette: 'ki' },
+    ],
+    light: { radius: 2, intensity: 0.7, life: 160 },
+    shake: 0.16,
   };
   FxRecipes.nova_fire = {
     particles: [{
@@ -72,7 +85,7 @@
       { kind: 'tongues', n: 9, radius: 1.6, height: 26, w: 5, life: 520, palette: 'fire' },
       { kind: 'flash', radius: 1.6, life: 180, palette: 'fire' },
     ],
-    light: { radius: 3.5, color: '#ff8a2a', intensity: 1, life: 300 },
+    light: { radius: 3.5, color: Palette.SCHOOL.fire.mid, intensity: 1, life: 300 },
     shake: 0.3,
   };
   FxRecipes.nova_cold = {
@@ -86,7 +99,7 @@
       { kind: 'crystal', rays: 6, radius: 1.8, life: 700, palette: 'cold' },
       { kind: 'flash', radius: 1.2, life: 160, palette: 'cold' },
     ],
-    light: { radius: 3.5, color: '#9ee4ff', intensity: 0.9, life: 320 },
+    light: { radius: 3.5, color: Palette.SCHOOL.cold.mid, intensity: 0.9, life: 320 },
     shake: 0.2,
   };
   FxRecipes.nova_light = {
@@ -96,16 +109,20 @@
       { kind: 'ring', from: 0.3, to: 2.2, life: 200, palette: 'storm' },
       { kind: 'flash', radius: 1.4, life: 120, palette: 'storm' },
     ],
-    light: { radius: 3, color: '#9fb0ff', intensity: 1, life: 200 },
+    light: { radius: 3, color: Palette.SCHOOL.storm.mid, intensity: 1, life: 200 },
   };
   FxRecipes.explosion = {
     particles: [{
-      count: 20, shape: 'ring', radius: 0.5, speed: [0.002, 0.006], z: [4, 16],
+      count: 26, shape: 'ring', radius: 0.5, speed: [0.002, 0.006], z: [4, 16],
       vz: [0.03, 0.07], life: [300, 650], size: [2, 4], palette: 'auto',
     }],
-    shapes: [{ kind: 'flash', radius: 1.4, life: 200, palette: 'auto' }, { kind: 'ring', from: 0.3, to: 1.6, life: 300, palette: 'auto' }],
-    light: { radius: 3, intensity: 0.9, life: 260 },
-    shake: 0.25,
+    shapes: [
+      { kind: 'disc', radius: 1.2, life: 240, palette: 'auto', alpha: 0.5 },
+      { kind: 'flash', radius: 1.8, life: 220, palette: 'auto' },
+      { kind: 'ring', from: 0.3, to: 1.8, life: 320, palette: 'auto' },
+    ],
+    light: { radius: 3.5, intensity: 1.1, life: 300 },
+    shake: 0.3,
   };
   FxRecipes.meteor_hit = {
     particles: [{
@@ -136,7 +153,7 @@
       { kind: 'column', height: 180, width: 16, life: 600, palette: 'holy' },
       { kind: 'ring', from: 0.3, to: 1.8, life: 400, palette: 'holy' },
     ],
-    light: { radius: 3, color: '#ffe38a', intensity: 1, life: 600 },
+    light: { radius: 3, color: Palette.SCHOOL.holy.mid, intensity: 1, life: 600 },
   };
   FxRecipes.sky_spear = {
     shapes: [
@@ -145,7 +162,7 @@
       { kind: 'ring', from: 0.3, to: 2.2, life: 300, palette: 'storm' },
       { kind: 'flash', radius: 1.6, life: 160, palette: 'storm' },
     ],
-    light: { radius: 4, color: '#9fb0ff', intensity: 1.2, life: 260 },
+    light: { radius: 4, color: Palette.SCHOOL.storm.mid, intensity: 1.2, life: 260 },
     shake: 0.4,
   };
   FxRecipes.arrow_rain = {
@@ -154,16 +171,17 @@
       vz: [-0.2, -0.15], g: 0.0008, life: [300, 450], size: [1, 2], palette: 'steel',
     }],
   };
-  /** a wind-up: motes converge on the caster's hands and a ring tightens at their feet */
-  FxRecipes.cast_glow = {
+  /** the end of a hero's charge-up: the gathered light leaves the hands */
+  FxRecipes.cast_release = {
     particles: [{
-      count: 8, shape: 'ring', radius: 0.5, speed: [0.0003, 0.0008], z: [14, 26],
-      vz: [0.01, 0.03], g: -0.00002, life: [250, 420], size: [1.5, 2.5], palette: 'auto',
+      count: 9, shape: 'ring', radius: 0.15, speed: [0.003, 0.006], z: [14, 22],
+      vz: [0, 0.02], g: 0, life: [140, 260], size: [1.5, 2.5], palette: 'auto',
     }],
     shapes: [
-      { kind: 'ring', from: 0.9, to: 0.35, life: 280, palette: 'auto' },
-      { kind: 'flash', radius: 0.45, life: 260, palette: 'auto', z: 22 },
+      { kind: 'flash', radius: 0.7, life: 150, palette: 'auto', z: 18 },
+      { kind: 'ring', from: 0.3, to: 1.1, life: 200, palette: 'auto' },
     ],
+    light: { radius: 2.5, intensity: 0.8, life: 160 },
   };
   FxRecipes.corpse_burst = {
     particles: [{
@@ -181,16 +199,7 @@
     shapes: [{ kind: 'puff', n: 4, radius: 0.4, size: 6, life: 600, palette: 'poison' }],
   };
 
-  // skills with a real wind-up (castMs ≥ 200) glow while they cast; a few short ones too
-  const ON_CAST = {
-    aimed_shot: 'cast_glow', meteor: 'cast_glow', sky_spear: 'cast_glow', chain_lightning: 'cast_glow', earthshaker: 'cast_glow',
-  };
   const SCHOOL_OF = (id) => (BD.data.skills[id] && BD.data.skills[id].school) || 'steel';
-  function castRecipe(id) {
-    if (ON_CAST[id]) return ON_CAST[id];
-    const sk = BD.data.skills[id];
-    return sk && sk.castMs >= 200 ? 'cast_glow' : null;
-  }
   const ON_IMPACT = {
     bash: 'impact_mace', whirlwind: 'spin', berserk_strike: 'berserk', war_cry: 'shout', earthshaker: 'quake',
     brace: 'brace', second_wind: 'heal', tiger_strike: 'ki', dragon_talon: 'ki', smoke_bomb: 'smoke',
@@ -210,11 +219,51 @@
   // element motif layered on generic zone hits
   const MOTIF = { fire: 'impact_fire', lava: 'impact_fire', cold: 'impact_cold', storm: 'impact_storm', poison: 'impact_poison' };
 
+  // ---- the hero's charge-up ----
+  // A skill's wind-up builds in its school colour for its whole length: motes drawn in to the hands, and a
+  // glow and rim that grow (render.js draws those from chargeOf). A spell or shot then flashes on release;
+  // a melee skill's release is its impact. A cancelled cast just stops.
+  const CHARGE_MIN_MS = 120;
+  const charge = { ab: null, total: 0, school: 'steel', melee: false, k: 0, moteMs: 0 };
   function cast(world, ev) {
-    if (ev.abilityId === 'attack') return;
-    const r = castRecipe(ev.abilityId);
-    if (r) Fx().play(r, ev.x, ev.y, { school: SCHOOL_OF(ev.abilityId) });
+    if (ev.abilityId === 'attack' || ev.id !== world.player.id || !(ev.windupMs >= CHARGE_MIN_MS)) return;
+    const sk = BD.data.skills[ev.abilityId];
+    charge.ab = ev.abilityId;
+    charge.total = ev.windupMs;
+    charge.school = SCHOOL_OF(ev.abilityId);
+    charge.melee = !!(sk && sk.tags && sk.tags.indexOf('melee') >= 0);
+    charge.k = 0;
+    charge.moteMs = 0;
   }
+  /** one mote pulled in from about a tile out, arriving at the hands as it dies */
+  function chargeMote(p) {
+    const pal = Palette.SCHOOL[charge.school] || Palette.SCHOOL.steel;
+    const a = Math.random() * Math.PI * 2, r = 0.5 + Math.random() * 0.4, life = 160 + Math.random() * 80;
+    Fx().spark(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r, {
+      vx: -Math.cos(a) * r / life, vy: -Math.sin(a) * r / life, z: 10 + Math.random() * 16, vz: 0, g: 0,
+      life, size: 1.5 + charge.k * 1.5, color: Math.random() < 0.6 ? pal.mid : pal.core,
+      blend: Palette.SCHOOL_NORMAL_BLEND[charge.school] ? 'normal' : 'lighter',
+    });
+  }
+  /** per frame (wire.js): feed motes while the wind-up runs, flash once when it lets go */
+  function chargeTick(world, ms) {
+    if (!charge.ab) return;
+    const p = world.player, a = p.attack;
+    if (a && a.abilityId === charge.ab && a.phase === 'windup') {
+      charge.k = Math.max(0, Math.min(1, 1 - a.remaining / charge.total));
+      charge.moteMs -= ms;
+      while (charge.moteMs <= 0) {
+        charge.moteMs += charge.melee ? 90 : 40 - 20 * charge.k;
+        chargeMote(p);
+      }
+      return;
+    }
+    if (!charge.melee && !p.dead) Fx().play('cast_release', p.x, p.y, { school: charge.school });
+    charge.ab = null;
+  }
+  function cancelCharge() { charge.ab = null; }
+  /** the running charge-up for an entity, or null: { school, k (0..1), melee } */
+  function chargeOf(e) { return charge.ab && e.kind === 'player' && e.attack && e.attack.abilityId === charge.ab ? charge : null; }
   function impact(world, ev) {
     const r = ON_IMPACT[ev.abilityId];
     if (!r) return;
@@ -247,7 +296,8 @@
 
   /** the one visual for a zone resolving (wire.js calls this; nothing else plays zone.resolve) */
   function zoneResolve(ev) {
-    if (ev.kind === 'charge_mark') return;
+    // a charge mark and the hero's own wind-up marker resolve into nothing: the skill plays its own impact
+    if (ev.kind === 'charge_mark' || ev.kind === 'self_tele') return;
     const school = KIND_SCHOOL[ev.kind] || ev.school || 'blood';
     const cx = ev.cx != null ? ev.cx : ev.tiles[0][0];
     const cy = ev.cy != null ? ev.cy : ev.tiles[0][1];
@@ -270,6 +320,8 @@
     return zd && zd.school ? zd.school : 'steel';
   }
   function wire(bus) {
+    bus.on('ability.cancel', cancelCharge);
+    bus.on('floor.enter', cancelCharge);
     bus.on('lob', (ev) => Fx().shape({
       kind: 'lob', x: ev.fromX, y: ev.fromY, x1: ev.x, y1: ev.y, life: ev.ms || 600,
       pal: Palette.SCHOOL[lobSchool(ev)] || Palette.SCHOOL.steel, big: ev.kind === 'meteor',
@@ -284,6 +336,10 @@
         Fx().play('arrow_rain', ev.cx, ev.cy);
       } else if (ev.abilityId === 'blizzard') {
         Fx().play('flair_cold', ev.cx + Math.random() * 2 - 1, ev.cy + Math.random() * 2 - 1, { scale: 1.5 });
+      } else if (ev.abilityId === 'chain_lightning') {
+        // Thunderhead: a bolt drops from straight above (two tiles up-screen is (−2, −2) in tile space)
+        Fx().shape({ kind: 'beam', x: ev.cx - 2.5, y: ev.cy - 2.5, x1: ev.cx, y1: ev.cy, life: 160, pal: Palette.SCHOOL.storm });
+        Fx().play('nova_light', ev.cx, ev.cy, { scale: 0.45 });
       }
     });
     bus.on('corpse.explode', (ev) => Fx().play('corpse_burst', ev.x, ev.y));
@@ -303,5 +359,5 @@
     });
   }
 
-  BD.view.skillFx = { cast, impact, explode, land, zoneResolve, wire };
+  BD.view.skillFx = { cast, chargeTick, cancelCharge, chargeOf, impact, explode, land, zoneResolve, wire };
 })(globalThis.BD);

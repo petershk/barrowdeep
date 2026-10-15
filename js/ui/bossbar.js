@@ -9,7 +9,8 @@
 
   function mount() {
     bar = h('div.bossbar.hidden', [h('div.bb-name'), h('div.bb-track', [h('div.bb-fill'), h('div.bb-notches')])]);
-    plate = h('div.nameplate.hidden', [h('div.np-name'), h('div.np-sub'), h('div.np-track', [h('div.np-fill')]), h('div.np-mods')]);
+    const track = h('div.np-track', [h('div.np-trail'), h('div.np-fill')]);
+    plate = h('div.nameplate.hidden', [h('div.np-name'), h('div.np-sub'), track, h('div.np-mods')]);
     root().appendChild(bar);
     root().appendChild(plate);
   }
@@ -59,7 +60,14 @@
     setText(plate.querySelector('.np-name'), t.name || (t.rank === 'champion' ? d.name + ' Champion' : d.name));
     plate.querySelector('.np-name').className = 'np-name rank-' + t.rank;
     setText(plate.querySelector('.np-sub'), [rankTxt, 'level ' + (t.al || f.al), d.family].filter(Boolean).join(' · '));
-    plate.querySelector('.np-fill').style.width = Math.max(0, (t.hp / max) * 100).toFixed(1) + '%';
+    const w = Math.max(0, (t.hp / max) * 100).toFixed(1) + '%';
+    plate.querySelector('.np-fill').style.width = w;
+    // the pale trail lags behind the fill, so the chunk you just took off stays visible a moment
+    const trail = /** @type {HTMLElement} */ (plate.querySelector('.np-trail'));
+    if (plate.dataset.target !== String(t.id)) trail.style.transition = 'none';
+    else trail.style.transition = '';
+    trail.style.width = w;
+    plate.dataset.target = String(t.id);
     const mods = (t.mods || []).map((id) => BD.data.championMods[id].name);
     const sts = t.statuses.filter((s) => !BD.data.statuses[s.id].hiddenChip).map((s) => BD.data.statuses[s.id].name);
     setText(plate.querySelector('.np-mods'), mods.concat(sts).join(' · '));

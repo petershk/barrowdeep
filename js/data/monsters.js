@@ -26,13 +26,13 @@
   // ---------------- Act I — Church ----------------
   mon('gutterkin', { name: 'Gutterkin', act: 1, family: 'human', role: 'swarmer', hp: 10, dmg: [1, 3], attackMs: 1200, moveMs: 330, xp: 4,
     sprite: 'imp', pal: { R: '#8a7a5a', r: '#5e5038', Y: '#e0d070' },
-    behaviours: [{ id: 'coward', fleePct: 0.25, routOn: 'gutterkin_bonecaller' }, { id: 'melee' }] });
+    behaviours: [{ id: 'coward', fleePct: 0, routOn: 'gutterkin_bonecaller' }, { id: 'melee' }] });
   mon('gutterkin_bonecaller', { name: 'Gutterkin Bonecaller', act: 1, family: 'human', role: 'support', hp: 16, dmg: [2, 4], attackMs: 2000, moveMs: 380, xp: 12,
     sprite: 'imp', pal: { R: '#5a3a7a', r: '#3a2450', Y: '#ff9a40' }, element: 'fire',
     behaviours: [{ id: 'revive', radius: 6, cdMs: 4000, maxRaises: 2, raisedHp: 0.5 }, { id: 'kite', min: 3, max: 6 }, { id: 'shoot', range: 6, projectile: 'fire_bolt' }] });
-  mon('spinehog', { name: 'Spinehog', act: 1, family: 'beast', role: 'artillery', hp: 14, dmg: [2, 4], attackMs: 1800, moveMs: 300, xp: 8,
+  mon('spinehog', { name: 'Spinehog', act: 1, family: 'beast', role: 'artillery', hp: 14, dmg: [2, 4], attackMs: 1800, moveMs: 360, xp: 8,
     sprite: 'spider', pal: { p: '#5a4a3a', P: '#8a7a5a', R: '#e0c070' }, aggro: { notice: 8, leash: 14 },
-    behaviours: [{ id: 'kite', min: 3, max: 5 }, { id: 'shoot', range: 6, projectile: 'quill' }] });
+    behaviours: [{ id: 'kite', min: 2, max: 5 }, { id: 'shoot', range: 6, projectile: 'quill' }] });
   mon('rotting_zombie', { name: 'Rotting Zombie', act: 1, family: 'undead', role: 'tank', hp: 34, dmg: [3, 6], attackMs: 1500, moveMs: 650, xp: 10, dr: 10,
     sprite: 'zombie', onHit: [{ status: 'slowed', chance: 0.2, durMs: 1500, mag: 0.3 }],
     behaviours: [{ id: 'fearless' }, { id: 'melee' }] });

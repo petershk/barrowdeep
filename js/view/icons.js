@@ -17,7 +17,7 @@
     warlord: ['crown', 'gold'],
     brace: ['shield', 'steel'], secondwind: ['heart', 'life'], leap: ['leap', 'dust'], juggernaut: ['anchor', 'steel'],
     tiger_strike: ['fist', 'ki'], dragon_talon: ['kick', 'ki'], phoenix_strike: ['phoenix', 'fire'], endless_flurry: ['flurry', 'ki'],
-    fire_blast: ['bomb', 'fire'], lightning_sentry: ['tower', 'storm'], death_sentry: ['skull', 'shadow'], clockwork_mind: ['gear', 'gold'],
+    fire_blast: ['bomb', 'fire'], lightning_sentry: ['tower', 'storm'], death_sentry: ['skull', 'fire'], clockwork_mind: ['gear', 'gold'],
     shadowstep: ['step', 'shadow'], smoke_bomb: ['cloud', 'shadow'], shadow_master: ['twin', 'shadow'], unseen: ['eye', 'shadow'],
     firebolt: ['bolt', 'fire'], fireball: ['orb', 'fire'], meteor: ['meteor', 'fire'], pyre: ['flame', 'fire'],
     ice_shard: ['shards', 'cold'], frost_nova: ['nova', 'cold'], blizzard: ['snow', 'cold'], shatter: ['crack', 'cold'],
@@ -330,8 +330,8 @@
   /** @returns {string} data URL of a 24×24 pixel-art icon */
   function url(id) {
     if (cache.has(id)) return cache.get(id);
-    const [glyph, school] = ICONS[id] || ['', 'general'];
-    const sch = Palette.SCHOOL[school] || Palette.SCHOOL.general;
+    const [glyph, school] = ICONS[id] || ['', 'bone'];
+    const sch = Palette.SCHOOL[school] || Palette.SCHOOL.bone;
     const shadow = Palette.shade(sch.mid, 0.62);
     const mask = glyphMask(glyph);
     const ink = (x, y) => x >= 0 && y >= 0 && x < SIZE && y < SIZE && mask[y * SIZE + x] === 1;

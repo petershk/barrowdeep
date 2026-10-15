@@ -74,9 +74,24 @@
   });
 
   // ---------------- Dragon Talon ----------------
+  reg('dragon_talon.before', (world, p, ab, rank, { a }) => {
+    if (!ab.dragonFlight || !a || a.targetId == null) return;
+    const tgt = Entities.get(world, a.targetId);
+    if (!tgt || dead(tgt)) return;
+    const spot = BD.sim.targeting.behind(world, tgt) || Effects.landingSpot(world, p, tgt.x, tgt.y);
+    if (spot && (spot.x !== p.x || spot.y !== p.y)) {
+      const fx = p.x, fy = p.y;
+      BD.sim.movement.displace(world, p, spot.x, spot.y, 1, 'blink');
+      p.move = null;
+      world.events.push({ type: 'blink', id: p.id, fromX: fx, fromY: fy, x: spot.x, y: spot.y, abilityId: 'dragon_talon' });
+      BD.sim.player.onStep(world, p);
+    }
+    ab.area = { shape: 'circle', radius: 1 };
+  });
   reg('dragon_talon.impact', (world, p, ab, rank, { ctx, results }) => {
     const n = ctx.combo;
-    if (n < 2) return;
+    if (ab.energyPerCombo && results.length && n > 0) Resources.gain(world, p, 'energy', ab.energyPerCombo * n);
+    if (ab.noKickBack || n < 2) return;
     for (const r of results) {
       if (dead(r.tgt)) continue;
       const kb = Hits.knockback(world, r.tgt, p.x, p.y, 2);
@@ -99,47 +114,71 @@
     if (ab.killRefund && landed.some((r) => dead(r.tgt))) Resources.addCombo(world, p, ab.killRefund);
   });
 
-  // ---------------- Phoenix Strike: the element follows the charges ----------------
+  // ---------------- Phoenix Strike: the element follows the charges (or Forms) ----------------
+  function phoenixNova(world, p, ab, ctx, eff, area, extraEffects) {
+    const tiles = Grid.shapeOffsets('circle', area).map(([dx, dy]) => [p.x + dx, p.y + dy]);
+    const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction);
+    ctx.aoe = true;
+    ctx.centerId = null;
+    world.events.push({
+      type: 'ability.explode', abilityId: 'phoenix_strike', x: p.x, y: p.y,
+      area: { shape: 'circle', radius: area }, element: eff.element, kind: 'nova',
+    });
+    const res = Hits.applyEffects(world, ctx, [eff].concat(extraEffects || []), targets);
+    if (ab.field) {
+      const zone = eff.element === 'cold' ? 'frost_patch' : 'burning_ground';
+      BD.sim.zones.ground(world, zone, tiles, { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(res) * 0.25 });
+    }
+    return res;
+  }
+  function phoenixChain(world, p, ab, ctx, x) {
+    const first = BD.sim.targeting.nearestEnemy(world, p.x, p.y, 5, p.faction, { los: true });
+    if (!first) return [];
+    const cab = Object.assign({}, ab, {
+      effects: [{ type: 'damage', source: 'weapon', mult: 1.2, element: 'light' }, { type: 'status', id: 'shocked', needsHit: true }],
+      delivery: { kind: 'chain', jumps: 4 + 2 * x, jumpRange: 3, falloff: 0 },
+    });
+    const baseMult = ctx.packetMult;
+    const res = Effects.chain(world, ctx, cab, first, 4 + 2 * x, 3);
+    ctx.packetMult = baseMult;
+    if (ab.field) {
+      for (const r of res) {
+        const o = { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(res) * 0.1 };
+        BD.sim.zones.ground(world, 'static_field', [[r.tgt.x, r.tgt.y]], o);
+      }
+    }
+    return res;
+  }
   reg('phoenix_strike.before', (world, p, ab, rank, { a, ctx }) => {
     const n = Math.min(3, ctx.combo);
     const x = ab.extra || 0;
     let results = [];
-    const run = (eff, area, extraEffects) => {
-      const tiles = Grid.shapeOffsets('circle', area).map(([dx, dy]) => [p.x + dx, p.y + dy]);
-      const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction);
-      ctx.aoe = true;
-      ctx.centerId = null;
-      world.events.push({
-        type: 'ability.explode', abilityId: 'phoenix_strike', x: p.x, y: p.y,
-        area: { shape: 'circle', radius: area }, element: eff.element, kind: 'nova',
-      });
-      results = Hits.applyEffects(world, ctx, [eff].concat(extraEffects || []), targets);
-      if (ab.field) {
-        const zone = eff.element === 'cold' ? 'frost_patch' : 'burning_ground';
-        BD.sim.zones.ground(world, zone, tiles, { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.25 });
-      }
-    };
-    if (n === 0) run({ type: 'damage', source: 'weapon', mult: 0.8, element: 'fire' }, 1 + x);
+    if (ab.supernova) {
+      const tiles = Grid.shapeOffsets('circle', 3).map(([dx, dy]) => [p.x + dx, p.y + dy]);
+      for (const e of BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction)) Hits.pull(world, e, p.x, p.y, 1);
+      const extra = [
+        { type: 'status', id: 'burning', needsHit: true },
+        { type: 'status', id: 'shocked', needsHit: true },
+        { type: 'status', id: 'stunned', durMs: 1000 },
+      ];
+      results = phoenixNova(world, p, ab, ctx, { type: 'damage', source: 'weapon', mult: 1.4 + 0.4 * n, element: 'fire' }, 3, extra);
+    } else if (ab.triad) {
+      ctx.packetMult *= ab.triad * (1 + (ab.triadPerCombo || 0) * n);
+      const fireEff = { type: 'damage', source: 'weapon', mult: 1.4, element: 'fire' };
+      const coldEff = { type: 'damage', source: 'weapon', mult: 1.8, element: 'cold' };
+      results = phoenixNova(world, p, ab, ctx, fireEff, 2 + x, [{ type: 'status', id: 'burning', needsHit: true }])
+        .concat(phoenixChain(world, p, ab, ctx, x))
+        .concat(phoenixNova(world, p, ab, ctx, coldEff, 3 + x, [{ type: 'status', id: 'frozen', durMs: 1500 }]));
+    } else if (n === 0) results = phoenixNova(world, p, ab, ctx, { type: 'damage', source: 'weapon', mult: 0.8, element: 'fire' }, 1 + x);
     else if (n === 1) {
-      run({ type: 'damage', source: 'weapon', mult: 1.4, element: 'fire' }, 2 + x, [{ type: 'status', id: 'burning', needsHit: true }]);
+      results = phoenixNova(world, p, ab, ctx, { type: 'damage', source: 'weapon', mult: 1.4, element: 'fire' }, 2 + x, [
+        { type: 'status', id: 'burning', needsHit: true },
+      ]);
     } else if (n === 3) {
-      run({ type: 'damage', source: 'weapon', mult: 1.8, element: 'cold' }, 3 + x, [{ type: 'status', id: 'frozen', durMs: 1500 }]);
-    } else {
-      const first = BD.sim.targeting.nearestEnemy(world, p.x, p.y, 5, p.faction, { los: true });
-      if (first) {
-        const cab = Object.assign({}, ab, {
-          effects: [{ type: 'damage', source: 'weapon', mult: 1.2, element: 'light' }, { type: 'status', id: 'shocked', needsHit: true }],
-          delivery: { kind: 'chain', jumps: 4 + 2 * x, jumpRange: 3, falloff: 0 },
-        });
-        results = Effects.chain(world, ctx, cab, first, 4 + 2 * x, 3);
-        if (ab.field) {
-          for (const r of results) {
-            const o = { durMs: 3000, faction: 'player', srcId: p.id, amount: avgHit(results) * 0.1 };
-            BD.sim.zones.ground(world, 'static_field', [[r.tgt.x, r.tgt.y]], o);
-          }
-        }
-      }
-    }
+      results = phoenixNova(world, p, ab, ctx, { type: 'damage', source: 'weapon', mult: 1.8, element: 'cold' }, 3 + x, [
+        { type: 'status', id: 'frozen', durMs: 1500 },
+      ]);
+    } else results = phoenixChain(world, p, ab, ctx, x);
     Effects.afterHits(world, p, ab, rank, a, results);
     return false;
   });
@@ -156,14 +195,16 @@
 
   // ---------------- Fire Blast ----------------
   reg('fire_blast.before', (world, p, ab, rank, { ctx }) => {
-    if (Resources.combo(p) > 0) {
+    if (!ab.noComboConsume && Resources.combo(p) > 0) {
       Resources.addCombo(world, p, -1);
       ctx.packetMult *= Skills.fire_blast.params.comboMult;
     }
   });
   reg('fire_blast.lobTargets', (world, p, ab, rank, { tx, ty }) => {
     const out = [[tx, ty, 1, 0]];
-    if (ab.bomblets) {
+    if (ab.bomblets === 5) {
+      for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [1, -2], [-1, -2]]) out.push([tx + dx, ty + dy, 0.5, 120]);
+    } else if (ab.bomblets) {
       for (const [dx, dy] of [[1, 1], [-1, 1], [0, -1]]) out.push([tx + dx, ty + dy, 0.5, 120]);
     }
     if (Powers.has(p, 'ashen_wraps')) {
@@ -219,17 +260,26 @@
   }
   function sentryShoot(world, p, d, ab, t) {
     const clock = ks(p, 'clockwork_mind');
-    const eff = Object.assign({}, ab.effects[0], { canCrit: clock });
+    const effs = [Object.assign({}, ab.effects[0], { canCrit: clock })].concat(ab.effects.slice(1));
     const ctx = sentryCtx(world, p, ab, d);
     ctx.centerId = t.id;
     world.events.push({ type: 'chain', srcId: p.id, fromX: d.x, fromY: d.y, x: t.x, y: t.y, abilityId: 'lightning_sentry', sentry: true });
-    const res = Hits.applyEffects(world, ctx, [eff], [t]);
-    if (d.chain && res.length) {
-      const next = BD.sim.targeting.nearestEnemy(world, t.x, t.y, 3, 'player', { exclude: new Set([t.id]) });
-      if (next) {
-        world.events.push({ type: 'chain', srcId: p.id, fromX: t.x, fromY: t.y, x: next.x, y: next.y, abilityId: 'lightning_sentry' });
-        Hits.applyEffects(world, ctx, [eff], [next]);
-      }
+    let targets = [t];
+    if (ab.sentrySplash) {
+      const tiles = Grid.shapeOffsets('circle', ab.sentrySplash).map(([dx, dy]) => [t.x + dx, t.y + dy]);
+      targets = BD.sim.targeting.entitiesOnTiles(world, tiles, 'player');
+      ctx.aoe = true;
+    }
+    const res = Hits.applyEffects(world, ctx, effs, targets);
+    let jumps = d.chain || ab.chain || 0, from = t;
+    const seen = new Set(targets.map((e) => e.id));
+    while (jumps-- > 0 && res.length) {
+      const next = BD.sim.targeting.nearestEnemy(world, from.x, from.y, 3, 'player', { exclude: seen });
+      if (!next) break;
+      seen.add(next.id);
+      world.events.push({ type: 'chain', srcId: p.id, fromX: from.x, fromY: from.y, x: next.x, y: next.y, abilityId: 'lightning_sentry' });
+      Hits.applyEffects(world, ctx, effs, [next]);
+      from = next;
     }
   }
 
@@ -241,6 +291,24 @@
       rank, corpses: ab.corpses, vulnerable: !!ab.vulnerable,
     });
   });
+  function soulPulse(world, p, d, ab) {
+    const tiles = Grid.shapeOffsets('circle', 3).map(([dx, dy]) => [d.x + dx, d.y + dy]);
+    const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, 'player');
+    if (!targets.length) return;
+    const ctx = sentryCtx(world, p, ab, d);
+    ctx.aoe = true;
+    world.events.push({
+      type: 'ability.explode', abilityId: 'death_sentry', x: d.x, y: d.y,
+      area: { shape: 'circle', radius: 3 }, element: 'phys', kind: 'nova',
+    });
+    const eff = { type: 'damage', source: 'weapon', mult: ab.soulNova, canCrit: ks(p, 'clockwork_mind'), canDodge: false };
+    const res = Hits.applyEffects(world, ctx, [eff], targets);
+    const hits = res.filter((r) => r.res && r.res.total > 0).length;
+    if (hits > 0) {
+      Resources.gain(world, p, 'energy', 5 * hits);
+      BD.sim.status.heal(world, p, BD.sim.stats.statsOf(world, p).maxLife * 0.02 * hits);
+    }
+  }
   Allies.registerKind('death_sentry', {
     tick(world, d, dt) {
       d.lifeMs -= dt;
@@ -252,6 +320,10 @@
       if (d.timer > 0) return;
       const p = world.player, ab = BD.sim.abilities.resolved(BD.data.skills.death_sentry, d.rank, p);
       d.timer += ab.intervalMs;
+      if (ab.soulNova) {
+        soulPulse(world, p, d, ab);
+        return;
+      }
       const f = world.floor;
       const corpses = f.corpses
         .filter((c) => within(c.x, c.y, d.x, d.y, 5) && !c.revived)
@@ -274,17 +346,37 @@
             canCrit: ks(p, 'clockwork_mind'), canDodge: false, canBlock: false, mult: 1,
             abilityId: 'death_sentry', noOnHit: !ks(p, 'clockwork_mind'),
           });
-          if (d.vulnerable) BD.sim.status.apply(world, e, 'vulnerable', { durMs: 4000, sourceId: p.id });
+          if (d.vulnerable || ab.vulnerable) BD.sim.status.apply(world, e, 'vulnerable', { durMs: 4000, sourceId: p.id });
+          if (ab.plaguePool) BD.sim.status.apply(world, e, 'poisoned', { sourceId: p.id, hit: amount * 0.5 });
+        }
+        if (ab.plaguePool) {
+          BD.sim.zones.ground(world, 'poison_pool', tiles, { durMs: 4000, faction: 'player', srcId: p.id, amount: amount * 0.15 });
         }
       }
     },
   });
 
   // ---------------- Shadowstep, Smoke Bomb, Shadow Master ----------------
-  reg('shadowstep.impact', (world, p, ab) => { if (ab.comboOnStep) Resources.addCombo(world, p, 1); });
+  reg('shadowstep.impact', (world, p, ab, rank) => {
+    if (ab.comboOnStep) Resources.addCombo(world, p, ab.comboOnStep);
+    if (ab.spreeMs) p._spreeUntil = world.time + ab.spreeMs;
+    if (ab.fanMult) {
+      const ctx = Effects.baseCtx(world, p, ab, rank, null);
+      ctx.aoe = true;
+      const tiles = Grid.shapeOffsets('circle', 2).map(([dx, dy]) => [p.x + dx, p.y + dy]);
+      const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction);
+      const effs = [
+        { type: 'damage', source: 'weapon', mult: ab.fanMult, canCrit: true },
+        { type: 'status', id: 'bleeding', needsHit: true },
+        { type: 'status', id: 'slowed', durMs: 2000, needsHit: true },
+      ];
+      Hits.applyEffects(world, ctx, effs, targets);
+    }
+  });
   Powers.registerCharges('nightspur', (ab, n) => (ab.id === 'shadowstep' ? Math.max(1, n) + 1 : n));
   BD.sim.damage.onKillHooks.push((world, v, killer) => {
-    if (!killer || killer.kind !== 'player' || !Powers.has(killer, 'nightspur') || !killer.skills.shadowstep) return;
+    if (!killer || killer.kind !== 'player' || !killer.skills.shadowstep) return;
+    if (!(Powers.has(killer, 'nightspur') || (killer._spreeUntil && killer._spreeUntil > world.time))) return;
     const c = killer.charges && killer.charges.shadowstep;
     if (c) {
       const rank = BD.sim.abilities.rankOf(world, killer, 'shadowstep');
@@ -295,21 +387,36 @@
   });
 
   reg('smoke_bomb.impact', (world, p, ab) => {
+    if (ab.comboOnSmoke) Resources.addCombo(world, p, ab.comboOnSmoke);
     const veil = Powers.has(p, 'veilweave');
     const tiles = Grid.shapeOffsets('circle', ab.smoke.radius).map(([dx, dy]) => [p.x + dx, p.y + dy]);
     BD.sim.zones.ground(world, 'smoke', tiles, {
       durMs: ab.smoke.durMs + (veil ? 3000 : 0), faction: 'player', srcId: p.id,
       follow: ab.followSmoke || veil ? p.id : null, cx: p.x, cy: p.y,
     });
+    if (ab.chokingGas) {
+      const hit = Hits.computeHit(world, p, ab, { source: 'weapon', mult: 0.4 }, 1, { roll: 0.5 }).total;
+      BD.sim.zones.ground(world, 'poison_pool', tiles, { durMs: ab.smoke.durMs, faction: 'player', srcId: p.id, amount: hit });
+    }
   });
 
   reg('shadow_master.summon', (world, p, ab, rank) => {
     for (const c of Allies.alliesOf(world, 'clone')) Allies.despawn(world, c);
-    Allies.spawnAlly(world, p, {
-      kind: 'clone', x: p.x + 1, y: p.y, art: 'thief',
-      pal: { H: '#3a3050', h: '#2a2238', x: '#1a1424', F: '#6a5a8a', f: '#4a3a6a', W: '#c0a0ff' },
-      lifeMs: ab.cloneMs, mult: BD.sim.abilities.scale({ mult: ab.cloneMult }, rank), decoy: 0.4, rank, lifePct: 0.6,
-    });
+    const count = ab.cloneCount || 1;
+    for (let i = 0; i < count; i++) {
+      Allies.spawnAlly(world, p, {
+        kind: 'clone', x: p.x + (i ? -1 : 1), y: p.y, art: 'thief',
+        pal: { H: '#3a3050', h: '#2a2238', x: '#1a1424', F: '#6a5a8a', f: '#4a3a6a', W: '#c0a0ff' },
+        lifeMs: ab.cloneMs, mult: BD.sim.abilities.scale({ mult: ab.cloneMult }, rank), decoy: 0.4, rank, lifePct: 0.6,
+      });
+    }
+    if (ab.summonBlast) {
+      const ctx = Effects.baseCtx(world, p, ab, rank, null);
+      ctx.aoe = true;
+      const tiles = Grid.shapeOffsets('circle', 2).map(([dx, dy]) => [p.x + dx, p.y + dy]);
+      const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction);
+      Hits.applyEffects(world, ctx, [{ type: 'damage', source: 'weapon', mult: ab.summonBlast, canCrit: true }], targets);
+    }
   });
   /** the clone copies your finishers (and Tiger Strike from rank 3) on its own target */
   Powers.CLASS_AFTER.push((world, p, ab, rank, landed) => {

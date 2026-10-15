@@ -20,7 +20,12 @@
   const RAGE_OVER_TIME_TICKS = 3;        // War Cry r5 rage arrives in this many 1 s ticks
   const EARTHSHAKER_COMMIT_MS = 320;     // knockback immunity through the Earthshaker wind-up
 
-  // ---- Berserk Strike: kill refund (r3), side hits (r5), Bloodlust heal ----
+  // ---- Berserk Strike: kill refund (r3), side hits (r5), Bloodlust heal, Forms ----
+  reg('berserk_strike.before', (world, p, ab, rank, { a, ctx }) => {
+    if (!ab.executeBelow || !a || a.targetId == null) return;
+    const tgt = Entities.get(world, a.targetId);
+    if (tgt && tgt.hp <= Stats.statsOf(world, tgt).maxLife * ab.executeBelow) ctx.forceCrit = true;
+  });
   reg('berserk_strike.landed', (world, p, ab, rank, { landed }) => {
     if (ab.killRefund && landed.some((r) => dead(r.tgt))) Resources.gain(world, p, 'rage', ab.killRefund, true);
     if (ks(p, 'bloodlust') && landed.length) {
@@ -28,8 +33,15 @@
     }
   });
   reg('berserk_strike.impact', (world, p, ab, rank, { results, ctx }) => {
-    if (!ab.sideHits || !results.length) return;
+    if (!results.length) return;
     const t = results[0].tgt;
+    if (ab.bloodbath) {
+      const tiles = Grid.shapeOffsets('circle', 1).map(([dx, dy]) => [t.x + dx, t.y + dy]);
+      const splash = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction).filter((e) => e !== t);
+      const c2 = Object.assign({}, ctx, { packetMult: ab.bloodbath, centerId: null, aoe: true });
+      Hits.applyEffects(world, c2, ab.effects, splash);
+    }
+    if (!ab.sideHits) return;
     const d = BD.core.util.dirOf(t.x - p.x, t.y - p.y);
     const tiles = [DIRS[(d + 1) % 8], DIRS[(d + 7) % 8]].map(([dx, dy]) => [p.x + dx, p.y + dy]);
     const targets = BD.sim.targeting.entitiesOnTiles(world, tiles, p.faction).filter((e) => e !== t);
@@ -38,7 +50,7 @@
     Hits.applyEffects(world, ctx, [ab.effects[0]], targets);
   });
 
-  // ---- Charge: path knock-aside (r3), kill resets the cooldown (r5) ----
+  // ---- Charge: path knock-aside (r3), kill resets the cooldown (r5), Forms ----
   reg('charge.path', (world, p, ab, rank, { path, ctx }) => {
     if (!ab.pathHits) return;
     const seen = new Set();
@@ -54,14 +66,25 @@
     }
     const c2 = Object.assign({}, ctx, { packetMult: ab.pathHits, centerId: null });
     Hits.applyEffects(world, c2, [ab.effects[0]], targets);
-    for (const e of targets) Hits.knockback(world, e, p.x, p.y, 1);
+    for (const e of targets) {
+      Hits.knockback(world, e, p.x, p.y, 1);
+      if (ab.pathStunMs) BD.sim.status.apply(world, e, 'stunned', { durMs: ab.pathStunMs, sourceId: p.id });
+    }
   });
   reg('charge.landed', (world, p, ab, rank, { landed }) => {
     if (ab.killResets && landed.some((r) => dead(r.tgt))) p.cooldowns.charge = 0;
+    if (ab.vanguardShield && landed.length) {
+      const amt = Stats.statsOf(world, p).maxLife * ab.vanguardShield;
+      BD.sim.status.apply(world, p, 'shielded', { durMs: 5000, magnitude: amt, sourceId: p.id });
+    }
   });
 
-  // ---- War Cry: Warlord heal + cooldown, r5 rage over time ----
+  // ---- War Cry: Warlord heal + cooldown, r5 rage over time, Forms ----
   reg('war_cry.impact', (world, p, ab, rank, { results }) => {
+    if (ab.cryPull) {
+      for (const r of results) Hits.pull(world, r.tgt, p.x, p.y, ab.cryPull);
+    }
+    if (ab.cryRageNow) Resources.gain(world, p, 'rage', ab.cryRageNow, true);
     if (ks(p, 'warlord')) {
       const wl = Skills.warlord.params;
       const pct = Math.min(wl.healMax, wl.healPerTarget * results.length);
@@ -79,9 +102,15 @@
     if (!world.player.dead) Resources.gain(world, world.player, 'rage', pl.n, true);
   }, { scope: 'run' });
 
-  // ---- Earthshaker: knockback-immune wind-up, r5 aftershock ----
+  // ---- Earthshaker: knockback-immune wind-up, r5 aftershock, Cataclysm ----
   reg('earthshaker.commit', (world, p) => { BD.sim.status.apply(world, p, 'knockback_immune', { durMs: EARTHSHAKER_COMMIT_MS }); });
   reg('earthshaker.impact', (world, p, ab, rank) => {
+    if (ab.cataclysmMs) {
+      const hit = Hits.computeHit(world, p, ab, ab.effects[0], rank, { roll: 0.5 }).total;
+      const rad = (ab.area && ab.area.radius) || 2;
+      const tiles = Grid.shapeOffsets('circle', rad).map(([dx, dy]) => [p.x + dx, p.y + dy]);
+      BD.sim.zones.ground(world, 'burning_ground', tiles, { durMs: ab.cataclysmMs, faction: 'player', srcId: p.id, amount: hit * 0.2 });
+    }
     if (ab.aftershock) {
       BD.core.scheduler.after(world, ab.aftershockMs, 'earthshaker.after', { rank, x: p.x, y: p.y, mult: ab.aftershock });
     }
@@ -100,26 +129,51 @@
     Effects.areaAt(world, ctx, ab, pl.x, pl.y, ab.area, [ab.effects[0]]);
   });
 
-  // ---- Whirlwind: r3 pull per second ----
+  // ---- Whirlwind: r3 pull per second, Forms ----
   reg('whirlwind.impact', (world, p, ab, rank, { a }) => {
     if (!ab.pullPerSec || !a) return;
     a.pullAcc = (a.pullAcc || 0) + ab.channel.tickMs;
     if (a.pullAcc < 1000) return;
     a.pullAcc -= 1000;
+    const maxR = ab.pullRadius || 2;
     for (const e of BD.sim.entities.enemiesOf(world, p.faction)) {
       const d = cheb(e.x, e.y, p.x, p.y);
-      if (d === 2) Hits.pull(world, e, p.x, p.y, 1);
+      if (d >= 2 && d <= maxR) Hits.pull(world, e, p.x, p.y, 1);
+    }
+  });
+  reg('whirlwind.landed', (world, p, ab, rank, { landed }) => {
+    if (ab.wwHealPct && landed.length) {
+      BD.sim.status.heal(world, p, Stats.statsOf(world, p).maxLife * ab.wwHealPct * landed.length);
     }
   });
 
-  // ---- Brace r5 / blocked hits reflect 50% ----
+  // ---- Second Wind: Iron Skin barrier ----
+  reg('second_wind.impact', (world, p, ab) => {
+    if (!ab.windShield) return;
+    const amt = Stats.statsOf(world, p).maxLife * ab.windShield;
+    BD.sim.status.apply(world, p, 'shielded', { durMs: 6000, magnitude: amt, sourceId: p.id });
+  });
+
+  // ---- Brace r5 / Retaliation reflect ----
   BD.sim.damage.onHitHooks.push((world, src, tgt, pk, res) => {
     if (tgt.kind !== 'player' || !src || src.faction === tgt.faction || pk.isDot || pk.reflected) return;
     const rank = BD.sim.abilities.rankOf(world, tgt, 'brace');
-    if (rank < 5) return;
-    if (!(res.blocked || BD.sim.status.has(tgt, 'braced'))) return;
+    if (rank < 1 || !(res.blocked || BD.sim.status.has(tgt, 'braced'))) return;
+    const ab = BD.sim.abilities.resolved(BD.data.skills.brace, rank, tgt);
+    if (!ab.reflect) return;
+    const amt = res.total * ab.reflect;
+    if (ab.reflectAoe && BD.sim.status.has(tgt, 'braced')) {
+      const tiles = Grid.shapeOffsets('circle', 1).map(([dx, dy]) => [tgt.x + dx, tgt.y + dy]);
+      for (const e of BD.sim.targeting.entitiesOnTiles(world, tiles, tgt.faction)) {
+        BD.sim.damage.dealDamage(world, {
+          srcId: tgt.id, tgtId: e.id, amounts: { phys: amt }, tags: ['reflect', 'aoe'],
+          canCrit: false, canDodge: false, canBlock: false, mult: 1, noOnHit: true, reflected: true,
+        });
+      }
+      return;
+    }
     BD.sim.damage.dealDamage(world, {
-      srcId: tgt.id, tgtId: src.id, amounts: { phys: res.total * 0.5 }, tags: ['reflect'],
+      srcId: tgt.id, tgtId: src.id, amounts: { phys: amt }, tags: ['reflect'],
       canCrit: false, canDodge: false, canBlock: false, mult: 1, noOnHit: true, reflected: true,
     });
   });

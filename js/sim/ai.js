@@ -306,9 +306,25 @@
     }
   }
 
+  function flinch(world, e, src, pk, res) {
+    if (!e.ai || e.dead || e.hp <= 0 || pk.isDot || e.untargetable) return;
+    const r = Balance.monsters.ranks[e.rank];
+    if (r && (r.boss || r.steady)) return;
+    const c = Balance.combat;
+    if (world.time - (e.lastFlinchMs || -1e9) < (c.flinchIcdMs || 500)) return;
+    const max = BD.sim.stats.statsOf(world, e).maxLife;
+    if (res.total < max * (c.flinchPct || 0.12) && !res.crit) return;
+    e.lastFlinchMs = world.time;
+    const kind = e.ai.action && e.ai.action.kind;
+    if (e.ai.state === 'windup' && (kind === 'melee' || kind === 'shoot')) cancelWindup(world, e);
+    e.ai.timer = Math.max(e.ai.timer, c.flinchMs || 220);
+    world.events.push({ type: 'flinch', id: e.id, srcId: src ? src.id : null, x: e.x, y: e.y });
+  }
+
   // reactive behaviour hooks
   BD.sim.damage.onHitHooks.push((world, src, tgt, pk, res) => {
     if (tgt.kind === 'monster') {
+      flinch(world, tgt, src, pk, res);
       const d = Monsters.defOf(tgt);
       for (const b of (d && d.behaviours) || []) if (BEH[b.id] && BEH[b.id].onHit) BEH[b.id].onHit(world, tgt, b, src, res, pk);
     }
@@ -328,7 +344,7 @@
 
   BD.sim.ai = {
     BEH, registerBehaviour, alert, isAwake, isDormantOrBusy, playerInCombat, windup, decide, resolveAction,
-    cancelWindup, makeExposed, stepAlong, chase, flee, moveCost, targetOf, step, system,
+    cancelWindup, makeExposed, flinch, stepAlong, chase, flee, moveCost, targetOf, step, system,
   };
   BD.sim.world.addSystem('ai', system, 15);
 })(globalThis.BD);

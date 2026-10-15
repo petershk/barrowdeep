@@ -67,7 +67,7 @@
   });
 
   boss('mygra', 3, {
-    hpMult: 0.7, dmgMult: 1.0,
+    hpMult: 0.85, dmgMult: 1.0,
     name: 'Mygra the Brood Mother', title: 'Queen of the Deep Caves', sprite: 'spider', family: 'beast', arena: 'cavern',
     pal: { p: '#3a2a4a', P: '#5a3a6a', R: '#ff4070' },
     kit: [

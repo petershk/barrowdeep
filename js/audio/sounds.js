@@ -21,7 +21,12 @@
     n('lowpass', [400, 140], 0.6, 0, 0.16, 0.05),
   ]);
   snd('melee_staff', [n('bandpass', [1400, 600], 0.7, 0, 0.1, 0.05), o('sine', [200, 90], 0.01, 0.09, 0.08), o('square', [180, 100], 0, 0.05, 0.03)]);
-  snd('crit_ring', [o('triangle', [1000, 280], 0, 0.13, 0.05)]);
+  // a crit rings bright over the hit: a struck-metal ping, a higher partial and a hiss of air
+  snd('crit_ring', [o('triangle', [1000, 280], 0, 0.13, 0.09), o('sine', [1560, 620], 0, 0.1, 0.045), n('highpass', [5200, 3000], 0.7, 0, 0.06, 0.04)]);
+  // a kill lands low under the hit; an elite's is deeper and longer
+  snd('kill', [o('sine', [96, 40], 0, 0.18, 0.13), n('lowpass', [420, 120], 0.6, 0, 0.14, 0.06)]);
+  snd('kill_elite', [o('sine', [80, 30], 0, 0.34, 0.18), o('triangle', [160, 60], 0, 0.22, 0.06), n('lowpass', [600, 90], 0.6, 0, 0.3, 0.09)]);
+  snd('swing', [n('bandpass', [500, 1700], 1.3, 0, 0.11, 0.035)]);
   snd('bash', [
     o('sine', [175, 36], 0, 0.17, 0.15),
     o('square', [110, 48], 0, 0.12, 0.06),
@@ -30,7 +35,7 @@
     o('triangle', [760, 220], 0.01, 0.16, 0.05),
   ]);
   snd('ranged_impact', [n('bandpass', [2000, 700], 1, 0, 0.05, 0.05), o('sine', [180, 80], 0, 0.06, 0.05)]);
-  snd('hurt', [o('sawtooth', [150, 60], 0, 0.14, 0.12), n('lowpass', [900, 300], 0.7, 0, 0.1, 0.06)]);
+  snd('hurt', [o('sawtooth', [150, 60], 0, 0.14, 0.12), n('lowpass', [900, 300], 0.7, 0, 0.1, 0.06)], null, { minGap: 90 });
   snd('miss', [n('bandpass', [1500, 500], 0.8, 0, 0.13, 0.04)]);
   snd('block', [n('bandpass', [3200, 2400], 6, 0, 0.12, 0.08), o('triangle', [1400, 1200], 0, 0.18, 0.05), o('square', [240, 180], 0, 0.06, 0.04)]);
   snd('dodge', [n('bandpass', [2400, 900], 1.1, 0, 0.1, 0.04)]);
@@ -41,6 +46,8 @@
   snd('javelin', [n('bandpass', [700, 1800], 1.2, 0, 0.16, 0.05), o('sine', [260, 120], 0, 0.12, 0.04)]);
   snd('evade', [n('bandpass', [1800, 600], 1.2, 0, 0.16, 0.06), n('highpass', [3000, 2000], 0.8, 0.02, 0.08, 0.02)]);
   snd('denied', [o('square', [180, 160], 0, 0.08, 0.04), o('square', [140, 120], 0.08, 0.1, 0.04)], { pitch: 0, vol: 0 });
+  // reaching for a resource that isn't there: a dry, falling fizzle (quieter than a refusal)
+  snd('empty', [o('sine', [260, 110], 0, 0.13, 0.05), n('lowpass', [700, 200], 0.7, 0, 0.1, 0.03)], { pitch: 0.03, vol: 0 }, { minGap: 400 });
   // ---- magic ----
   snd('spell', [o('sine', [620, 940], 0, 0.16, 0.05), o('sine', [930, 1360], 0.02, 0.12, 0.025)]);
   snd('fire_cast', [n('bandpass', [600, 1800], 0.8, 0, 0.22, 0.06), o('sawtooth', [180, 320], 0, 0.18, 0.03)]);

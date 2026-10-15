@@ -189,6 +189,31 @@
     }
   }
 
+  /** a drifting zone (Frozen Orb) rolls from its centre toward the aim point at a steady speed */
+  function driftOf(ab, cx, cy, tx, ty) {
+    if (!ab.drift) return null;
+    const len = Math.hypot(tx - cx, ty - cy) || 1;
+    const perMs = ab.drift.tiles / ab.delivery.durMs;
+    return { x: cx, y: cy, vx: ((tx - cx) / len) * perMs, vy: ((ty - cy) / len) * perMs };
+  }
+  /** move a drifting zone; it stops against walls */
+  function driftStep(world, z, dt) {
+    const d = z.drift;
+    const nx = d.x + d.vx * dt, ny = d.y + d.vy * dt;
+    const rx = Math.round(nx), ry = Math.round(ny);
+    if (!BD.sim.entities.walkable(world.floor, rx, ry) && (rx !== z.cx || ry !== z.cy)) {
+      d.vx = 0;
+      d.vy = 0;
+      return;
+    }
+    d.x = nx;
+    d.y = ny;
+    if (rx === z.cx && ry === z.cy) return;
+    z.cx = rx;
+    z.cy = ry;
+    z.tiles = BD.sim.targeting.areaTiles(z.area, rx, ry, rx, ry, 0);
+  }
+
   /** a following zone (Blizzard on a target, auras) moves with its anchor */
   function followAnchor(world, z) {
     const t = Entities.get(world, z.follow);
@@ -214,6 +239,7 @@
     for (let i = 0; i < list.length; i++) {
       const z = list[i];
       if (z.follow != null) followAnchor(world, z);
+      if (z.drift && z.resolved) driftStep(world, z, dt);
       if (!z.resolved) {
         z.armMs -= dt;
         if (!(z.armMs <= 0)) continue;   // still arming
@@ -263,7 +289,7 @@
     const d = ab.delivery;
     const area = ab.area || { shape: 'circle', radius: 1 };
     const centres = BD.sim.effects.special(world, caster, ab, rank, 'zoneCentres', { tx, ty }) || [[tx, ty, 1]];
-    for (const [cx, cy, k] of centres) {
+    for (const [cx, cy, k, extraMs] of centres) {
       const tiles = BD.sim.targeting.areaTiles(area, cx, cy, cx, cy, caster.dir);
       const base = { tiles, cx, cy, faction: caster.faction, srcId: ctx.srcId, ownerId: caster.id, school: ab.school, kind: ab.id };
       if (d.tickMs) {
@@ -273,11 +299,11 @@
         create(world, Object.assign(base, {
           armMs: d.delayMs || 0, telegraph: !!d.delayMs, durMs: d.durMs, tickMs: d.tickMs, tickLeft: 0, resolve: null,
           tickPayload: { abilityId: ab.id, rank, casterId: caster.id, mult: (k || 1) * ctx.packetMult, focus: ctx.focus },
-          follow, friendly: true,
+          follow, friendly: true, drift: driftOf(ab, cx, cy, tx, ty), area,
         }));
       } else {
         create(world, Object.assign(base, {
-          armMs: d.delayMs || 0, telegraph: true,
+          armMs: (d.delayMs || 0) + (extraMs || 0), telegraph: true,
           resolve: {
             type: 'ability', abilityId: ab.id, rank, casterId: caster.id, srcId: ctx.srcId, combo: ctx.combo, focus: ctx.focus,
             mult: (k || 1) * ctx.packetMult, linger: ab.linger || null, noAfter: centres.length > 1 && k !== 1,

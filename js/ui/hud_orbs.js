@@ -1,12 +1,13 @@
 // @ts-check
-// HUD: life orb (left), resource orb (right, colour by resource), XP strip, flask + pouch,
-// status chips above the life orb. Orbs and bars update every frame; text only when changed.
+// HUD plate: life orb (left), resource orb (right, colour by resource), flask belt + skill bar + portal slot,
+// XP strip with level and percent, status chips above the skill row. Orbs and bars update every frame; text only when changed.
 (function (BD) {
   'use strict';
 
   const { h, setText, root } = BD.ui.dom;
-  let el = null, life = null, res = null, xp = null, flask = null, pouch = null, chips = null, pips = null;
+  let el = null, life = null, res = null, xp = null, flask = null, portal = null, chips = null, pips = null;
   const SHORT_FLASH_MS = 700;          // the resource orb flashes this long when a click couldn't pay
+  const ORB_PX = 134;                  // orb canvas size in CSS px (the bronze ring around it is CSS)
   let shortUntil = -1;
   const Palette = BD.view.palette;
   const M = Palette.MEANING;
@@ -15,73 +16,104 @@
   const ORB_COL = {
     life: liquid(M.life), rage: liquid(M.rage), energy: liquid(M.energy), mana: liquid(M.mana), focus: liquid(M.focus),
   };
+  const PORTAL_PATH = 'M12 12m-1 0a1 1 0 1 0 2 0a3 3 0 1 0-6 0a5 5 0 1 0 10 0a7 7 0 1 0-14 0';
+
+  /** the label of a rebindable key ("Q", "R"), so the HUD never shows a stale binding */
+  const keyLabel = (action) => BD.input.bindings.pretty(BD.input.bindings.keyOf(action));
+
+  /** a stroke-only inline SVG icon (24×24 box, currentColor) */
+  function icon(d, size) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', String(size));
+    svg.setAttribute('height', String(size));
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '1.6');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(path);
+    return svg;
+  }
 
   function orb(cls) {
-    const cv = /** @type {HTMLCanvasElement} */ (h('canvas', { width: 96, height: 96 }));
+    const cv = /** @type {HTMLCanvasElement} */ (h('canvas', { width: ORB_PX, height: ORB_PX }));
     const val = h('div.orb-val');
     const lab = h('div.orb-lab');
-    const wrap = h('div.orb.' + cls, [cv, val, lab]);
+    const wrap = h('div.orb.' + cls, [cv, h('div.orb-plaque', [val, lab])]);
     return { wrap, cv, val, lab, level: -1, t: 0 };
+  }
+
+  function mountBelt() {
+    flask = { el: h('button.flask', { type: 'button' }), vials: h('div.vials'), n: h('div.flask-n'), key: h('div.key') };
+    BD.ui.dom.append(flask.el, [flask.vials, flask.key, flask.n]);
+    flask.el.addEventListener('mousedown', (ev) => {
+      ev.stopPropagation();
+      if (!BD.app.paused()) BD.input.intent.issue({ type: 'DrinkFlask' });
+    });
+    portal = { el: h('button.portal-slot', { type: 'button' }), n: h('div.sk-count'), key: h('div.sk-key') };
+    BD.ui.dom.append(portal.el, [icon(PORTAL_PATH, 30), portal.key, portal.n]);
+    portal.el.addEventListener('mousedown', (ev) => {
+      ev.stopPropagation();
+      if (!BD.app.paused()) BD.input.intent.issue({ type: 'ReadScroll', kind: 'portal' });
+    });
   }
 
   function mount() {
     life = orb('life');
     res = orb('res');
-    xp = { bar: h('div.xp-fill'), wrap: null };
-    xp.wrap = h('div.xp', [xp.bar]);
-    flask = { el: h('div.flask', { title: 'Healing Flask (Q)' }, [h('div.flask-glass'), h('div.flask-n'), h('div.key', 'Q')]) };
-    pouch = h('div.pouch');
+    mountBelt();
+    xp = { bar: h('div.xp-fill'), lv: h('span.xp-lv'), pct: h('span.xp-pct'), wrap: null };
+    xp.wrap = h('div.xp', [xp.bar, h('div.xp-ticks')]);
     chips = h('div.chips');
     pips = h('div.pips');
-    el = h('div.hud', [chips, life.wrap, h('div.hud-mid', [h('div.hud-row', [flask.el, pouch, h('div.bar-slot')]), xp.wrap]), res.wrap]);
+    const mid = h('div.hud-mid', [
+      chips,
+      h('div.hud-row', [flask.el, h('div.bar-slot'), portal.el]),
+      h('div.xp-row', [xp.lv, xp.wrap, xp.pct]),
+    ]);
+    el = h('div.hud', [h('div.hud-plate'), h('div.hud-crest'), life.wrap, mid, res.wrap]);
     root().appendChild(el);
     root().appendChild(pips);
   }
 
   function drawOrb(o, frac, colTop, colBot, t, pulse) {
     const g = o.cv.getContext('2d');
-    const W = 96, R = 44;
+    const W = o.cv.width, C = W / 2, R = C - 1;
     g.clearRect(0, 0, W, W);
     g.save();
     g.beginPath();
-    g.arc(48, 48, R, 0, Math.PI * 2);
+    g.arc(C, C, R, 0, Math.PI * 2);
     g.clip();
     g.fillStyle = M.outline;
     g.fillRect(0, 0, W, W);
     // liquid with a wavy surface
-    const top = 48 + R - frac * 2 * R;
-    const gr = g.createLinearGradient(0, top, 0, 96);
+    const top = C + R - frac * 2 * R;
+    const gr = g.createLinearGradient(0, top, 0, W);
     gr.addColorStop(0, colTop);
     gr.addColorStop(1, colBot);
     g.fillStyle = gr;
     g.beginPath();
-    g.moveTo(0, 96);
-    for (let x = 0; x <= W; x += 4) g.lineTo(x, top + Math.sin(x / 9 + t / 260) * (frac > 0.02 && frac < 0.98 ? 2 : 0));
-    g.lineTo(W, 96);
+    g.moveTo(0, W);
+    for (let x = 0; x <= W; x += 4) g.lineTo(x, top + Math.sin(x / 12 + t / 260) * (frac > 0.02 && frac < 0.98 ? 2.5 : 0));
+    g.lineTo(W, W);
     g.closePath();
     g.fill();
     if (pulse) {
-      g.fillStyle = Palette.rgba(pulse, 0.14 + 0.12 * Math.sin(t / 95));
+      g.fillStyle = Palette.rgba(pulse, 0.02 + 0.24 * BD.view.fx.beat('attention', t));
       g.fillRect(0, 0, W, W);
     }
     // glass highlight
-    const hl = g.createRadialGradient(34, 30, 2, 40, 36, 40);
-    hl.addColorStop(0, 'rgba(255,255,255,0.35)');
+    const hl = g.createRadialGradient(W * 0.35, W * 0.3, 2, W * 0.42, W * 0.36, W * 0.42);
+    hl.addColorStop(0, 'rgba(255,255,255,0.32)');
     hl.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = hl;
     g.fillRect(0, 0, W, W);
     g.restore();
-    ring(g, M.border, 3, R + 1);
-    ring(g, M.outline, 1, R + 3);
-  }
-
-  /** a circular rim around the orb */
-  function ring(g, color, width, radius) {
-    g.strokeStyle = color;
-    g.lineWidth = width;
-    g.beginPath();
-    g.arc(48, 48, radius, 0, Math.PI * 2);
-    g.stroke();
   }
 
   let t = 0;
@@ -91,7 +123,9 @@
     const p = world.player;
     const s = BD.sim.stats.statsOf(world, p);
     const lf = Math.max(0, p.hp) / s.maxLife;
-    drawOrb(life, lf, ORB_COL.life[0], ORB_COL.life[1], t, lf < 0.25 && !p.dead ? M.lifeLow : null);
+    const low = lf < 0.25 && !p.dead;
+    drawOrb(life, lf, ORB_COL.life[0], ORB_COL.life[1], t, low ? M.lifeLow : null);
+    life.wrap.classList.toggle('low', low);
     setText(life.val, (p.dead ? 0 : Math.ceil(Math.max(0, p.hp))) + ' / ' + s.maxLife);
     setText(life.lab, 'Life');
     const kind = BD.data.classes[p.cls].resource;
@@ -100,22 +134,41 @@
     let resPulse = pulse ? M.text : null;
     if (t < shortUntil) resPulse = M.bad;
     drawOrb(res, frac, c[0], c[1], t, resPulse);
+    res.wrap.dataset.kind = kind;
     setText(res.val, txt);
     setText(res.lab, lab);
-    // xp
-    const need = BD.sim.progression.xpToNext(p.level);
-    xp.bar.style.width = (p.level >= 30 ? 100 : Math.min(100, (p.xp / need) * 100)).toFixed(2) + '%';
-    xp.wrap.title = 'Level ' + p.level + (p.level < 30 ? ' — ' + Math.floor(p.xp) + ' / ' + need + ' experience' : '');
-    // flask
-    setText(flask.el.querySelector('.flask-n'), p.flask.charges + '/' + p.flask.max);
-    flask.el.classList.toggle('empty', p.flask.charges <= 0);
-    flask.el.style.setProperty('--fill', String(p.flask.charges / Math.max(1, p.flask.max)));
-    // pouch
-    const pt = 'Portal ' + (p.pouch.portal || 0) + (p.pouch.reveal ? ' · Revelation ' + p.pouch.reveal : '');
-    setText(pouch, pt);
-    // status chips (real names for every buff)
+    xpFrame(p);
+    beltFrame(p);
     chipFrame(world, p);
     pipsFrame(world, p);
+  }
+
+  function xpFrame(p) {
+    const need = BD.sim.progression.xpToNext(p.level);
+    const pct = p.level >= 30 ? 100 : Math.min(100, (p.xp / need) * 100);
+    xp.bar.style.width = pct.toFixed(2) + '%';
+    setText(xp.lv, 'Level ' + p.level);
+    setText(xp.pct, p.level >= 30 ? 'max' : Math.floor(pct) + '%');
+    xp.wrap.title = 'Level ' + p.level + (p.level < 30 ? ' — ' + Math.floor(p.xp) + ' / ' + need + ' experience' : '');
+  }
+
+  /** flask: one vial per charge slot; portal scroll count (Revelation scrolls show in its tooltip) */
+  function beltFrame(p) {
+    const fl = p.flask;
+    if (flask.vials.childElementCount !== fl.max) {
+      BD.ui.dom.clear(flask.vials);
+      for (let i = 0; i < fl.max; i++) flask.vials.appendChild(h('div.vial'));
+    }
+    for (let i = 0; i < fl.max; i++) flask.vials.children[i].classList.toggle('full', i < fl.charges);
+    flask.el.classList.toggle('empty', fl.charges <= 0);
+    setText(flask.n, fl.charges + '/' + fl.max);
+    setText(flask.key, keyLabel('flask'));
+    flask.el.title = 'Healing Flask — ' + fl.charges + ' of ' + fl.max + ' charges';
+    const n = p.pouch.portal || 0;
+    setText(portal.n, '×' + n);
+    setText(portal.key, keyLabel('portal'));
+    portal.el.classList.toggle('poor', n <= 0);
+    portal.el.title = 'Town Portal scrolls: ' + n + (p.pouch.reveal ? ' · Revelation: ' + p.pouch.reveal : '');
   }
 
   /** fill fraction, number text, label and pulse for the resource orb */
@@ -125,7 +178,7 @@
     if (kind === 'rage') {
       frac = r.rage.cur / r.rage.max;
       txt = Math.floor(r.rage.cur) + '';
-      lab = p.momentum ? 'Rage · Momentum' : 'Rage';
+      lab = p.momentum ? 'Momentum' : 'Rage';
       pulse = p.momentum;
     } else if (kind === 'energy') {
       frac = r.energy.cur / r.energy.max;
@@ -134,7 +187,7 @@
     } else if (kind === 'mana') {
       frac = r.mana.max ? r.mana.cur / r.mana.max : 0;
       txt = Math.floor(r.mana.cur) + ' / ' + Math.round(r.mana.max);
-      lab = r.surge ? 'Mana · Surge' : 'Mana';
+      lab = r.surge ? 'Surge' : 'Mana';
       pulse = r.surge;
     } else if (kind === 'focus') {
       frac = r.focus.n / 5;
@@ -151,7 +204,8 @@
       BD.ui.dom.clear(chips);
       for (const st of want) {
         const d = BD.data.statuses[st.id];
-        const style = { borderColor: Palette.STATUS_COLOR[st.id] || M.muted };
+        const col = Palette.STATUS_COLOR[st.id] || M.muted;
+        const style = { borderColor: col, color: col };
         chips.appendChild(h('div.chip' + (d.debuff ? '.debuff' : ''), { title: chipTitle(st, d), style }, [
           h('span.chip-name', d.name), h('span.chip-t'),
         ]));
@@ -203,12 +257,12 @@
     const pos = BD.view.entities.pos(p, 0, { x: 0, y: 0 });
     const o = iso.toScreen(pos.x, pos.y, { x: 0, y: 0 });
     pips.style.left = o.x / v.dpr + 'px';
-    pips.style.top = (o.y - 46 * v.Z * v.dpr - 30) / v.dpr + 'px';
+    pips.style.top = (o.y - 46 * v.Z * v.dpr * BD.view.entities.actorK() - 30) / v.dpr + 'px';
   }
 
   /** a click fell back to the basic attack for lack of resource: flash the resource orb */
   function short() { shortUntil = t + SHORT_FLASH_MS; }
 
   BD.ui.hud.add({ frame });
-  BD.ui.hudOrbs = { frame, short };
+  BD.ui.hudOrbs = { frame, short, icon, keyLabel };
 })(globalThis.BD);

@@ -258,7 +258,23 @@
       if (!f.explored[Grid.idx(f, o.x, o.y)]) continue;
       put(o.x + o.y, { order: 1, draw: () => drawObject(world, o) });
     }
+    for (const d of f.deployables || []) {
+      if (!f.visible[Grid.idx(f, d.x, d.y)]) continue;
+      put(d.x + d.y, { order: 1, draw: () => drawDeployable(world, d) });
+    }
     if (BD.view.items) BD.view.items.bucket(world, put);
+  }
+
+  function drawDeployable(world, d) {
+    const raw = BD.data.skills && BD.data.skills[d.kind];
+    const ab = raw && BD.sim.abilities ? BD.sim.abilities.resolved(raw, d.rank || 1, world.player) : raw;
+    const school = (ab && ab.school) || (d.kind === 'death_sentry' ? 'fire' : 'storm');
+    const sch = Palette.SCHOOL[school] || Palette.SCHOOL.storm;
+    Render.shadow(d.x, d.y, 0.75);
+    Render.drawArt('prop_sentry', 'idle', 0, d.x, d.y, {
+      pal: { C: sch.mid, W: sch.core }, palKey: 'sentry_' + school, scale: EntityView.actorK(), rim: true,
+    });
+    BD.view.lighting.add(d.x, d.y, 2, sch.mid, 0.45, 0.15);
   }
 
   function drawCorpse(c) {
@@ -271,7 +287,8 @@
   }
   function drawGhost(g) {
     const fi = Math.min(2, Math.floor(g.t / 110));
-    Render.drawArt(g.art, 'death', fi, g.x, g.y, {
+    const k = 1 - Math.pow(1 - Math.min(1, g.t / GHOST_SLIDE_MS), 3);   // eased slide away from the killing blow
+    Render.drawArt(g.art, 'death', fi, g.x + g.kx * k, g.y + g.ky * k, {
       pal: g.pal, palKey: g.palKey, flip: g.flip, scale: g.scale, alpha: 1 - Math.max(0, g.t - 150) / 250,
     });
   }
@@ -317,7 +334,7 @@
     ctx.beginPath();
     ctx.ellipse(tmp.x, tmp.y - 22 * zk, 9 * zk, 20 * zk, 0, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.globalAlpha = 0.5 + 0.2 * Math.sin((t / 1.6) * Math.PI * 2);   // the ambient beat
+    ctx.globalAlpha = 0.3 + 0.4 * BD.view.fx.beat('ambient', Render.timeMs);
     ctx.fillStyle = Palette.rgba(col, 0.4);
     ctx.beginPath();
     ctx.ellipse(tmp.x, tmp.y - 22 * zk, 7 * zk, 17 * zk, 0, 0, Math.PI * 2);
@@ -337,18 +354,24 @@
     for (let i = -2; i <= 2; i++) Render.ctx.fillRect(tmp.x + i * 3 * s, tmp.y - s, s, s * 2);
   }
 
-  function addGhost(world, ev) {
+  const GHOST_SLIDE_MS = 180;
+  /** push: optional tile-space knockback {x, y} the body slides along as it falls */
+  function addGhost(world, ev, push) {
     const d = BD.data.monsters[ev.def] || (BD.data.bosses && BD.data.bosses[ev.def]);
     if (!d) return;
     const e = { def: ev.def, rank: ev.rank, palOverride: null, kind: 'monster', dir: 2 };
     ghosts.push({
       art: d.sprite, pal: EntityView.palOf(e), palKey: ev.def + ev.rank, x: ev.x, y: ev.y, flip: false, scale: d.scale || 1, t: 0,
+      kx: 0, ky: 0,
     });
+    if (push) Object.assign(ghosts[ghosts.length - 1], { kx: push.x, ky: push.y });
   }
 
   // ---------- projectiles (after lighting so they glow) ----------
   const SHAFT_LEN = { arrow: 12, bolt: 9, spear: 16 };   // streak length of shafted projectiles, art px
-  const GLOW_RADIUS = { orb_big: 11, spark: 6 };          // glow radius of the others, art px (default 8)
+  const GLOW_RADIUS = { orb_big: 13, spark: 6 };          // glow radius of the others, art px (default 8)
+  /** big-hit projectiles look the part: a longer, wider streak in the skill's school, a glowing head, a trail */
+  const HEAVY_SHOT = { aimed_shot: { school: 'holy', len: 2.2, width: 1.8 }, fireball: { trail: 2 } };
   function drawProjectiles(ctx, world, alpha) {
     const f = world.floor;
     const zk = iso.view.Z * iso.view.dpr;
@@ -357,24 +380,32 @@
       const x = pr.x + pr.dx * (pr.speed * step * alpha) / 1000, y = pr.y + pr.dy * (pr.speed * step * alpha) / 1000;
       if (!f.visible[Grid.idx(f, Math.round(x), Math.round(y))]) continue;
       const kd = BD.data.projectiles[pr.kind] || {};
-      const sch = Palette.SCHOOL[kd.school] || Palette.SCHOOL.steel;
+      const heavy = (pr.payload && HEAVY_SHOT[pr.payload.abilityId]) || null;
+      const sch = Palette.SCHOOL[(heavy && heavy.school) || kd.school] || Palette.SCHOOL.steel;
       iso.toScreen(x, y, tmp);
-      const sy = tmp.y - 14 * zk;
+      const sy = tmp.y - 14 * zk * BD.view.entities.actorK();
       const sdx = (pr.dx - pr.dy) * iso.HW, sdy = (pr.dx + pr.dy) * iso.HH, sl = Math.hypot(sdx, sdy) || 1;
       const ux = sdx / sl, uy = sdy / sl;
       ctx.save();
       // dark matter (blood, poison) can't glow: it draws source-over
       ctx.globalCompositeOperation = Palette.SCHOOL_NORMAL_BLEND[kd.school] ? 'source-over' : 'lighter';
       if (kd.sprite === 'arrow' || kd.sprite === 'bolt' || kd.sprite === 'spear') {
-        const len = SHAFT_LEN[kd.sprite] * zk;
+        const wk = heavy ? heavy.width : 1;
+        const len = SHAFT_LEN[kd.sprite] * zk * (heavy ? heavy.len : 1);
+        if (heavy) {
+          const r = 7 * zk;
+          ctx.drawImage(BD.view.fx.glow(sch.mid), tmp.x - r, sy - r, r * 2, r * 2);
+          const color = Math.random() < 0.5 ? sch.mid : sch.core;
+          BD.view.fx.spark(x, y, { z: 14, vz: 0.005, g: 0, life: 220, size: 2, color, ambient: true });
+        }
         ctx.strokeStyle = sch.mid;
-        ctx.lineWidth = (kd.sprite === 'spear' ? 3 : 2) * zk;
+        ctx.lineWidth = (kd.sprite === 'spear' ? 3 : 2) * zk * wk;
         ctx.beginPath();
         ctx.moveTo(tmp.x - ux * len, sy - uy * len);
         ctx.lineTo(tmp.x, sy);
         ctx.stroke();
         ctx.strokeStyle = sch.core;
-        ctx.lineWidth = zk;
+        ctx.lineWidth = zk * wk;
         ctx.beginPath();
         ctx.moveTo(tmp.x - ux * len * 0.5, sy - uy * len * 0.5);
         ctx.lineTo(tmp.x + ux * 2 * zk, sy + uy * 2 * zk);
@@ -383,10 +414,14 @@
         const r = (GLOW_RADIUS[kd.sprite] || 8) * zk;
         ctx.drawImage(BD.view.fx.glow(sch.mid), tmp.x - r * 1.6, sy - r * 1.6, r * 3.2, r * 3.2);
         ctx.drawImage(BD.view.fx.glow(sch.core), tmp.x - r * 0.6, sy - r * 0.6, r * 1.2, r * 1.2);
-        if (Math.random() < 0.5) BD.view.fx.spark(x, y, { z: 14, vz: 0.01, g: 0, life: 260, size: 2, color: sch.mid, ambient: true });
+        for (let n = (heavy && heavy.trail) || 0.5; n > 0; n--) {
+          if (n < 1 && Math.random() >= n) continue;
+          const color = Math.random() < 0.7 ? sch.mid : sch.edge;
+          BD.view.fx.spark(x, y, { z: 14, vz: 0.01, g: 0, life: 260, size: 2, color, ambient: true });
+        }
       }
       ctx.restore();
-      if (kd.light) BD.view.lighting.add(x, y, 2.2, kd.light, 0.7, 0.1);
+      if (kd.light) BD.view.lighting.add(x, y, 2.2, sch.mid, 0.7, 0.1);
     }
   }
 
@@ -418,7 +453,7 @@
     if (glowCol) {
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.22 * pulse;
-      ctx.drawImage(BD.view.fx.glow(glowCol), tmp.x - r, tmp.y - 22 * zk - r, r * 2, r * 2);
+      ctx.drawImage(BD.view.fx.glow(glowCol), tmp.x - r, tmp.y - 22 * zk * BD.view.entities.actorK() - r, r * 2, r * 2);
     }
     if (cols.indexOf(cursed) >= 0) {
       ctx.globalCompositeOperation = 'source-over';
@@ -457,7 +492,7 @@
   // ---------- health bars & nameplates (overlay) ----------
   function barColour(e, elite) {
     const M = Palette.MEANING;
-    if (e.kind === 'ally') return '#4ab0ff';
+    if (e.kind === 'ally') return M.ally;
     if (e.rank === 'champion') return M.champion;
     return elite ? M.unique : M.life;
   }
@@ -482,7 +517,7 @@
       ctx.fillStyle = barColour(e, elite);
       ctx.fillRect(tmp.x - w / 2, top, w * Math.max(0, e.hp / max), h);
       if (elite && e.name) {
-        ctx.font = `${Math.round(11 * Math.max(1, iso.view.dpr))}px Georgia, serif`;
+        ctx.font = `${Math.round(12 * Math.max(1, iso.view.dpr))}px Georgia, serif`;
         ctx.textAlign = 'center';
         ctx.fillStyle = '#000';
         ctx.fillText(e.name, tmp.x + 1, top - 4 * iso.view.dpr + 1);

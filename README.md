@@ -4,8 +4,8 @@ A gothic isometric action-RPG for the browser. Double-click `index.html` to play
 no build, no dependencies).
 
 - Tests: `node test/run.js` (prints `ALL TESTS PASSED`); balance bands: `node test/run.js balance`.
-- Balance tools: `node tools/balance_report.js quick|full`, `node tools/bot.js <class> <seed> 13 180` (a full
-  bot run as JSON), `node tools/curve_snapshot.js` (refresh the bot-curve fixture `tools/curve.json` after big
+- Balance tools: `node tools/balance_report.js quick|full`, `node tools/bot.js <class> <seed> 13 180 [difficulty] [build]` (a full
+  bot run as JSON; builds such as `inferno` or `cryo` are in `js/debug/bot_builds.js`, see `SKILL_DESIGN.md`), `node tools/curve_snapshot.js` (refresh the bot-curve fixture `tools/curve.json` after big
   balance changes), `node tools/perf.js` (sim budget). Notes from balancing: `PLAYTEST.md`.
 - Debug: open `index.html?debug=1` (F3 overlay, arena, data lab).
 - Headless screenshots: `powershell -File tools\shot.ps1 -Test <autotest>` (see `js/debug/autotests/`).
@@ -37,7 +37,8 @@ Layers depend downward only: `core ← data ← sim ← view / audio ← ui / in
   `node test/style_rules.js [path]` lists violations; the test suite enforces zero.
 - `node tools/golden.js > before.txt` … refactor … `node tools/golden.js` must print the same: it fingerprints
   four full bot playthroughs and ten boss fights, so any behaviour change shows.
-- `powershell -File toolsutotests.ps1` runs every browser scene headless and fails on any error.
+- `powershell -File tools\autotests.ps1` runs every browser scene headless and fails on any error.
 - `node tools/typecheck.js` type-checks all of `js/` (TypeScript via npx, dev-only).
 
-The design spec lives in the original repo's `remake/` folder.
+The design spec, including the `DECISIONS.md` log that the other docs here refer to, lives in the original
+repo's `remake/` folder (`diablo_claude_fable/remake/`).

@@ -16,6 +16,10 @@
 
   const MID_ROLL = 0.5;                // damage roll used when no roll or rng is given
   const KNOCK_MS_PER_TILE = 60;
+  const SPELL_WPN_REF = 4;             // reference starter caster weapon damage for spell weapon scaling
+  const SPELL_CHAR_WEIGHT = 0.65;      // share of spell scaling from character level...
+  const SPELL_WPN_WEIGHT = 0.35;       // ...and share from equipped weapon damage (keeps Mage in line with weapon classes)
+  const SPELL_ADD_DIV = 12;            // normalises flat elemental gear adds against a spell's base [lo, hi]
 
   const charScale = (L) => 1 + PlayerBalance.charScalePerLevel * (L - 1);
 
@@ -23,6 +27,24 @@
   function rollOf(ctx) {
     if (ctx.roll != null) return ctx.roll;
     return ctx.rng ? ctx.rng.next() : MID_ROLL;
+  }
+
+  function computeSpellHit(s, caster, eff, tags, roll, mult, amounts) {
+    const lo = eff.base[0], hi = eff.base[1];
+    const w = s.weapon;
+    const wRoll = w && w.dmg ? w.dmg[0] + roll * (w.dmg[1] - w.dmg[0]) : SPELL_WPN_REF;
+    const scale = SPELL_CHAR_WEIGHT * charScale(caster.level || 1) + SPELL_WPN_WEIGHT * (wRoll / SPELL_WPN_REF);
+    const base = (lo + roll * (hi - lo)) * scale * (1 + PlayerBalance.dmgPerAttr * s.mag);
+    const el = eff.element || 'fire';
+    const elementPct = EL_PCT[el] ? s[EL_PCT[el]] : 0;
+    const areaPct = tags.includes('aoe') ? s.area_pct : 0;
+    const pct = s.spell_pct + (s.dmg_pct || 0) * 0.5 + elementPct + areaPct + (s.dmg_pct_spell || 0);
+    amounts[el] = base * (1 + pct / 100) * mult;
+    const addMult = (((lo + hi) * 0.5) / SPELL_ADD_DIV) * mult;
+    for (const k of ['fire', 'cold', 'light', 'pois']) {
+      const add = s[k + '_add'];
+      if (add) amounts[k] = (amounts[k] || 0) + add * (1 + (s[EL_PCT[k]] || 0) / 100) * addMult;
+    }
   }
 
   /**
@@ -44,13 +66,7 @@
     /** @type {Record<string, number>} */
     const amounts = {};
     if (eff.source === 'spell') {
-      const lo = eff.base[0], hi = eff.base[1];
-      const base = (lo + roll * (hi - lo)) * charScale(caster.level || 1) * (1 + PlayerBalance.dmgPerAttr * s.mag);
-      const el = eff.element || 'fire';
-      const elementPct = EL_PCT[el] ? s[EL_PCT[el]] : 0;
-      const areaPct = tags.includes('aoe') ? s.area_pct : 0;
-      const pct = s.spell_pct + elementPct + areaPct + (s.dmg_pct_spell || 0);
-      amounts[el] = base * (1 + pct / 100) * mult;
+      computeSpellHit(s, caster, eff, tags, roll, mult, amounts);
     } else if (eff.source === 'fixed') {
       amounts[eff.element || 'phys'] = (ctx.fixed || 0) * mult;
     } else {
@@ -59,7 +75,7 @@
       let pct = s.dmg_pct;
       if (tags.includes('projectile')) pct += s.projectile_pct;
       if (tags.includes('aoe')) pct += s.area_pct;
-      if (w.wieldStat === 'mag') pct += s.spell_pct * 0;  // Mag weapons scale through the wield stat only
+      if (w.wieldStat === 'mag') pct += s.spell_pct * 0.5;
       const phys = (lo + roll * (hi - lo)) * (1 + PlayerBalance.dmgPerAttr * s.wieldValue) * (1 + pct / 100);
       // conversion (e.g. Sky Spear: half lightning)
       const conv = eff.convert || null;

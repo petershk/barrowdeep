@@ -19,7 +19,7 @@
     const attrs = Object.assign({}, Balance.player.attrBase[cls] || Balance.player.attrBase.fighter);
     const p = Entities.makeEntity(1, 'player', cls, 0, 0, {
       cls, name: opts.name || 'Wanderer', background: opts.background || 'wanderer', level: 1, xp: 0, attrs,
-      unspent: { attr: 0, skill: 0 }, skills: {}, bar: { lmb: null, rmb: null, s1: null, s2: null, s3: null, s4: null },
+      unspent: { attr: 0, skill: 0 }, skills: {}, forms: {}, bar: { lmb: null, rmb: null, s1: null, s2: null, s3: null, s4: null },
       resources: {}, equip: { weapon: null, offhand: null, chest: null, helm: null, cloak: null, amulet: null, ring1: null, ring2: null },
       pack: [], pouch: { portal: 1, reveal: 0 },
       flask: { charges: Balance.player.flaskBase, max: Balance.player.flaskBase, permMax: Balance.player.flaskBase }, gold: 0,
@@ -80,14 +80,17 @@
     const p = world.player;
     if (!p || p.dead) return;
     tickTimers(world, p, dt);
-    if (p.move) return;                       // mid-step: wait for the tile
+    const it = p.intent;
+    if (p.move) {
+      const atk = it && (it.kind === 'engage' || it.kind === 'approachThenCast' || it.kind === 'approachPoint');
+      if (!atk || p.move.kind || p.move.elapsed < p.move.dur * 0.55) return;
+    }
     if (p.attack && p.attack.phase === 'channel') {
-      channelMove(world, p);
+      if (!p.move) channelMove(world, p);
       return;
     }
     if (p.attack && p.attack.phase === 'windup') return;   // mid-swing/cast: the ability engine owns it
     if (BD.sim.status && BD.sim.status.clockMult(world, p) === 0) return; // stunned / frozen
-    const it = p.intent;
     if (it.kind === 'move') followPath(world, p, it);
     else if (it.kind === 'engage' || it.kind === 'approachThenCast') engage(world, p, it);
     else if (it.kind === 'interact') interact(world, p, it);
@@ -168,6 +171,7 @@
       }
       return;
     }
+    if (p.move) return;
     // step toward (re-path when the target changed tile)
     if (!it.path || it.goalX !== t.x || it.goalY !== t.y || !it.path.length) {
       it.path = pathTo(world, p, t.x, t.y, true) || [];
@@ -208,6 +212,7 @@
       if (!ok || !it.hold) p.intent = { kind: 'idle' };
       return;
     }
+    if (p.move) return;
     if (!it.path || !it.path.length) {
       it.path = pathTo(world, p, it.x, it.y, true) || [];
       if (!it.path.length) {

@@ -121,7 +121,10 @@
         rows.push({ label: LABELS[k] || (StatDefs[k] ? StatDefs[k].label : k), delta: Math.round(a * 10) / 10 });
       }
       if (s.maxLife !== cur.maxLife) rows.unshift({ label: 'Maximum life', delta: s.maxLife - cur.maxLife });
-      out.push({ slot, rows, dps: dps(s) - dps(cur), ehp: ehp(world, s) - ehp(world, cur), equipped: p.equip[slot] || null });
+      let displaced = null;
+      if (slot === 'weapon' && b.hands === 2 && p.equip.offhand) displaced = p.equip.offhand;
+      if (slot === 'offhand' && p.equip.weapon && BD.data.bases[p.equip.weapon.base].hands === 2) displaced = p.equip.weapon;
+      out.push({ slot, rows, dps: dps(s) - dps(cur), ehp: ehp(world, s) - ehp(world, cur), equipped: p.equip[slot] || null, displaced });
     }
     return out;
   }

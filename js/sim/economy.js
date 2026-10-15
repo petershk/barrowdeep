@@ -202,6 +202,7 @@
     let pts = 0;
     for (const id in p.skills) pts += p.skills[id];
     p.skills = {};
+    p.forms = {};
     p.unspent.skill += pts;
     p.charges = {};
     p.bar = { lmb: null, rmb: null, s1: null, s2: null, s3: null, s4: null };

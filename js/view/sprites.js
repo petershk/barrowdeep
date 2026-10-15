@@ -95,7 +95,7 @@
     const grid = list[i % list.length];
     const art = BD.view.art[id];
     let pal = o.pal ? Object.assign({}, art.pal, o.pal) : art.pal;
-    if (o.doll && BD.view.paperdoll) pal = Object.assign({}, BD.view.paperdoll.PAL, pal);
+    if (o.doll && BD.view.paperdoll) pal = Object.assign({}, BD.view.paperdoll.PAL, pal, BD.view.paperdoll.palFor(id, o.doll));
     const w = W(grid), h = grid.length;
     const cv = document.createElement('canvas');
     cv.width = w;
@@ -130,9 +130,9 @@
     return c;
   }
 
-  const RIM = [255, 243, 216], RIM_A = 0.3;
+  const RIM = [255, 243, 216], RIM_A = 0.5;
   /** a 1-art-pixel light rim on the top-left of the silhouette (light from the top-left, ART_DIRECTION):
-   *  colour pixels whose upper or left neighbour is outside the sprite (or is the edge ink) are lifted 30% toward RIM */
+   *  colour pixels whose upper or left neighbour is outside the sprite (or is the edge ink) are lifted 50% toward RIM */
   function addRim(img, grid, w, h, flip) {
     const kind = new Uint8Array(w * h);           // 0 empty, 1 ink, 2 colour (in output, i.e. flipped, coords)
     for (let y = 0; y < h; y++) {

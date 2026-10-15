@@ -134,26 +134,35 @@
   }
 
   /**
-   * Returns nextAnchor(): set-piece 'M' markers first, then shuffled floor tiles kept apart from
-   * other packs (the spacing relaxes when space runs out). null when nothing is left.
+   * Returns nextAnchor(): set-piece 'M' markers first, then swarm-room clusters or shuffled floor
+   * tiles kept apart from other packs (the spacing relaxes when space runs out). null when nothing is left.
    */
-  function anchorPicker(ctx, p) {
+  function anchorPicker(ctx, p, rng) {
     const { dist, taken, floorList } = ctx;
     const mSpots = p.markers.filter((m) => m.ch === 'M');
     const anchors = [];
     for (let i = 0; i < mSpots.length; i += 2) anchors.push([mSpots[i].x, mSpots[i].y]);
-    let fi = 0, spacing = GenBalance.packSpacing;
+    let fi = 0, spacing = GenBalance.packSpacing, last = null;
     const farFromPacks = (a) => p.spawns.every((pk) => cheb(pk.members[0].x, pk.members[0].y, a[0], a[1]) >= spacing);
+    const nearLast = () => {
+      if (!last || !rng || !rng.chance(GenBalance.swarmChance || 0)) return null;
+      return floorList.find((a) => {
+        const d = cheb(a[0], a[1], last[0], last[1]);
+        return !taken.has(idx(p, a[0], a[1])) && d >= 2 && d <= 4;
+      }) || null;
+    };
     return () => {
       while (anchors.length) {
         const a = anchors.shift();
-        if (!taken.has(idx(p, a[0], a[1])) && dist[idx(p, a[0], a[1])] >= 0) return a;
+        if (!taken.has(idx(p, a[0], a[1])) && dist[idx(p, a[0], a[1])] >= 0) return (last = a);
       }
+      const swarm = nearLast();
+      if (swarm) return (last = swarm);
       for (;;) {
         while (fi < floorList.length) {
           const a = floorList[fi++];
           if (taken.has(idx(p, a[0], a[1]))) continue;
-          if (farFromPacks(a)) return a;
+          if (farFromPacks(a)) return (last = a);
         }
         if (spacing <= GenBalance.minPackSpacing) return null;
         spacing -= SPACING_STEP;
@@ -260,7 +269,7 @@
   function run(p, rng, fl, spec) {
     const ctx = startContext(p, rng, fl);
     if (fl.keeper) placeKeeper(ctx, p, rng, fl, spec);
-    const nextAnchor = anchorPicker(ctx, p);
+    const nextAnchor = anchorPicker(ctx, p, rng);
     const budget = placePacks(ctx, p, rng, fl, spec, nextAnchor);
     placeElites(ctx, p, rng, fl, spec, nextAnchor);
     // set-piece objects

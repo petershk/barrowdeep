@@ -50,6 +50,14 @@
     valkyrie: { rmb: 'multishot', s1: 'aimed_shot', s2: 'rain_of_arrows', s3: 'vault', s4: 'pinning_shot' },
   };
 
+  /** the build this bot follows (debug/bot_builds.js), or null for the class default */
+  function buildOf(bot) {
+    const id = bot.opts.build;
+    return id && BD.debug.botBuilds ? BD.debug.botBuilds.BUILDS[id] || null : null;
+  }
+  const planOf = (bot, p) => (buildOf(bot) || { plan: SKILL_PLAN[p.cls] }).plan;
+  const barOf = (bot, p) => (buildOf(bot) || { bar: BAR[p.cls] }).bar;
+
   function make(world, opts) {
     return {
       world, opts: opts || {}, tick: 0, lastProgress: 0, lastPos: '', stuckMs: 0, stats: newStats(), floorStart: 0, floorTimes: {},
@@ -76,15 +84,33 @@
     }
     // the plan is an ordered list of picks: the k-th mention of a skill means "raise it to rank k"
     const want = {};
-    for (const id of SKILL_PLAN[p.cls]) {
+    for (const id of planOf(bot, p)) {
       if (p.unspent.skill <= 0) break;
       want[id] = (want[id] || 0) + 1;
       if ((p.skills[id] || 0) < want[id] && BD.sim.progression.canLearn(w, p, id).ok) BD.sim.commands.apply(w, { type: 'SpendSkill', id });
     }
-    for (const slot in BAR[p.cls]) {
-      const id = BAR[p.cls][slot];
+    const bar = barOf(bot, p);
+    for (const slot in bar) {
+      const id = bar[slot];
       if (p.skills[id] && p.bar[slot] !== id) BD.sim.commands.apply(w, { type: 'SetBar', slot, id });
     }
+    const forms = (buildOf(bot) || {}).forms || {};
+    for (const id in forms) {
+      if (p.forms && p.forms[id] === forms[id]) continue;
+      if ((p.skills[id] || 0) >= BD.data.balance.skills.formRank) BD.sim.commands.apply(w, { type: 'SetForm', id, form: forms[id] });
+    }
+  }
+
+  /** a build's cast priorities: the first entry whose test passes and whose skill goes off */
+  function buildRotation(bot, t, near) {
+    const w = bot.world, p = w.player, b = buildOf(bot);
+    const c = BD.debug.botBuilds.situation(w, p, t, near);
+    if (!b.melee && magicianKite(bot, t, near)) return true;
+    for (const [slot, test, aim] of b.rot) {
+      if (!test(c)) continue;
+      if (useSkill(bot, slot, t, aim === 'self' ? { x: p.x, y: p.y } : { x: t.x, y: t.y })) return true;
+    }
+    return false;
   }
 
   /** score an item swap by DPS and effective-life deltas from statsOf */
@@ -170,6 +196,7 @@
     if (!id || !p.skills[id]) return false;
     if (t && t.untargetable) return false;   // burrowed or phased out: don't waste a Charge or a spender on it
     const ab = BD.data.skills[id];
+    if (ab.targeting && ab.targeting.outOfRange === 'reject' && t && !within(p.x, p.y, t.x, t.y, ab.targeting.range || 1)) return false;
     if (BD.sim.abilities.cooldownLeft(p, ab) > 0) return false;
     if (!BD.sim.abilities.affordable(w, p, id)) return false;   // can't pay: the rotation falls through to the basic attack
     // a cast that was just tried and didn't start (rejected: no room, out of sight…) waits, so the rotation falls through;
@@ -183,12 +210,18 @@
   }
   const ROTATION = {
     fighter(bot, t, near) {
-      const p = bot.world.player, rage = p.resources.rage.cur, adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length;
-      if (rage >= 50 && adj >= 2 && useSkill(bot, 's2', t)) return true;
-      if (rage >= 25 && near.length >= 3 && useSkill(bot, 's3', t)) return true;
-      if (rage >= 40 && cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 's1', t)) return true;
-      if (rage >= 20 && cheb(t.x, t.y, p.x, p.y) >= 3 && useSkill(bot, 's4', t)) return true;
-      if (cheb(t.x, t.y, p.x, p.y) <= 1 && useSkill(bot, 'rmb', t)) return true;   // Bash when the rage is there
+      const p = bot.world.player, rage = p.resources.rage.cur, d = cheb(t.x, t.y, p.x, p.y);
+      const adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length;
+      const elite = t.rank && t.rank !== 'normal' && t.rank !== 'minion';
+      const guarded = BD.sim.monsters.blockFront(t) > 0 && BD.sim.targeting.inFront(t, p.x, p.y);
+      const kiter = BD.sim.monsters.defOf(t).behaviours.some((b) => b.id === 'kite' || b.id === 'blink_away');
+      const reserve = kiter && p.skills.charge ? 20 : 0;
+      const cry = near.length >= 3 || (elite && !kiter && !BD.sim.status.has(p, 'war_cry'));
+      if (rage >= 20 && d >= 2 && useSkill(bot, 's4', t)) return true;
+      if (rage >= 25 && d <= 2 && cry && useSkill(bot, 's3', t)) return true;
+      if (rage >= 50 && (adj >= 2 || (guarded && d <= 2)) && useSkill(bot, 's2', t)) return true;
+      if (rage >= 40 && d <= 1 && (!kiter || (p.skills.berserk_strike || 0) >= 3) && useSkill(bot, 's1', t)) return true;
+      if (d <= 1 && rage >= 8 + reserve && useSkill(bot, 'rmb', t)) return true;   // Bash when the rage is there
       return false;
     },
     assassin(bot, t, near) {
@@ -206,15 +239,7 @@
       const p = bot.world.player, m = p.resources.mana.cur;
       const close = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 2).length;
       if (close >= 2 && m >= 18 && useSkill(bot, 's3', t)) return true;
-      // a caster doesn't trade blows: when something reaches melee range, back off a few tiles
-      const awake = t.ai && t.ai.state !== 'idle' && t.ai.state !== 'dormant';
-      const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7
-        || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
-      const canKite = !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000);
-      if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && canKite && kiteFrom(bot, t)) {
-        bot.kitedAt = bot.world.time;
-        return true;
-      }
+      if (magicianKite(bot, t, near)) return true;
       if (near.length >= 3 && m >= 30 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
       if (m >= 14 + 10 && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
@@ -226,18 +251,45 @@
       const adj = near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length, hurt = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.5;
       if (cheb(t.x, t.y, p.x, p.y) <= 1 && (adj >= 2 || hurt) && useSkill(bot, 's3', t, { x: t.x, y: t.y })) return true;
       if (f >= 4 && near.length >= 3 && useSkill(bot, 's2', t, { x: t.x, y: t.y })) return true;
-      // Aimed Shot needs 2 focus; against elites hold for 4 while nothing is in melee range (hits knock focus off)
+      // Aimed Shot needs minStart focus; against elites hold for 4 while nothing is in melee range (hits knock focus off)
       const small = !t.rank || t.rank === 'normal' || t.rank === 'minion';
       const minStart = BD.data.skills.aimed_shot.resource.minStart;
       if ((f >= 4 || (f >= minStart && (adj > 0 || small))) && useSkill(bot, 's1', t, { x: t.x, y: t.y })) return true;
       if (useSkill(bot, 's4', t, { x: t.x, y: t.y })) return true;
-      // Multishot costs focus: into a group, or at a kiter a single slow arrow would miss;
-      // other single targets get basic shots, which build focus for Aimed Shot
+      // Multishot costs focus: into a group, at a kiter, or before Aimed Shot is learned;
+      // otherwise single targets get basic shots to build focus for Aimed Shot
       const kiter = BD.sim.monsters.defOf(t).behaviours.some((b) => b.id === 'kite');
-      if ((near.length >= 2 || kiter) && useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
+      if ((near.length >= 2 || kiter || !p.skills.aimed_shot) && useSkill(bot, 'rmb', t, { x: t.x, y: t.y })) return true;
       return false;
     },
   };
+
+  /** a melee build crosses what it can't walk through (Malgoth's burning rim) with a blink on its bar */
+  function blinkToward(bot, t) {
+    const w = bot.world, p = w.player, b = buildOf(bot);
+    if (!b || !b.melee || cheb(t.x, t.y, p.x, p.y) <= 2) return false;
+    const slot = Object.keys(p.bar).find((k) => p.bar[k] && BD.data.skills[p.bar[k]].delivery.kind === 'blink');
+    if (!slot) return false;
+    const d = Math.hypot(t.x - p.x, t.y - p.y), step = Math.min(7, d - 1);
+    const x = Math.round(p.x + ((t.x - p.x) / d) * step), y = Math.round(p.y + ((t.y - p.y) / d) * step);
+    const f = w.floor;
+    if (!BD.sim.entities.isFree(f, x, y) || !f.visible[Grid.idx(f, x, y)]) return false;
+    return useSkill(bot, slot, null, { x, y });
+  }
+
+  /** a caster doesn't trade blows: when something reaches melee range, back off a few tiles */
+  function magicianKite(bot, t, near) {
+    const p = bot.world.player;
+    const awake = t.ai && t.ai.state !== 'idle' && t.ai.state !== 'dormant';
+    const pressed = p.hp < BD.sim.stats.statsOf(bot.world, p).maxLife * 0.7
+      || near.filter((e) => cheb(e.x, e.y, p.x, p.y) <= 1).length >= 2;
+    const canKite = !(p.cooldowns.evade > 0) && !(bot.kitedAt > bot.world.time - 3000);
+    if (awake && pressed && cheb(t.x, t.y, p.x, p.y) <= 1 && canKite && kiteFrom(bot, t)) {
+      bot.kitedAt = bot.world.time;
+      return true;
+    }
+    return false;
+  }
 
   /** step (or Evade) to a free tile ~3 away from t, preferring the direction away from it */
   function kiteFrom(bot, t) {
@@ -267,7 +319,7 @@
     const spawner = near.find(isSpawner);
     const t = spawner || near[0];
     // give up on a target whose life hasn't dropped in 8 s (across lava, kiting out of reach…)
-    const isBoss = t.rank === 'boss' || t.rank === 'malgoth';   // never write off a boss (phases, wings, burrows)
+    const isBoss = t.rank === 'boss' || t.rank === 'malgoth' || t.rank === 'keeper';   // never write off a boss or Keeper
     const arena = !!w.floor.arena || w.floor.n === 13;
     if (arena) {
       // in an arena: drop an add we can't hurt for 8 s (blinking casters) and get back to the boss
@@ -300,8 +352,11 @@
       bot.fightKey = key;
       bot.fightSince = w.time;
     }
+    bot.target = t.id;
+    bot.targetAt = w.time;
     if (p.attack && p.attack.phase === 'windup') return;
-    if (!ROTATION[p.cls](bot, t, near)) issue(w, { type: 'Engage', entityId: t.id, hold: true });
+    const rotate = buildOf(bot) ? buildRotation : ROTATION[p.cls];
+    if (!rotate(bot, t, near)) issue(w, { type: 'Engage', entityId: t.id, hold: true });
   }
 
   // ---------------- one decision ----------------
@@ -464,13 +519,15 @@
         issue(w, { type: 'Interact', x: exit.x, y: exit.y });
         return;
       }
-      const boss = Array.from(f.entities.values()).find((e) => e.rank === 'boss');
+      const boss = Array.from(f.entities.values()).find((e) => (e.rank === 'boss' || e.rank === 'malgoth') && !e.dead);
+      if (boss && blinkToward(bot, boss)) return;
       if (boss) issue(w, { type: 'Move', x: boss.x, y: boss.y });
       return;
     }
     if (f.n === 13) {
       const ents = Array.from(f.entities.values());
       const boss = ents.find((e) => e.rank === 'malgoth' && !e.dead) || ents.find((e) => e.kind === 'monster' && !e.dead);
+      if (boss && blinkToward(bot, boss)) return;
       if (boss) issue(w, { type: 'Engage', entityId: boss.id, hold: true });
       return;
     }
@@ -485,6 +542,11 @@
         return;
       }
       issue(w, { type: 'Interact', x: f.downPos.x, y: f.downPos.y });
+      return;
+    }
+    const chased = bot.target != null && w.time - bot.targetAt < 4000 ? f.entities.get(bot.target) : null;
+    if (chased && !chased.dead && !(bot.unreach && bot.unreach.get(chased.id) > w.time)) {
+      issue(w, { type: 'Move', x: chased.x, y: chased.y });
       return;
     }
     // go for the Keeper once pinged / seen, otherwise explore

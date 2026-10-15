@@ -74,6 +74,15 @@
     return d && d.scale ? d.scale : 1;
   }
 
+  /** Actors draw about a quarter larger than the tiles' pixel scale, so heroes and monsters read at a glance
+   *  (ART_DIRECTION.md "World and characters"). Rounded so an art pixel is still a whole number of screen
+   *  pixels: no shimmer. Anything placed at a height on an actor (float text, pips, glows) multiplies by it. */
+  const ACTOR_SCALE = 1.25;
+  function actorK() {
+    const px = BD.view.iso.view.S;
+    return Math.round(px * ACTOR_SCALE) / px;
+  }
+
   /** advance visual timers by real ms */
   function tick(realMs) {
     for (const s of vis.values()) {
@@ -107,5 +116,5 @@
     s.ly = dy / l;
   }
 
-  BD.view.entities = { vis, stateOf, clear, pos, artOf, palOf, scaleOf, tick, onDamage, onAttack, CLASS_ART };
+  BD.view.entities = { vis, stateOf, clear, pos, artOf, palOf, scaleOf, actorK, tick, onDamage, onAttack, CLASS_ART };
 })(globalThis.BD);

@@ -35,6 +35,8 @@
   function apply() {
     if (typeof document !== 'undefined') {
       document.documentElement.style.fontSize = 16 * opts.uiScale + 'px';
+      // the in-game screen UI (HUD plate, tracker, minimap, target frame, feed) is sized in px: it scales by zoom
+      document.documentElement.style.setProperty('--ui-scale', String(opts.uiScale));
       document.body && document.body.classList.toggle('cb', !!opts.colorblind);
     }
   }

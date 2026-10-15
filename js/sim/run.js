@@ -111,7 +111,8 @@
       travel(world, 1, 'up');
       return;
     }
-    if (typeof f.n !== 'number' || !f.sealBroken) return;
+    if (typeof f.n !== 'number') return;
+    if (!f.sealBroken) openSeal(world, false);
     const next = f.n + 1;
     if (next > LAST_STAIRS_FLOOR) return;
     travel(world, next, 'up');

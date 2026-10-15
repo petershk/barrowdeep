@@ -239,7 +239,7 @@
   }
 
   function loadDebug() {
-    const files = ['overlay', 'bot', 'arena', 'autotest'];
+    const files = ['overlay', 'bot', 'bot_builds', 'arena', 'autotest'];
     for (const f of files) {
       const s = document.createElement('script');
       s.src = 'js/debug/' + f + '.js';

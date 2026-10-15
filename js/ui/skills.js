@@ -8,6 +8,7 @@
   const { h } = BD.ui.dom;
   const Commands = () => BD.sim.commands;
   const TIER_LVL = BD.data.balance.skills.tierLevel;
+  const FORM_RANK = BD.data.balance.skills.formRank;
   const SLOT_LABEL = { lmb: 'L', rmb: 'R' };
   const SLOT_TITLE = { lmb: 'left mouse (attacks instead when unaffordable)', rmb: 'right mouse' };
 
@@ -17,7 +18,8 @@
     el.appendChild(h('h2', 'Skills — ' + cls.name));
     el.appendChild(h('div.skills-head', [
       h('span', 'Unspent points: '), h('b.gold', String(p.unspent.skill)),
-      h('span.muted', '  ·  Click + to learn. Click a slot letter to place a skill on the bar.'),
+      h('span.muted', '  ·  Click + to learn. Click a slot letter to place a skill on the bar. '
+        + 'At rank ' + FORM_RANK + ', pick one of its two Forms.'),
     ]));
     const cols = h('div.skill-cols');
     for (const br of cls.branches) {
@@ -42,8 +44,48 @@
         Commands().apply(w, { type: 'SetBar', slot, id: p.bar[slot] === t.dataset.id ? null : t.dataset.id });
         BD.ui.panels.rebuild('skills');
       },
+      form: (t) => {
+        const id = t.dataset.id;
+        Commands().apply(w, { type: 'SetForm', id, form: p.forms && p.forms[id] === t.dataset.form ? null : t.dataset.form });
+        BD.ui.panels.rebuild('skills');
+      },
       close: () => BD.ui.panels.close('skills'),
     });
+  }
+
+  /** the either-or Forms of a skill: open at the form rank, free to switch */
+  function formRow(w, p, ab, hard, rank) {
+    if (!ab.forms) return null;
+    const open = hard >= FORM_RANK;
+    const cur = p.forms && p.forms[ab.id];
+    const btns = ab.forms.map((f) => {
+      const active = cur === f.id && open;
+      const btn = h('button.form-btn' + (active ? '.on' : ''), {
+        data: { action: 'form', id: ab.id, form: f.id },
+        disabled: !open,
+      }, f.name);
+      btn.addEventListener('mouseenter', (ev) => {
+        ev.stopPropagation();
+        BD.ui.tooltip.show(btn, (c) => {
+          let status = 'Click to activate Form';
+          if (!open) status = 'Opens at rank ' + FORM_RANK;
+          else if (active) status = 'Active Form — click to remove';
+          BD.ui.dom.append(c, [
+            h('div.tt-title', f.name + ' — ' + f.verb),
+            h('div.tt-sub', ab.name + ' Form · ' + status),
+            h('div.tt-desc', f.text),
+          ]);
+        });
+      });
+      btn.addEventListener('mouseleave', () => {
+        const cardEl = btn.closest('.skill-card');
+        if (cardEl && cardEl.matches(':hover')) {
+          BD.ui.tooltip.show(cardEl, (c, shift) => BD.ui.dom.append(c, BD.ui.tooltip.skillBody(w, p, ab.id, shift, Math.max(1, rank))));
+        } else BD.ui.tooltip.hide();
+      });
+      return btn;
+    });
+    return h('div.form-btns', btns);
   }
 
   function card(w, p, ab) {
@@ -60,10 +102,14 @@
       const bp = (i === 3 || i === 5) && max === 5 ? '.bp' : '';
       pips.appendChild(h('span.rp' + fill + bp));
     }
+    const slotTitle = (s) => {
+      const where = SLOT_TITLE[s] || 'slot ' + s[1];
+      return p.bar[s] === ab.id ? 'On ' + where + ' (click to remove)' : 'Place on ' + where;
+    };
     const slotBtn = (s) => h('button.slot-btn' + (p.bar[s] === ab.id ? '.on' : ''), {
       data: { action: 'assign', slot: s, id: ab.id },
       disabled: !hard || (s === 'lmb' && !BD.sim.abilities.canBePrimary(ab)),
-      title: 'Place on ' + (SLOT_TITLE[s] || 'slot ' + s[1]),
+      title: slotTitle(s),
     }, SLOT_LABEL[s] || s[1]);
     const slotBtns = ab.passive
       ? h('div.slot-btns', h('span.muted.small', 'Passive — always on once learned'))
@@ -80,6 +126,7 @@
       h('div.skill-meta', [h('div.skill-name', ab.name), h('div.skill-sub.muted', sub), pips]),
       h('button.btn.learn', { data: { action: 'learn', id: ab.id }, disabled: !can.ok, title: can.ok ? 'Learn' : can.why }, '+'),
       slotBtns,
+      formRow(w, p, ab, hard, rank),
     ]);
     BD.ui.tooltip.bind(el, (c, shift) => BD.ui.dom.append(c, BD.ui.tooltip.skillBody(w, p, ab.id, shift, Math.max(1, rank))));
     return el;

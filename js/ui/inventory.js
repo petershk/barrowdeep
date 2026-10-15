@@ -27,6 +27,18 @@
     return h('img.it-icon', { src: BD.view.sprites.dataURL(art, ICON_SCALE), alt: '' });
   }
 
+  function highlightSlots(item, on) {
+    const b = BD.data.bases[item.base];
+    const p = BD.app.world && BD.app.world.player;
+    const targets = b.slot === 'ring' ? ['ring1', 'ring2'] : [b.slot];
+    if (b.slot === 'weapon' && b.hands === 2 && p && p.equip.offhand) targets.push('offhand');
+    if (b.slot === 'offhand' && p && p.equip.weapon && BD.data.bases[p.equip.weapon.base].hands === 2) targets.push('weapon');
+    for (const s of targets) {
+      const slotEl = document.querySelector('.doll-slot.slot-' + s);
+      if (slotEl) slotEl.classList.toggle('comparing', on);
+    }
+  }
+
   function itemCell(world, item, where, extra) {
     const d = BD.sim.items.derive(item);
     const ok = BD.sim.inventory.canEquip(world, world.player, item).ok;
@@ -35,6 +47,10 @@
       iconEl(item), h('span.it-cell-name', d.name + (item.enhance ? ' +' + item.enhance : '')),
     ]);
     BD.ui.tooltip.bind(el, (c) => BD.ui.itemTooltip.body(c, world, item, { compare: where !== 'equip' }));
+    if (where === 'pack') {
+      el.addEventListener('mouseenter', () => highlightSlots(item, true));
+      el.addEventListener('mouseleave', () => highlightSlots(item, false));
+    }
     return el;
   }
 

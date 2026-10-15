@@ -5,10 +5,31 @@
   'use strict';
 
   const iso = BD.view.iso;
+  const Grid = BD.core.grid;
   const Palette = BD.view.palette;
-  let buf = null, img = null, acc = null, key = '';
+  let buf = null, img = null, acc = null, shown = null, key = '', lastT = -1;
+  /** ms for the light to travel ~63% of the way to its new level: the edge of sight glides instead of
+   *  snapping a whole tile when the hero steps and the field of view changes */
+  const EASE_MS = 90;
   /** dynamic lights pushed by the renderer/FX each frame: {x,y,radius,color,intensity,flicker} */
   const frameLights = [];
+  /** remembered (explored, out of sight) tiles: dim, but bright enough that the map you walked still reads */
+  const MEMORY = 0.24;
+  /** A completed floor lights up (exit_guide.js): a wave of light runs out from where the hero stood, and
+   *  behind it every remembered tile holds REVEALED light instead of MEMORY, so the way out reads at a glance. */
+  const REVEALED = 0.55, WAVE_SPEED = 0.016, WAVE_BAND = 3, WAVE_BOOST = 0.5;   // light, tiles per ms, tiles, light
+  let reveal = null;   // { key, x, y, t0 }: t0 -Infinity = already lit when the hero arrived
+  function setReveal(f, x, y, timeMs, instant) {
+    reveal = { key: f.key + ':' + f.seed, x, y, t0: instant ? -Infinity : timeMs };
+  }
+  function revealed(f, x, y, timeMs) {
+    if (!reveal || reveal.key !== f.key + ':' + f.seed) return 0;
+    if (reveal.t0 === -Infinity) return REVEALED;
+    const front = (timeMs - reveal.t0) * WAVE_SPEED, d = Math.hypot(x - reveal.x, y - reveal.y);
+    if (d > front) return 0;
+    return front - d < WAVE_BAND ? REVEALED + WAVE_BOOST * (1 - (front - d) / WAVE_BAND) : REVEALED;
+  }
+
   /** the player light's warm cast (07 §1.3) */
   const WARM = [1, 0.93, 0.82];
 
@@ -21,6 +42,7 @@
     buf.height = f.h;
     img = buf.getContext('2d').createImageData(f.w, f.h);
     acc = new Float32Array(f.w * f.h * 3);
+    shown = null;
   }
 
   function add(x, y, radius, color, intensity, flicker) { frameLights.push({ x, y, radius, color, intensity, flicker: flicker || 0 }); }
@@ -32,15 +54,16 @@
     ensure(f);
     const w = f.w, h = f.h;
     acc.fill(0);
-    playerLight(f, pp, R);
+    playerLight(f, pp, R, timeMs);
     // coloured point lights (only onto explored tiles; full strength where visible)
     for (const L of frameLights) addPoint(f, L, timeMs);
     frameLights.length = 0;
+    ease(timeMs);
     const d = img.data;
     for (let i = 0, n = w * h; i < n; i++) {
-      d[i * 4] = Math.min(255, acc[i * 3] * 255);
-      d[i * 4 + 1] = Math.min(255, acc[i * 3 + 1] * 255);
-      d[i * 4 + 2] = Math.min(255, acc[i * 3 + 2] * 255);
+      d[i * 4] = Math.min(255, shown[i * 3] * 255);
+      d[i * 4 + 1] = Math.min(255, shown[i * 3 + 1] * 255);
+      d[i * 4 + 2] = Math.min(255, shown[i * 3 + 2] * 255);
       d[i * 4 + 3] = 255;
     }
     buf.getContext('2d').putImageData(img, 0, 0);
@@ -55,8 +78,20 @@
     ctx.imageSmoothingEnabled = false;
   }
 
+  /** move the drawn light toward this frame's target, frame-rate independent; a new floor starts settled */
+  function ease(timeMs) {
+    const dt = lastT < 0 ? 0 : Math.max(0, Math.min(250, timeMs - lastT));
+    lastT = timeMs;
+    if (!shown || shown.length !== acc.length) {
+      shown = Float32Array.from(acc);
+      return;
+    }
+    const a = 1 - Math.exp(-dt / EASE_MS);
+    for (let i = 0; i < acc.length; i++) shown[i] += (Math.min(1.5, acc[i]) - shown[i]) * a;
+  }
+
   /** the player's light over the whole floor: falloff in view, dim memory elsewhere */
-  function playerLight(f, pp, R) {
+  function playerLight(f, pp, R, timeMs) {
     const w = f.w, h = f.h;
     const town = f.biome === 'town';
     const amb = town ? 0.55 : 0.0;
@@ -73,15 +108,25 @@
       if (f.visible[i]) {
         const d = Math.hypot(x - pp.x, y - pp.y);
         v = Math.max(lo, peak - d / reach);
-      } else if (f.explored[i]) v = town ? 0.4 : 0.16;
-      v = Math.max(v, f.explored[i] ? amb : 0);
+      } else if (f.explored[i]) v = town ? 0.4 : MEMORY;
+      if (f.explored[i]) v = Math.max(v, town ? amb : revealed(f, x, y, timeMs));
       acc[i * 3] = v * tr;
       acc[i * 3 + 1] = v * tg;
       acc[i * 3 + 2] = v * tb;
     }
   }
 
+  /** Is a light's source in the hero's line of sight? Its own tile or the one it hangs over (a wall light sits
+   *  between its wall and the floor in front of it) must be visible. */
+  function sourceSeen(f, L) {
+    const vis = (x, y) => x >= 0 && y >= 0 && x < f.w && y < f.h && f.visible[Grid.idx(f, x, y)];
+    return vis(Math.round(L.x), Math.round(L.y)) || vis(Math.floor(L.x), Math.floor(L.y));
+  }
+
+  /** A point light reaches only tiles the hero can see, and only while the hero can see its source: no glow
+   *  leaking through walls, no rooms lit by torches you have not found a line to. */
   function addPoint(f, L, timeMs) {
+    if (!sourceSeen(f, L)) return;
     const w = f.w, h = f.h;
     const [cr, cg, cb] = Palette.rgb(L.color);
     const fl = L.flicker
@@ -91,10 +136,10 @@
     const y0 = Math.max(0, Math.floor(L.y - r)), y1 = Math.min(h - 1, Math.ceil(L.y + r));
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * w + x;
-      if (!f.explored[i]) continue;
+      if (!f.visible[i]) continue;
       const d = Math.hypot(x - L.x, y - L.y);
       if (d > r) continue;
-      const k = (1 - d / r) * L.intensity * fl * (f.visible[i] ? 1 : 0.35);
+      const k = (1 - d / r) * L.intensity * fl;
       acc[i * 3] += (cr / 255) * k;
       acc[i * 3 + 1] += (cg / 255) * k;
       acc[i * 3 + 2] += (cb / 255) * k;
@@ -108,5 +153,5 @@
     return Math.min(1, acc[i * 3]);
   }
 
-  BD.view.lighting = { add, draw, at, frameLights };
+  BD.view.lighting = { add, draw, at, sourceSeen, setReveal, frameLights };
 })(globalThis.BD);

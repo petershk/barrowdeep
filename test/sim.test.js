@@ -210,21 +210,30 @@ module.exports = (T) => {
     T.ok(p.dead, 'a later death is processed');
   });
 
-  T.test('early-game loot: no legendary before the first act boss, Act I rares at half rate', () => {
+  T.test('early-game loot and monster hit-recovery flinch', () => {
     const w = newWorld('loot-gate');
     const rng = BD.core.rng.makeRng('loot-gate');
-    const count = (n, rar) => {
+    const count = (rar) => {
       let k = 0;
       for (let i = 0; i < 4000; i++) if (BD.sim.loot.rollItem(w, rng, { ilvl: 5, mf: 300 }).rarity === rar) k++;
       return k / 4000;
     };
-    T.eq(count(1, 'legendary'), 0, 'before Grulk dies nothing rolls legendary');
-    w.run.bossesKilled = ['grulk'];
-    T.ok(count(1, 'legendary') > 0, 'afterwards legendaries can drop');
-    const act1 = count(1, 'rare');
+    T.ok(count('legendary') > 0, 'legendaries can drop on Floor 1 before any boss dies');
+    const act1 = count('rare');
     BD.sim.run.travel(w, 4, 'spawn');
-    const act2 = count(1, 'rare');
-    T.between(act1 / act2, 0.35, 0.7, 'Act I rare share is about half of Act II');
+    const act2 = count('rare');
+    T.between(act1 / act2, 0.85, 1.15, 'Act I rare share matches Act II');
+
+    const m = firstMonster(w);
+    m.rank = 'normal';
+    m.ai.state = 'windup';
+    m.ai.action = { kind: 'melee', windLeft: 200, targetId: w.player.id, x: w.player.x, y: w.player.y };
+    const maxHp = BD.sim.stats.statsOf(w, m).maxLife;
+    BD.sim.damage.dealDamage(w, {
+      srcId: w.player.id, tgtId: m.id, amounts: { phys: maxHp * 0.4 }, tags: ['melee'],
+      canCrit: false, canDodge: false, canBlock: false, mult: 1,
+    });
+    T.eq(m.ai.action, null, 'a heavy hit flinches the monster out of its normal melee wind-up');
   });
 
   T.test('a Bonecaller raises at most twice, and the risen stay down', () => {

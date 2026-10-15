@@ -14,6 +14,7 @@
       resistCap: 75, resistMaxBonus: 5, resistMin: -100,
       dotTickMs: 500,
       exposedMs: 1400, exposedMult: 0.5,
+      flinchPct: 0.12, flinchMs: 220, flinchIcdMs: 500, // monsters flinch when a hit takes ≥12% max life
       hitstopMaxMs: 70, hitstopMinGapMs: 240,
       corpseMs: 10000,
       statusChanceMagK: 0.003,
@@ -26,17 +27,17 @@
       gearStunMs: 400,                                  // stun from gear stun_chance
     },
     player: {
-      moveMs: 250, diagMult: Math.SQRT2,
+      moveMs: 210, diagMult: 1.28,
       evadeTiles: 2, evadeMs: 180, evadeInvulnMs: 120, evadeCdMs: 3000,
       lifeBase: 40, lifePerLevel: 4, lifePerVit: 3,
-      manaBase: 30, manaPerLevel: 1, manaPerMag: 0.75,
-      manaRegenBase: 1.5, manaRegenPerMag: 0.085, surgeDelayMs: 2500, surgeMult: 3,
-      manaCostPerLevel: 0.03,                           // mana costs ×(1 + this × (level − 1)), keeping pace with the pool
-      rageMax: 100, rageBasicGen: 15, rageDecay: 8, rageDecayDelayMs: 3000,
+      manaBase: 30, manaPerLevel: 2.5, manaPerMag: 1.2,
+      manaRegenBase: 2.2, manaRegenPerMag: 0.12, surgeDelayMs: 2500, surgeMult: 3,
+      manaCostPerLevel: 0,                              // flat mana costs: a bigger pool means more casts
+      rageMax: 100, rageBasicGen: 20, rageDecay: 8, rageDecayDelayMs: 3000,
       rageFloor: 20,                                    // out of combat rage settles here (and starts here): an opening Charge or Bash
       rageFloorPerLevel: 0.5,                           // ...plus this per level past 1 (about 32 by Act IV), as the costly skills arrive
       momentumThresh: 50, momentumDmg: 10, momentumIas: 10,
-      energyMax: 100, energyRegen: 12,                // every skill costs energy; only the basic attack is free
+      energyMax: 100, energyRegen: 15,                  // every skill costs energy; only the basic attack is free
       comboMax: 3, comboWindowMs: 6000,
       focusMax: 5, focusStillMs: 350, focusLoseMs: 4000, focusSameTargetGapMs: 0, focusKnockPct: 8, focusCritPer: 4,
       lifeRegenPct: 0.4, oocRegenPct: 3, oocDelayMs: 4000,
@@ -71,8 +72,8 @@
       // life and damage by a floor's place in its act (first, second, third), so difficulty climbs inside an
       // act instead of jumping at each act boundary; the act mean stays ~1. Bosses are tuned separately.
       floorRamp: { hp: [0.88, 1, 1.12], dmg: [0.92, 1, 1.08] },
-      championAct: { 1: 0.85, 2: 1.08 },                        // champion durability per act (05 §4 elite band; 1 where unlisted)
-      keeperAct: { 1: 1, 2: 1, 3: 1, 4: 1 },   // Keeper / unique durability per act (05 §4 elite band)    // per-act life correction (tuned by the balance bot, 05 §4)
+      championAct: { 1: 0.85, 2: 1.18 },                        // champion durability per act (05 §4 elite band; 1 where unlisted)
+      keeperAct: { 1: 1, 2: 1.15, 3: 1, 4: 1 },                 // Keeper / unique durability per act (05 §4 elite band)
       corpseMs: 10000,
       trashXpBase: 10,                                  // xp of a normal monster at AL 1 (grows by xpGrowth per AL)
       dormantDrPct: 40,                                 // statues take this much less damage until they wake
@@ -82,13 +83,16 @@
     xp: { base: 290, growth: 1.13, earlyMult: 0.3, earlyLevels: 12, fullClearKills: 5 },
     skills: {
       maxRank: 5, keystoneTier: 4,                      // skill points buy this many ranks per skill; the tier-4 keystone has one
+      formRank: 2,                                      // a skill's Forms (pick one of two) open at this bought rank
+      exclusiveKeystones: ['magician', 'fighter', 'assassin', 'valkyrie'], // keystones are an either-or Attunement
       tierLevel: { 1: 1, 2: 4, 3: 8, 4: 13 },           // character level that unlocks each skill tier
       rankCap: 8,                                       // bought + gear (+skill) ranks are capped here
       rankScaleStep: 0.2,                               // each rank above 1 adds this fraction of the base value
       cdrCapPct: 40,                                    // cooldown reduction never exceeds this percent
     },
     gen: {
-      budgetMin: 48, budgetMax: 75,
+      budgetMin: 56, budgetMax: 78,
+      swarmChance: 0.38,                                // chance for the next pack to cluster in the same room (swarm rooms)
       spawn: { pilgrim: 0.85, penitent: 1.0, martyr: 1.15 },
       minStartDist: 10,                                 // packs anchor at least this far (Chebyshev) from the up stairs
       packSpacing: 7, minPackSpacing: 3,                // preferred distance between pack anchors, relaxed down to the minimum
@@ -102,26 +106,26 @@
     },
     loot: {
       // rarity chance = base × (1 + mfEff / 100), mfEff = MF·K / (MF + K); magic counts mfEff / magicMfDiv instead
-      legendaryBase: 0.015, rareBase: 0.12, magicBase: 0.4,
-      actRarity: { 1: 0.5 },                            // Act I: rare and legendary chances × this, so the first rares mean something
-      legendaryAfterFirstBoss: true,                    // no legendary drops before the first act boss falls (its first kill drops one)
+      legendaryBase: 0.025, rareBase: 0.16, magicBase: 0.45,
+      actRarity: { 1: 1.0 },                            // Act I: full rare and legendary rates from floor 1
+      legendaryAfterFirstBoss: false,                   // legendaries can drop from floor 1
       mfDiminishK: 250, magicMfDiv: 200,
       mfPerAscension: 10,
       smartLootTarget: 0.72,                            // share of drops a class should be able to use
-      rareHookChance: 0.25, rareProcChance: 0.15,       // a rare's next affix is its class hook this often, else its proc this often
+      rareHookChance: 0.40, rareProcChance: 0.25,       // a rare's next affix is its class hook this often, else its proc this often
       hookOwnClassChance: 0.75,                         // a class hook names the finder's class this often (when the base allows it)
       legendaryOwnClassChance: 0.5,
       goldBase: 6, goldRollLo: 0.6, goldRollHi: 1.4,    // gold = base × goldGrowth^(AL−1) × roll × k × gold find (goldGrowth: monsters)
       // drop tables (05 §6.1)
       loreDropMult: 1.2,                                // champions with a lore mod drop more
-      trash: { item: 0.10, gold: 0.25, orb: 0.30, scroll: 0.05, portalScroll: 0.75 },
+      trash: { item: 0.12, gold: 0.25, orb: 0.30, scroll: 0.05, portalScroll: 0.75 },
       champion: { gold: 2, orb: 0.5 },
-      elite: { items: 2, gold: 6, rareChance: { 1: 0.35 } },   // a Keeper's first item is rare this often per act (else always)
+      elite: { items: 2, gold: 6, rareChance: { 1: 1.0 } },   // a Keeper's first item is always at least rare
       boss: {
-        ilvlBonus: 2, items: 4, malgothItems: 6, legendaryChance: 0.25, rares: 1, malgothRares: 2,
+        ilvlBonus: 2, items: 4, malgothItems: 6, legendaryChance: 0.35, rares: 2, malgothRares: 3,
         goldPiles: 4, gold: 40, malgothGold: 80, orbs: 2,
       },
-      chest: { rare: 0.15, rareAct: { 1: 0.05 }, gold: 0.6, goldK: 4, orb: 0.3 },   // rareAct: per-act override of the bonus rare
+      chest: { rare: 0.22, rareAct: { 1: 0.18 }, gold: 0.65, goldK: 4, orb: 0.35 },   // rareAct: per-act override of the bonus rare
       // loot pile: a roll below gold drops gold (×goldK), below orb an orb, else a scroll (portal this often, else reveal)
       pile: { gold: 0.5, orb: 0.8, goldK: 1.5, portalScroll: 0.7 },
     },

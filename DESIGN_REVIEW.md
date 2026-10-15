@@ -119,12 +119,17 @@ Recommendations 1–3 are done; the details and the spec departures are in the s
 ("Early game rework after the design review").
 
 - **1. Tiers** unlock at levels 1 / 4 / 8 / 13. The bot's skill plans take each tier when it opens.
-- **2. Build and spend:**
-  - Assassin: Tiger Strike is free; energy (10/s) pays for finishers.
-  - Valkyrie: Multishot 0.8×; Aimed Shot needs 2 focus, follows attack speed, 1.0× + 0.6× per focus.
-  - Magician: cantrips back at spec damage, cast in 450 ms. A new left-click slot holds a free builder
-    or cantrip, and the Magician's first cantrip starts there.
-  - Fighter: unchanged; its spenders now arrive at level 8.
+- **2. Build and spend:** a first pass left the builders free; a follow-up the same day ("Every skill costs its
+  resource" in `DECISIONS.md`) made every active skill cost its class resource, with only the basic attack free
+  (a test enforces it). Current state:
+  - Assassin: Tiger Strike costs 8 energy and builds combo; only finishers spend combo. Energy regenerates at 12/s.
+  - Valkyrie: basic attacks build focus. Multishot 0.8× per arrow, costs 1 focus, no focus refund. Aimed Shot
+    needs 2 focus, follows attack speed, 2.3× + 0.3× per focus.
+  - Magician: cantrips back at spec damage, cast in 450 ms, cost 3 mana (mana costs grow with level). A
+    left-click slot holds any targeted skill without a cooldown and falls back to the basic attack when the
+    hero can't pay; the Magician's first cantrip starts there.
+  - Fighter: Bash and Brace cost rage; basic attacks build 15 rage, and rage never settles below 20. Its
+    spenders now arrive at level 8.
 - **3. XP:** early levels are discounted (0.3× at level 1, full price from level 13). Arrival levels on
   floors 2–6 are 4 / 7 / 10 / 12 / 14 (target 4 / 7 / 9 / 11 / 13). Late game unchanged.
 - **Retune:** the balance suite passes again (every class within 20% of the median trash TTK in every

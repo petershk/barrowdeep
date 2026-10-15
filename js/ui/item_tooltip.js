@@ -38,7 +38,10 @@
       if (cm.equipped && cm.equipped.uid === item.uid) continue;
       const side = cm.slot === 'ring1' ? 'left' : 'right';
       const ring = cmp.length > 1 ? ' (' + side + ' ring)' : '';
-      const head = cm.equipped ? 'Compared with ' + BD.sim.items.derive(cm.equipped).name + ring : 'Slot empty';
+      const names = [];
+      if (cm.equipped) names.push(BD.sim.items.derive(cm.equipped).name + ring);
+      if (cm.displaced) names.push(BD.sim.items.derive(cm.displaced).name);
+      const head = names.length ? 'Compared with ' + names.join(' + ') : 'Slot empty';
       const box = h('div.it-cmp', [h('div.it-cmp-head', head)]);
       const dps = Math.round(cm.dps * 10) / 10;
       if (Math.abs(dps) >= 0.1) box.appendChild(delta(dps, 'damage per second'));

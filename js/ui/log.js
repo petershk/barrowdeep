@@ -1,6 +1,6 @@
 // @ts-check
 // Announce banner (48 px gold small caps, 3.6 s), event feed (few large fading lines, top-left),
-// reject reasons near the cursor, and the quest tracker line under the minimap.
+// reject reasons near the cursor, and the quest text the tracker (top-left) shows.
 (function (BD) {
   'use strict';
 
@@ -44,6 +44,8 @@
   function frame(world, ms) {
     if (!banner) mount();
     if (bannerT > 0) {
+      const busy = world.player && (world.player.attack || world.player.lockId != null || (BD.input.mouse && BD.input.mouse.hoverEntity));
+      if (bannerT > 500 && banner.classList.contains('place') && busy) bannerT = 500;
       bannerT -= ms;
       if (bannerT <= 0) banner.classList.remove('show');
     }
@@ -51,7 +53,6 @@
       rejectT -= ms;
       if (rejectT <= 0) reject.classList.remove('show');
     }
-    if (BD.ui.minimap && world.floor) BD.ui.minimap.setQuest(questText(world));
   }
 
   function questText(world) {
@@ -64,7 +65,7 @@
       if (!r.flags['key' + f.n]) return 'Slay the Keeper for the Gate Key';
       return f.gateOpen ? 'Enter the gate' : 'Open the boss gate';
     }
-    return f.sealBroken ? 'The seal is broken — descend' : 'Slay the Keeper';
+    return f.sealBroken ? 'The seal is broken — descend' : 'Descend, or slay the Keeper';
   }
 
   BD.ui.hud.add({ frame });

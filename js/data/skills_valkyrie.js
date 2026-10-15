@@ -8,6 +8,12 @@
     S[o.id] = Object.assign({ cls: 'valkyrie', tags: [], effects: [], breakpoints: [], cues }, o);
   };
   const arrow = (o) => Object.assign({ kind: 'projectile', projectile: 'arrow' }, o);
+  const st = (id, o) => Object.assign({ type: 'status', id, needsHit: true }, o || {});
+  const mult = (eff, k) => {
+    const out = Object.assign({}, eff, { mult: eff.mult * k });
+    if (eff.perRank) out.perRank = eff.perRank.map((v) => v * k);
+    return out;
+  };
 
   // ---------------- Marksman ----------------
   sk({
@@ -19,6 +25,23 @@
       { rank: 3, set: { pierceAt5: true }, text: 'At 5 focus, the arrow pierces every enemy.' },
       { rank: 5, set: { extraAt5: 2 }, text: 'At 5 focus, 2 more arrows fly at nearby enemies.' },
     ],
+    forms: [
+      { id: 'quickdraw', name: 'Quickdraw', verb: 'Snap',
+        text: 'Fires on the move from 1 focus: costs at most 2 focus, deals 1.9× + 0.35× per focus and refunds 1 focus on critical hits.',
+        mod: (ab) => {
+          ab.cancelOnMove = false;
+          ab.resource = { type: 'focus', cost: 2, minStart: 1 };
+          ab.effects = [{ type: 'damage', source: 'weapon', mult: 1.9, perFocus: 0.35, canCrit: true }];
+          ab.quickdraw = true;
+        } },
+      { id: 'explosive_bolt', replaces: [3], name: 'Explosive Bolt', verb: 'Detonate',
+        text: 'Explodes on impact in radius 2, converting half the damage to fire and setting enemies Burning.',
+        mod: (ab) => {
+          ab.delivery = arrow({ maxDist: 12, explode: { radius: 2 } });
+          ab.effects = [Object.assign({}, ab.effects[0], { convert: { fire: 0.5 } }), st('burning')];
+          ab.school = 'fire';
+        } },
+    ],
     desc: 'Needs 2 focus. Draw (moving cancels it, free) and loose an arrow for 2.3× + 0.3× per focus. Spends all focus.',
   });
   sk({
@@ -29,6 +52,21 @@
     breakpoints: [
       { rank: 3, add: [{ type: 'status', id: 'bleeding', needsHit: true }], text: 'Applies Bleeding.' },
       { rank: 5, set: { twin: true }, text: 'Two parallel arrows.' },
+    ],
+    forms: [
+      { id: 'rail_shot', replaces: [3], name: 'Rail Shot', verb: 'Shock',
+        text: 'Electrifies the shaft: converts half the damage to lightning, applies Shocked and Stuns for 0.8 s.',
+        mod: (ab) => {
+          ab.effects = [Object.assign({}, ab.effects[0], { convert: { light: 0.5 } }), st('shocked'), st('stunned', { durMs: 800 })];
+          ab.school = 'storm';
+        } },
+      { id: 'splinter_volley', replaces: [5], name: 'Splinter Volley', verb: 'Twin',
+        text: 'Costs 0 focus, fires two parallel piercing arrows and generates 1 focus when it hits.',
+        mod: (ab) => {
+          ab.resource = { type: 'focus', cost: 0, gen: 1 };
+          ab.twin = true;
+          ab.noFocusConsume = true;
+        } },
     ],
     desc: 'An arrow that pierces every enemy in a line up to 10 tiles. Consumes up to 2 focus for +25% each.',
   });
@@ -42,10 +80,27 @@
       { rank: 3, set: { area: { shape: 'circle', radius: 3 } }, text: 'Radius 3.' },
       { rank: 5, set: { follow: 'target' }, text: 'The volley follows your locked target.' },
     ],
+    forms: [
+      { id: 'hailstorm', name: 'Hailstorm', verb: 'Freeze',
+        text: 'Converts the volleys to cold: Chills every enemy inside and Freezes any enemy struck by 3 volleys.',
+        mod: (ab) => {
+          ab.effects = [Object.assign({}, ab.effects[0], { element: 'cold' }), st('chilled')];
+          ab.hailFreezeHits = 3;
+          ab.school = 'cold';
+        } },
+      { id: 'scorched_sky', replaces: [3], name: 'Scorched Sky', verb: 'Burn',
+        text: 'Radius 3. Converts the volleys to fire, applies Burning and leaves burning ground for 3 s.',
+        mod: (ab) => {
+          ab.area = { shape: 'circle', radius: 3 };
+          ab.effects = [Object.assign({}, ab.effects[0], { element: 'fire' }), st('burning')];
+          ab.rainGround = true;
+          ab.school = 'fire';
+        } },
+    ],
     desc: 'Five volleys over 2.5 s in radius 2, 0.5× each, +10% per focus spent.',
   });
   sk({ id: 'deadeye', branch: 'marksman', tier: 4, name: 'Deadeye', icon: 'deadeye', keystone: true, passive: () => void 0, school: 'holy',
-    desc: 'Aimed Shot at 5 focus always crits and consumes only 3 focus.' });
+    desc: 'Attunement (one per hero). Aimed Shot at 5 focus always crits and consumes only 3 focus.' });
 
   // ---------------- Skirmish ----------------
   sk({
@@ -57,6 +112,21 @@
       { rank: 3, set: { delivery: arrow({ count: 7, spread: 50, extraFromStat: true }) }, text: '7 arrows.' },
       { rank: 5, set: { ricochet: 1 }, text: 'Arrows ricochet once.' },
     ],
+    forms: [
+      { id: 'broadhead_barrage', name: 'Broadhead Barrage', verb: 'Knockback',
+        text: 'Heavy broadheads: deals +25% damage, knocks enemies within 3 tiles back 1 tile and applies Bleeding.',
+        mod: (ab) => {
+          ab.effects = [mult(ab.effects[0], 1.25), st('bleeding')];
+          ab.closeKnock = 3;
+        } },
+      { id: 'wind_volley', replaces: [3, 5], name: 'Wind Volley', verb: 'Ricochet',
+        text: 'Costs 0 focus, fires 7 arrows in a wide 70° fan that ricochet once, and generates 1 focus on hit.',
+        mod: (ab) => {
+          ab.resource = { type: 'focus', cost: 0, gen: 1 };
+          ab.delivery = arrow({ count: 7, spread: 70, extraFromStat: true });
+          ab.ricochet = 1;
+        } },
+    ],
     desc: 'Five arrows in a 50° cone, 0.8× each. An enemy is struck by at most two of them.',
   });
   sk({
@@ -66,6 +136,14 @@
     breakpoints: [
       { rank: 3, set: { cooldownMs: 4500 }, text: 'Cooldown 4.5 s.' },
       { rank: 5, set: { primeAimed: true }, text: 'Your next Aimed Shot within 3 s counts as 5 focus.' },
+    ],
+    forms: [
+      { id: 'parting_shot', name: 'Parting Shot', verb: 'Volley',
+        text: 'As you backflip, loose a 3-arrow fan toward the cursor for 1.0× damage that Slows enemies and grants +3 focus.',
+        set: { partingShot: 1.0, vaultFocus: 3 } },
+      { id: 'valkyrie_dive', replaces: [3], name: 'Valkyrie Dive', verb: 'Dive',
+        text: 'Cooldown 4.5 s. Leap toward the cursor instead of away, slamming radius 1 on landing for 1.6× damage and a 1 s Stun.',
+        set: { cooldownMs: 4500, vaultForward: true, diveMult: 1.6 } },
     ],
     desc: 'Backflip 4 tiles away from the cursor, leaving caltrops where you stood (Slowed 50%, Bleeding). +2 focus.',
   });
@@ -78,11 +156,23 @@
       { rank: 3, set: { pinChain: 2 }, text: 'Chains to 2 nearby enemies.' },
       { rank: 5, set: { pinVuln: true }, text: 'Rooted enemies are Vulnerable.' },
     ],
+    forms: [
+      { id: 'bola_snare', replaces: [3], name: 'Bola Snare', verb: 'Pull',
+        text: 'Instead of fearing nearby enemies, drags all enemies within 3 tiles of the target 2 tiles inward and Roots them all for 2.5 s.',
+        set: { bolaPull: 3 } },
+      { id: 'executioners_mark', replaces: [5], name: "Executioner's Mark", verb: 'Mark',
+        text: 'Deals +40% damage, applies Vulnerable for 4 s and grants 3 focus on hit.',
+        mod: (ab) => {
+          ab.effects = [mult(ab.effects[0], 1.4)].concat(ab.effects.slice(1));
+          ab.pinVuln = true;
+          ab.pinFocus = 3;
+        } },
+    ],
     desc: 'A 2.0× arrow that Roots for 2.5 s (bosses are Slowed 40%). Enemies within 2 of the target are Feared for 1.5 s.',
   });
   sk({ id: 'wind_dancer', branch: 'skirmish', tier: 4, name: 'Wind Dancer', icon: 'wind_dancer', keystone: true,
     passive: (r, add) => add('evade_cd_ms', 1000, 'Wind Dancer'), school: 'dust',
-    desc: 'Evade grants 3 focus and resets Vault. Evade cooldown −1 s.' });
+    desc: 'Attunement (one per hero). Evade grants 3 focus and resets Vault. Evade cooldown −1 s.' });
 
   // ---------------- Valor ----------------
   sk({
@@ -94,6 +184,21 @@
       { rank: 3, set: { delivery: { kind: 'projectile', projectile: 'javelin', pierce: 'all', eachLands: true } }, text: 'Pierces every enemy.' },
       { rank: 5, set: { returns: true }, text: 'Returns to you, hitting again.' },
     ],
+    forms: [
+      { id: 'lightning_fury', name: 'Lightning Fury', verb: 'Split',
+        text: 'Converts the javelin to lightning; on its first hit it splits into 4 lightning bolts that fly outward for 0.9× damage and apply Shocked.',
+        mod: (ab) => {
+          ab.effects = [Object.assign({}, ab.effects[0], { element: 'light' }), st('shocked')];
+          ab.furyBolts = 4;
+          ab.school = 'storm';
+        } },
+      { id: 'impaling_spear', replaces: [3], name: 'Impaling Spear', verb: 'Impale',
+        text: 'Pierces every enemy, deals +30% damage, knocks enemies back 1 tile and applies Bleeding.',
+        mod: (ab) => {
+          ab.delivery = { kind: 'projectile', projectile: 'javelin', pierce: 'all', eachLands: true };
+          ab.effects = [mult(ab.effects[0], 1.3), { type: 'knockback', dist: 1 }, st('bleeding')];
+        } },
+    ],
     desc: 'Hurl a spectral javelin for 1.4× that pierces 2 enemies. +1 focus per enemy hit (up to 2).',
   });
   sk({
@@ -104,6 +209,14 @@
     breakpoints: [
       { rank: 3, set: { spiritMs: 30000 }, text: 'Lasts 30 s.' },
       { rank: 5, set: { spiritThrows: true }, text: 'She also throws Javelins.' },
+    ],
+    forms: [
+      { id: 'choir_of_the_slain', replaces: [5], name: 'Choir of the Slain', verb: 'Host',
+        text: 'Summons two Valkyrie spirits at 0.65× damage each that also hurl Javelins.',
+        set: { spiritCount: 2, spiritMult: 0.65, spiritThrows: true } },
+      { id: 'descent_of_the_einherjar', name: 'Descent of the Einherjar', verb: 'Slam',
+        text: 'Cooldown 20 s. Your Valkyrie crashes down in a radius-2 holy blast for 2.8× damage, Stuns for 1.2 s and grants full focus.',
+        set: { cooldownMs: 20000, summonSlam: 2.8, summonFocus: 5 } },
     ],
     desc: 'Summon a spectral Valkyrie for 20 s: her spear strikes at 0.8× your weapon hit. Enemies target her half of the time.',
   });
@@ -119,10 +232,22 @@
       { rank: 3, set: { area: { shape: 'circle', radius: 2 } }, text: 'Radius 2.' },
       { rank: 5, set: { spears: 3 }, text: 'Three spears fall in a line.' },
     ],
+    forms: [
+      { id: 'tempest_pillar', name: 'Tempest Pillar', verb: 'Storm',
+        text: 'Leaves a crackling lightning pillar in radius 2 for 4 s that ticks every 0.5 s and applies Shocked.',
+        mod: (ab) => {
+          ab.area = { shape: 'circle', radius: 2 };
+          ab.linger = { kind: 'lightning_pillar', durMs: 4000 };
+          ab.effects = ab.effects.concat([st('shocked')]);
+        } },
+      { id: 'judgement_barrage', replaces: [5], name: 'Judgement Barrage', verb: 'Barrage',
+        text: 'Calls down 5 spears in a cross around the target tile at 65% damage each and refunds 2 focus.',
+        set: { crossSpears: 0.65, refundFocus: 2 } },
+    ],
     desc: 'Mark a tile within 9: 0.6 s later a spear strikes radius 1 for 4.0× (half lightning) and stuns 1 s. +15% per focus spent.',
   });
   sk({ id: 'shieldmaidens_oath', branch: 'valor', tier: 4, name: "Shieldmaiden's Oath", icon: 'shieldmaidens_oath', keystone: true, passive: () => void 0, school: 'holy',
-    desc: "While your Valkyrie fights beside you, you deal +25% damage and take 20% less. Valkyrie's Call cooldown 20 s." });
+    desc: "Attunement (one per hero). While your Valkyrie fights beside you, you deal +25% damage and take 20% less. Valkyrie's Call cooldown 20 s." });
 
   for (const id in S) if (S[id].cls === 'valkyrie') BD.data.stats.ensureSkillKey(id, S[id].name);
 })(globalThis.BD);
